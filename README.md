@@ -32,7 +32,7 @@ export PATH=$PATH:~/bin
 
 ```bash
 # Download latest release
-curl -L https://github.com/musinsa/repo-claude/releases/latest/download/repo-claude_$(uname -s)_$(uname -m).tar.gz | tar xz
+curl -L https://github.com/taokim/repo-claude/releases/latest/download/repo-claude_$(uname -s)_$(uname -m).tar.gz | tar xz
 chmod +x repo-claude
 sudo mv repo-claude /usr/local/bin/
 ```
@@ -40,7 +40,7 @@ sudo mv repo-claude /usr/local/bin/
 ### From Source
 
 ```bash
-git clone https://github.com/musinsa/repo-claude.git
+git clone https://github.com/taokim/repo-claude.git
 cd repo-claude
 make build
 sudo make install
@@ -86,7 +86,7 @@ workspace:
   name: my-project
   manifest:
     remote_name: origin
-    remote_fetch: https://github.com/musinsa/
+    remote_fetch: https://github.com/yourorg/
     default_revision: main
     projects:
       - name: backend
@@ -181,4 +181,4 @@ Key components:
 
 ## License
 
-Internal Musinsa project
+MIT License - see LICENSE file for details
