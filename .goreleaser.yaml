@@ -1,0 +1,101 @@
+# .goreleaser.yaml
+project_name: repo-claude
+
+before:
+  hooks:
+    - go mod tidy
+    - go test -short ./...
+
+builds:
+  - id: repo-claude
+    binary: repo-claude
+    main: ./cmd/repo-claude
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.buildTime={{.Date}}
+
+archives:
+  - id: repo-claude
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+
+release:
+  github:
+    owner: yourusername
+    name: repo-claude
+  draft: true
+  prerelease: auto
+  name_template: "{{.ProjectName}}-v{{.Version}}"
+  header: |
+    ## Repo-Claude v{{.Version}}
+    
+    Multi-agent orchestration using Repo tool and Claude Code.
+    
+  footer: |
+    ## Installation
+    
+    ### macOS/Linux
+    ```bash
+    curl -L https://github.com/yourusername/repo-claude/releases/download/v{{.Version}}/repo-claude_{{.Os}}_{{.Arch}}.tar.gz | tar xz
+    chmod +x repo-claude
+    sudo mv repo-claude /usr/local/bin/
+    ```
+    
+    ### Homebrew (coming soon)
+    ```bash
+    brew install repo-claude
+    ```
+
+brews:
+  - name: repo-claude
+    homepage: https://github.com/yourusername/repo-claude
+    description: Multi-agent orchestration using Repo tool and Claude Code
+    license: MIT
+    skip_upload: auto
+    repository:
+      owner: yourusername
+      name: homebrew-tap
+      branch: main
+    folder: Formula
+    test: |
+      system "#{bin}/repo-claude", "--version"
+    install: |
+      bin.install "repo-claude"
+    
+    dependencies:
+      - name: git
+      - name: repo
