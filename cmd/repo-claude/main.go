@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	version = "1.0.0"
+	version = "0.0.1"
 	rootCmd = &cobra.Command{
 		Use:   "repo-claude",
 		Short: "Multi-agent orchestration using Repo tool and Claude Code",
