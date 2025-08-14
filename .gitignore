@@ -36,7 +36,6 @@ repo-claude
 !cmd/repo-claude/
 .repo-claude-state.json
 test-project/
-fse-*/
 test-*/
 
 # Goreleaser
