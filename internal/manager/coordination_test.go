@@ -56,7 +56,7 @@ func TestCreateClaudeMD(t *testing.T) {
 		assert.Contains(t, string(content), "backend-agent")
 		assert.Contains(t, string(content), "Backend development")
 		assert.Contains(t, string(content), "backend")
-		assert.Contains(t, string(content), "repo-claude status")
+		assert.Contains(t, string(content), "rc status")
 		assert.Contains(t, string(content), "Cross-Repository Awareness")
 		assert.Contains(t, string(content), "frontend")
 	})

@@ -145,17 +145,12 @@ func (m *Manager) InitWorkspace(projectName string, interactive bool) error {
 	fmt.Println("📦 Cloning repositories...")
 	if err := m.GitManager.Clone(); err != nil {
 		fmt.Printf("⚠️  Some repositories failed to clone: %v\n", err)
-		fmt.Println("You can run './repo-claude sync' to retry")
+		fmt.Println("You can run 'rc sync' to retry")
 	}
 
 	// Setup coordination files
 	if err := m.setupCoordination(); err != nil {
 		return fmt.Errorf("setting up coordination: %w", err)
-	}
-
-	// Copy executable to workspace
-	if err := m.copyExecutable(); err != nil {
-		return fmt.Errorf("copying executable: %w", err)
 	}
 
 	fmt.Println("✅ Workspace initialized!")
@@ -165,8 +160,8 @@ func (m *Manager) InitWorkspace(projectName string, interactive bool) error {
 	if projectName != "." && m.ProjectPath != "." {
 		fmt.Printf("  cd %s\n", filepath.Base(m.ProjectPath))
 	}
-	fmt.Println("  ./repo-claude start     # Start all agents")
-	fmt.Println("  ./repo-claude status    # Check status")
+	fmt.Println("  rc start     # Start all agents")
+	fmt.Println("  rc status    # Check status")
 
 	return nil
 }
@@ -179,28 +174,6 @@ func (m *Manager) Sync() error {
 	return m.GitManager.Sync()
 }
 
-// copyExecutable copies the current executable to the project root
-func (m *Manager) copyExecutable() error {
-	executable, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("getting executable path: %w", err)
-	}
-
-	destPath := filepath.Join(m.ProjectPath, "repo-claude")
-	
-	// Read source file
-	data, err := os.ReadFile(executable)
-	if err != nil {
-		return fmt.Errorf("reading executable: %w", err)
-	}
-
-	// Write to destination
-	if err := os.WriteFile(destPath, data, 0755); err != nil {
-		return fmt.Errorf("writing executable: %w", err)
-	}
-
-	return nil
-}
 
 // configToRepos converts config projects to git repositories
 func configToRepos(cfg *config.Config) []git.Repository {

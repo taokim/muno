@@ -91,36 +91,6 @@ func TestLoadFromCurrentDir(t *testing.T) {
 	})
 }
 
-func TestCopyExecutable(t *testing.T) {
-	tmpDir := t.TempDir()
-	mgr := &Manager{
-		ProjectPath:   tmpDir,
-		WorkspacePath: filepath.Join(tmpDir, "workspace"),
-	}
-	
-	// Create a fake executable
-	fakeExe := filepath.Join(tmpDir, "fake-exe")
-	err := os.WriteFile(fakeExe, []byte("#!/bin/sh\necho test"), 0755)
-	require.NoError(t, err)
-	
-	// Mock os.Executable to return our fake
-	oldExecutable := os.Args[0]
-	os.Args[0] = fakeExe
-	defer func() { os.Args[0] = oldExecutable }()
-	
-	err = mgr.copyExecutable()
-	require.NoError(t, err)
-	
-	// Check if file was copied to project root, not workspace
-	copiedPath := filepath.Join(tmpDir, "repo-claude")
-	assert.FileExists(t, copiedPath)
-	
-	// Check permissions
-	info, err := os.Stat(copiedPath)
-	require.NoError(t, err)
-	assert.True(t, info.Mode()&0111 != 0, "Should be executable")
-}
-
 func TestSetupCoordination(t *testing.T) {
 	tmpDir := t.TempDir()
 	
@@ -149,7 +119,7 @@ func TestSetupCoordination(t *testing.T) {
 	content, err := os.ReadFile(sharedMemPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "# Shared Agent Memory")
-	assert.Contains(t, string(content), "repo-claude status")
+	assert.Contains(t, string(content), "rc status")
 	
 	// Check CLAUDE.md files were created
 	for _, project := range cfg.Workspace.Manifest.Projects {

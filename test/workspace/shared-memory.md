@@ -9,9 +9,9 @@
 - All repositories managed by repo-claude
 
 ## Commands Available
-- `./repo-claude status` - Show status of all projects
-- `./repo-claude sync` - Sync all projects
-- `./repo-claude forall '<command>'` - Run command in all projects
+- `rc status` - Show status of all projects
+- `rc sync` - Sync all projects
+- `rc forall '<command>'` - Run command in all projects
 
 ## Decisions
 - Document architectural decisions here

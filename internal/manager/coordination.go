@@ -25,9 +25,9 @@ func (m *Manager) setupCoordination() error {
 - All repositories managed by repo-claude
 
 ## Commands Available
-- ` + "`./repo-claude status`" + ` - Show status of all projects
-- ` + "`./repo-claude sync`" + ` - Sync all projects
-- ` + "`./repo-claude forall '<command>'`" + ` - Run command in all projects
+- ` + "`rc status`" + ` - Show status of all projects
+- ` + "`rc sync`" + ` - Sync all projects
+- ` + "`rc forall '<command>'`" + ` - Run command in all projects
 
 ## Decisions
 - Document architectural decisions here
@@ -135,13 +135,13 @@ You have access to these related repositories:
 ## Example Usage
 %s
 # See status of all projects
-./repo-claude status
+rc status
 
 # Sync all projects
-./repo-claude sync
+rc sync
 
 # Run a command in all projects
-./repo-claude forall 'git log --oneline -5'
+rc forall 'git log --oneline -5'
 %s
 `,
 		project.Agent,
@@ -152,13 +152,13 @@ You have access to these related repositories:
 		agentConfig.Model,
 		workspaceRel,
 		sharedMemoryRel,
-		"`./repo-claude status`",
-		"`./repo-claude sync`",
-		"`./repo-claude forall 'git status'`",
+		"`rc status`",
+		"`rc sync`",
+		"`rc forall 'git status'`",
 		strings.Join(otherProjects, "\n"),
-		"`./repo-claude sync`",
+		"`rc sync`",
 		project.Name,
-		"`./repo-claude forall`",
+		"`rc forall`",
 		"```bash",
 		"```",
 	)

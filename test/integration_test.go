@@ -28,60 +28,50 @@ func TestIntegrationWorkflow(t *testing.T) {
 	// Build repo-claude binary
 	binary := buildBinary(t, tmpDir)
 	
-	// Test init command
+	// Initialize project first (required for all tests)
+	projectName := "test-project"
+	projectDir := filepath.Join(tmpDir, projectName)
+	
+	cmd := exec.Command(binary, "init", projectName, "--non-interactive")
+	cmd.Dir = tmpDir
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "Init failed: %s", string(output))
+	
+	// Test init command results
 	t.Run("Init", func(t *testing.T) {
-		projectName := "test-project"
-		projectDir := filepath.Join(tmpDir, projectName)
-		
-		cmd := exec.Command(binary, "init", projectName, "--non-interactive")
-		cmd.Dir = tmpDir
-		output, err := cmd.CombinedOutput()
-		
-		require.NoError(t, err, "Init failed: %s", string(output))
 		assert.Contains(t, string(output), "Initializing Repo-Claude workspace")
 		assert.Contains(t, string(output), "Workspace initialized")
 		
 		// Check created files
 		assert.FileExists(t, filepath.Join(projectDir, "repo-claude.yaml"))
-		assert.FileExists(t, filepath.Join(projectDir, "repo-claude"))
-		assert.FileExists(t, filepath.Join(projectDir, "shared-memory.md"))
-		assert.DirExists(t, filepath.Join(projectDir, ".manifest-repo"))
-		
-		// Check executable was copied and is executable
-		copiedBinary := filepath.Join(projectDir, "repo-claude")
-		info, err := os.Stat(copiedBinary)
-		require.NoError(t, err)
-		assert.True(t, info.Mode()&0111 != 0, "Copied binary should be executable")
+		assert.FileExists(t, filepath.Join(projectDir, "workspace", "shared-memory.md"))
+		assert.DirExists(t, filepath.Join(projectDir, "workspace"))
 	})
 	
 	// Test status command
 	t.Run("Status", func(t *testing.T) {
-		projectDir := filepath.Join(tmpDir, "test-project")
-		
-		cmd := exec.Command(filepath.Join(projectDir, "repo-claude"), "status")
+		cmd := exec.Command(binary, "status")
 		cmd.Dir = projectDir
 		output, err := cmd.CombinedOutput()
 		
 		require.NoError(t, err, "Status failed: %s", string(output))
 		assert.Contains(t, string(output), "REPO-CLAUDE STATUS")
 		assert.Contains(t, string(output), "Workspace: test-project")
-		assert.Contains(t, string(output), "Repo Projects")
+		assert.Contains(t, string(output), "Repositories")
 	})
 	
 	// Test sync command
 	t.Run("Sync", func(t *testing.T) {
-		projectDir := filepath.Join(tmpDir, "test-project")
-		
 		// Create dummy repositories for testing
 		createDummyRepos(t, projectDir)
 		
-		cmd := exec.Command(filepath.Join(projectDir, "repo-claude"), "sync")
+		cmd := exec.Command(binary, "sync")
 		cmd.Dir = projectDir
 		output, err := cmd.CombinedOutput()
 		
 		// Sync might fail if repos don't exist, but command should run
 		_ = err // Ignore error since repos don't exist
-		assert.Contains(t, string(output), "Syncing all repositories")
+		assert.Contains(t, string(output), "Syncing repositories")
 	})
 }
 

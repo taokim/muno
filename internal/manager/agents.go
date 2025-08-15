@@ -47,7 +47,7 @@ func (m *Manager) StartAgent(agentName string) error {
 
 	// Check if repository exists
 	if _, err := os.Stat(filepath.Join(repoPath, ".git")); os.IsNotExist(err) {
-		return fmt.Errorf("repository %s not found, run './repo-claude sync' first", repoPath)
+		return fmt.Errorf("repository %s not found, run 'rc sync' first", repoPath)
 	}
 
 	fmt.Printf("🚀 Starting %s in %s\n", agentName, repoPath)
@@ -252,9 +252,9 @@ func (m *Manager) ShowStatus() error {
 
 	fmt.Println(strings.Repeat("=", 70) + "\n")
 	fmt.Println("💡 Commands:")
-	fmt.Println("  ./repo-claude sync      # Sync all repositories")
-	fmt.Println("  ./repo-claude start     # Start agents")
-	fmt.Println("  ./repo-claude forall    # Run command in all repos")
+	fmt.Println("  rc sync      # Sync all repositories")
+	fmt.Println("  rc start     # Start agents")
+	fmt.Println("  rc forall    # Run command in all repos")
 
 	return nil
 }
