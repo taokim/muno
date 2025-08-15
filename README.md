@@ -31,13 +31,29 @@ export PATH=$PATH:~/bin
 
 ## Installation
 
+### Homebrew (Recommended)
+
+```bash
+brew tap taokim/tap
+brew install repo-claude
+```
+
 ### From Release
 
 ```bash
 # Download latest release
-curl -L https://github.com/taokim/repo-claude/releases/latest/download/repo-claude_$(uname -s)_$(uname -m).tar.gz | tar xz
-chmod +x repo-claude
-sudo mv repo-claude /usr/local/bin/
+# macOS (Intel)
+curl -L https://github.com/taokim/repo-claude/releases/latest/download/repo-claude_Darwin_x86_64.tar.gz | tar xz
+
+# macOS (Apple Silicon)
+curl -L https://github.com/taokim/repo-claude/releases/latest/download/repo-claude_Darwin_arm64.tar.gz | tar xz
+
+# Linux (x86_64)
+curl -L https://github.com/taokim/repo-claude/releases/latest/download/repo-claude_Linux_x86_64.tar.gz | tar xz
+
+# Then install
+chmod +x rc
+sudo mv rc /usr/local/bin/
 ```
 
 ### From Source
@@ -49,34 +65,29 @@ make build
 sudo make install
 ```
 
-### Homebrew (coming soon)
-
-```bash
-brew install repo-claude
-```
 
 ## Quick Start
 
 1. **Initialize a new workspace**:
    ```bash
-   repo-claude init my-project
+   rc init my-project
    cd my-project
    ```
 
 2. **Start agents**:
    ```bash
-   ./repo-claude start              # Start all auto-start agents
-   ./repo-claude start backend-agent # Start specific agent
+   rc start              # Start all auto-start agents
+   rc start backend-agent # Start specific agent
    ```
 
 3. **Check status**:
    ```bash
-   ./repo-claude status
+   rc status
    ```
 
 4. **Stop agents**:
    ```bash
-   ./repo-claude stop
+   rc stop
    ```
 
 ## Configuration
@@ -112,9 +123,10 @@ agents:
 
 ## Workspace Structure
 
+After running `rc init my-project`, you'll have:
+
 ```
 my-project/
-├── repo-claude          # Executable
 ├── repo-claude.yaml     # Configuration
 ├── shared-memory.md     # Agent coordination
 ├── .repo/              # Repo metadata
@@ -125,6 +137,8 @@ my-project/
 └── frontend/          # Repository (main branch)
     └── CLAUDE.md      # Agent context
 ```
+
+Note: The `rc` command is installed system-wide via Homebrew or manual installation.
 
 ## Development
 
