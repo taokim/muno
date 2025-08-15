@@ -127,18 +127,23 @@ After running `rc init my-project`, you'll have:
 
 ```
 my-project/
-├── repo-claude.yaml     # Configuration
-├── shared-memory.md     # Agent coordination
-├── .repo/              # Repo metadata
-│   └── manifests/      # Local git repo with manifest
-│       └── default.xml # Repo manifest
-├── backend/            # Repository (main branch)
-│   └── CLAUDE.md      # Agent context
-└── frontend/          # Repository (main branch)
-    └── CLAUDE.md      # Agent context
+├── repo-claude.yaml        # Configuration
+├── .repo-claude-state.json # Agent state tracking
+└── workspace/              # Default workspace directory
+    ├── shared-memory.md    # Agent coordination
+    ├── .repo/              # Repo metadata
+    │   └── manifests/      # Local git repo with manifest
+    │       └── default.xml # Repo manifest
+    ├── backend/            # Repository (main branch)
+    │   └── CLAUDE.md       # Agent context
+    └── frontend/           # Repository (main branch)
+        └── CLAUDE.md       # Agent context
 ```
 
-Note: The `rc` command is installed system-wide via Homebrew or manual installation.
+Note: 
+- The `rc` command is installed system-wide via Homebrew or manual installation
+- Repositories are cloned into the `workspace/` subdirectory by default
+- You can customize the workspace path in `repo-claude.yaml` if needed
 
 ## Development
 
