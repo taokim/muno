@@ -70,13 +70,26 @@ release:
     
     ### macOS/Linux
     ```bash
-    curl -L https://github.com/taokim/repo-claude/releases/download/v{{.Version}}/repo-claude_{{.Os}}_{{.Arch}}.tar.gz | tar xz
+    # macOS (Intel)
+    curl -L https://github.com/taokim/repo-claude/releases/download/v{{.Version}}/repo-claude_Darwin_x86_64.tar.gz | tar xz
+    
+    # macOS (Apple Silicon)
+    curl -L https://github.com/taokim/repo-claude/releases/download/v{{.Version}}/repo-claude_Darwin_arm64.tar.gz | tar xz
+    
+    # Linux (x86_64)
+    curl -L https://github.com/taokim/repo-claude/releases/download/v{{.Version}}/repo-claude_Linux_x86_64.tar.gz | tar xz
+    
+    # Linux (ARM64)
+    curl -L https://github.com/taokim/repo-claude/releases/download/v{{.Version}}/repo-claude_Linux_arm64.tar.gz | tar xz
+    
+    # Then install
     chmod +x rc
     sudo mv rc /usr/local/bin/
     ```
     
-    ### Homebrew (coming soon)
+    ### Homebrew
     ```bash
+    brew tap taokim/tap
     brew install repo-claude
     ```
 
@@ -90,7 +103,7 @@ brews:
       owner: taokim
       name: homebrew-tap
       branch: main
-    folder: Formula
+    directory: Formula
     test: |
       system "#{bin}/rc", "--version"
     install: |
