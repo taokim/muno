@@ -98,7 +98,7 @@ func buildBinary(t *testing.T, tmpDir string) string {
 	binary := filepath.Join(tmpDir, "repo-claude")
 	
 	cmd := exec.Command("go", "build", "-o", binary, "./cmd/repo-claude")
-	cmd.Dir = filepath.Join("..", "..", "repo-claude-go") // Adjust path as needed
+	cmd.Dir = filepath.Join("..") // Go up one level from test/ to repo-claude-go root
 	
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -144,11 +144,15 @@ func TestConfigValidation(t *testing.T) {
 	tmpDir := t.TempDir()
 	binary := buildBinary(t, tmpDir)
 	
-	// Test init with invalid project name
+	// Test init without project name now succeeds (uses current directory)
+	workspaceDir := filepath.Join(tmpDir, "test-workspace")
+	os.MkdirAll(workspaceDir, 0755)
+	
 	cmd := exec.Command(binary, "init")
+	cmd.Dir = workspaceDir
 	output, err := cmd.CombinedOutput()
-	assert.Error(t, err)
-	assert.Contains(t, string(output), "Error")
+	// Init should succeed even without repos being cloneable
+	assert.NoError(t, err, "init should succeed: %s", string(output))
 	
 	// Test commands without workspace
 	cmds := []string{"start", "stop", "status", "sync"}

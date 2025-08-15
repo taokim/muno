@@ -89,27 +89,32 @@ func (m *Manager) interactiveConfig() error {
 	
 	// Configure agents
 	fmt.Println("\n🤖 Agent Configuration:")
-	agents := make(map[string]config.Agent)
+	agents := m.Config.Agents
+	if agents == nil {
+		agents = make(map[string]config.Agent)
+	}
 	
 	for _, project := range projects {
-		if project.Agent != "" && agents[project.Agent].Model == "" {
-			fmt.Printf("\nAgent: %s\n", project.Agent)
-			
-			specialization := prompt(reader, "  Specialization: ")
-			
-			model := prompt(reader, "  Model [claude-sonnet-4]: ")
-			if model == "" {
-				model = "claude-sonnet-4"
-			}
-			
-			autoStartStr := prompt(reader, "  Auto-start? [Y/n]: ")
-			autoStart := strings.ToLower(autoStartStr) != "n" && strings.ToLower(autoStartStr) != "no"
-			
-			agents[project.Agent] = config.Agent{
-				Model:          model,
-				Specialization: specialization,
-				AutoStart:      autoStart,
-				Dependencies:   []string{},
+		if project.Agent != "" {
+			if _, exists := agents[project.Agent]; !exists {
+				fmt.Printf("\nAgent: %s\n", project.Agent)
+				
+				specialization := prompt(reader, "  Specialization: ")
+				
+				model := prompt(reader, "  Model [claude-sonnet-4]: ")
+				if model == "" {
+					model = "claude-sonnet-4"
+				}
+				
+				autoStartStr := prompt(reader, "  Auto-start? [Y/n]: ")
+				autoStart := strings.ToLower(autoStartStr) != "n" && strings.ToLower(autoStartStr) != "no"
+				
+				agents[project.Agent] = config.Agent{
+					Model:          model,
+					Specialization: specialization,
+					AutoStart:      autoStart,
+					Dependencies:   []string{},
+				}
 			}
 		}
 	}
