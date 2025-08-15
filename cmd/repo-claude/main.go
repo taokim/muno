@@ -13,9 +13,9 @@ var (
 	version = "dev"
 	rootCmd = &cobra.Command{
 		Use:   "rc",
-		Short: "Multi-agent orchestration using Repo tool and Claude Code",
-		Long: `Repo-Claude integrates the Repo tool with Claude Code for 
-trunk-based multi-agent development across multiple repositories.`,
+		Short: "Multi-agent orchestration for Claude Code",
+		Long: `Repo-Claude orchestrates multiple Claude Code agents for 
+trunk-based development across multiple Git repositories.`,
 		Version: version,
 	}
 )

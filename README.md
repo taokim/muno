@@ -17,17 +17,7 @@ Simple multi-agent orchestration for Claude Code, managing multiple Git reposito
 ## Prerequisites
 
 - Git
-- [Repo tool](https://gerrit.googlesource.com/git-repo/)
 - [Claude Code CLI](https://claude.ai/code)
-
-### Installing Repo Tool
-
-```bash
-# macOS/Linux
-curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-chmod a+x ~/bin/repo
-export PATH=$PATH:~/bin
-```
 
 ## Installation
 
