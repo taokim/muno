@@ -30,9 +30,11 @@ type Manifest struct {
 
 // Project represents a repository project
 type Project struct {
-	Name   string `yaml:"name"`
-	Groups string `yaml:"groups"`
-	Agent  string `yaml:"agent,omitempty"`
+	Name     string `yaml:"name"`
+	Path     string `yaml:"path,omitempty"`     // Custom path (defaults to name)
+	Groups   string `yaml:"groups"`
+	Agent    string `yaml:"agent,omitempty"`
+	Revision string `yaml:"revision,omitempty"` // Custom branch/revision
 }
 
 // Agent represents an AI agent configuration
@@ -51,7 +53,7 @@ func DefaultConfig(projectName string) *Config {
 			Manifest: Manifest{
 				RemoteName:      "origin",
 				RemoteFetch:     "https://github.com/yourorg/",
-				DefaultRevision: "master",
+				DefaultRevision: "main",
 				Projects: []Project{
 					{Name: "backend", Groups: "core,services", Agent: "backend-agent"},
 					{Name: "frontend", Groups: "core,ui", Agent: "frontend-agent"},

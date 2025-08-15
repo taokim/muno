@@ -19,43 +19,49 @@ func (m *Manager) StartAgent(agentName string) error {
 	// Check if agent exists in config
 	agentConfig, exists := m.Config.Agents[agentName]
 	if !exists {
-		return fmt.Errorf("agent %s not found", agentName)
+		return fmt.Errorf("agent %s not found in configuration", agentName)
+	}
+
+	// Check if already running
+	if agent, exists := m.agents[agentName]; exists && agent.Process != nil {
+		return fmt.Errorf("agent %s is already running", agentName)
 	}
 
 	// Find repository for this agent
-	project, err := m.Config.GetProjectForAgent(agentName)
-	if err != nil {
-		return fmt.Errorf("no repository found for agent %s", agentName)
+	var repoPath string
+	for _, project := range m.Config.Workspace.Manifest.Projects {
+		if project.Agent == agentName {
+			repoPath = filepath.Join(m.WorkspacePath, project.Name)
+			break
+		}
 	}
 
-	repoPath := filepath.Join(m.WorkspacePath, project.Name)
-	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
-		return fmt.Errorf("repository %s not found at %s\nRun: ./repo-claude sync", project.Name, repoPath)
+	if repoPath == "" {
+		return fmt.Errorf("no repository assigned to agent %s", agentName)
 	}
 
-	fmt.Printf("🚀 Starting %s for %s\n", agentName, project.Name)
+	// Check if repository exists
+	if _, err := os.Stat(filepath.Join(repoPath, ".git")); os.IsNotExist(err) {
+		return fmt.Errorf("repository %s not found, run './repo-claude sync' first", repoPath)
+	}
 
-	// Build system prompt
-	systemPrompt := fmt.Sprintf(
-		"You are %s, specialized in: %s. "+
-			"You are working in a trunk-based development environment managed by Repo tool. "+
-			"Multiple coordinated agents are working in parallel across different repositories.",
-		agentName, agentConfig.Specialization)
+	fmt.Printf("🚀 Starting %s in %s\n", agentName, repoPath)
 
 	// Start Claude Code
 	cmd := exec.Command("claude",
 		"--model", agentConfig.Model,
-		"--append-system-prompt", systemPrompt)
+		"--append-system-prompt",
+		fmt.Sprintf("You are %s, specialized in: %s. "+
+			"You are working in a multi-agent environment. "+
+			"Check shared-memory.md for coordination with other agents.",
+			agentName, agentConfig.Specialization))
 	cmd.Dir = repoPath
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start %s: %w", agentName, err)
+		return fmt.Errorf("failed to start agent: %w", err)
 	}
 
-	// Track the agent
+	// Track agent
 	m.agents[agentName] = &Agent{
 		Name:    agentName,
 		Process: cmd.Process,
@@ -63,17 +69,19 @@ func (m *Manager) StartAgent(agentName string) error {
 	}
 
 	// Update state
-	m.State.UpdateAgent(config.AgentStatus{
-		Name:       agentName,
-		Status:     "running",
-		PID:        cmd.Process.Pid,
-		Repository: project.Name,
-	})
-
-	statePath := filepath.Join(m.WorkspacePath, ".repo-claude-state.json")
-	if err := m.State.Save(statePath); err != nil {
-		fmt.Printf("⚠️  Failed to save state: %v\n", err)
+	if m.State == nil {
+		m.State = &config.State{
+			Agents: make(map[string]config.AgentStatus),
+		}
 	}
+	m.State.Agents[agentName] = config.AgentStatus{
+		Name:         agentName,
+		Status:       "running",
+		PID:          cmd.Process.Pid,
+		Repository:   filepath.Base(repoPath),
+		LastActivity: time.Now().Format(time.RFC3339),
+	}
+	m.State.Save(filepath.Join(m.WorkspacePath, ".repo-claude-state.json"))
 
 	fmt.Printf("✅ %s started (PID: %d)\n", agentName, cmd.Process.Pid)
 	return nil
@@ -85,98 +93,84 @@ func (m *Manager) StopAgent(agentName string) error {
 	defer m.mu.Unlock()
 
 	agent, exists := m.agents[agentName]
-	if !exists {
-		return fmt.Errorf("%s is not running", agentName)
+	if !exists || agent.Process == nil {
+		return fmt.Errorf("agent %s is not running", agentName)
 	}
 
 	// Terminate the process
 	if err := agent.Process.Signal(os.Interrupt); err != nil {
-		// If interrupt fails, try kill
 		if err := agent.Process.Kill(); err != nil {
-			return fmt.Errorf("failed to stop %s: %w", agentName, err)
+			return fmt.Errorf("failed to stop agent: %w", err)
 		}
 	}
 
 	// Wait for process to exit
-	_, _ = agent.Process.Wait()
+	agent.Process.Wait()
 
 	// Update tracking
 	delete(m.agents, agentName)
-
+	
 	// Update state
-	if status, exists := m.State.Agents[agentName]; exists {
-		status.Status = "stopped"
-		m.State.UpdateAgent(status)
-	}
-
-	statePath := filepath.Join(m.WorkspacePath, ".repo-claude-state.json")
-	if err := m.State.Save(statePath); err != nil {
-		fmt.Printf("⚠️  Failed to save state: %v\n", err)
+	if m.State != nil && m.State.Agents != nil {
+		if status, exists := m.State.Agents[agentName]; exists {
+			status.Status = "stopped"
+			m.State.Agents[agentName] = status
+			m.State.Save(filepath.Join(m.WorkspacePath, ".repo-claude-state.json"))
+		}
 	}
 
 	fmt.Printf("🛑 %s stopped\n", agentName)
 	return nil
 }
 
-// StartAllAgents starts all agents with auto_start=true
+// StartAllAgents starts all auto-start agents
 func (m *Manager) StartAllAgents() error {
 	fmt.Println("🚀 Starting all auto-start agents...")
 
-	// Ensure repositories are up to date
-	if err := m.Sync(); err != nil {
-		fmt.Printf("⚠️  Sync warning: %v\n", err)
-	}
-
 	// Get agents that should auto-start
-	toStart := []string{}
-	for name, agent := range m.Config.Agents {
-		if agent.AutoStart {
+	var toStart []string
+	for name, config := range m.Config.Agents {
+		if config.AutoStart {
 			toStart = append(toStart, name)
 		}
 	}
 
-	// Start agents in dependency order
-	started := make(map[string]bool)
-	remaining := make(map[string]bool)
-	for _, name := range toStart {
-		remaining[name] = true
+	if len(toStart) == 0 {
+		fmt.Println("No auto-start agents configured")
+		return nil
 	}
 
-	for len(remaining) > 0 {
-		ready := []string{}
-		
-		for name := range remaining {
-			agent := m.Config.Agents[name]
-			canStart := true
-			
+	// Start agents respecting dependencies
+	started := make(map[string]bool)
+	for len(started) < len(toStart) {
+		progress := false
+		for _, name := range toStart {
+			if started[name] {
+				continue
+			}
+
 			// Check dependencies
+			agent := m.Config.Agents[name]
+			ready := true
 			for _, dep := range agent.Dependencies {
-				if !started[dep] && m.Config.Agents[dep].AutoStart {
-					canStart = false
+				if !started[dep] {
+					ready = false
 					break
 				}
 			}
-			
-			if canStart {
-				ready = append(ready, name)
+
+			if ready {
+				if err := m.StartAgent(name); err != nil {
+					fmt.Printf("❌ Failed to start %s: %v\n", name, err)
+				} else {
+					started[name] = true
+					progress = true
+				}
 			}
 		}
 
-		if len(ready) == 0 && len(remaining) > 0 {
+		if !progress && len(started) < len(toStart) {
 			return fmt.Errorf("circular dependency detected")
-		}
-
-		// Start ready agents
-		for _, name := range ready {
-			if err := m.StartAgent(name); err != nil {
-				fmt.Printf("❌ Failed to start %s: %v\n", name, err)
-			} else {
-				started[name] = true
-			}
-			delete(remaining, name)
-			
-			// Small delay between starts
-			time.Sleep(500 * time.Millisecond)
 		}
 	}
 
@@ -186,29 +180,14 @@ func (m *Manager) StartAllAgents() error {
 // StopAllAgents stops all running agents
 func (m *Manager) StopAllAgents() error {
 	fmt.Println("🛑 Stopping all agents...")
-	
-	// Get list of running agents
-	agentNames := []string{}
-	m.mu.Lock()
-	for name := range m.agents {
-		agentNames = append(agentNames, name)
-	}
-	m.mu.Unlock()
 
-	// Stop each agent
-	for _, name := range agentNames {
+	for name := range m.agents {
 		if err := m.StopAgent(name); err != nil {
 			fmt.Printf("❌ Failed to stop %s: %v\n", name, err)
 		}
 	}
 
 	return nil
-}
-
-// Sync runs repo sync
-func (m *Manager) Sync() error {
-	fmt.Println("🔄 Syncing all repositories with Repo...")
-	return m.repoSync()
 }
 
 // ShowStatus displays the current status
@@ -218,32 +197,43 @@ func (m *Manager) ShowStatus() error {
 	fmt.Println(strings.Repeat("=", 70))
 	fmt.Printf(" Workspace: %s\n", m.Config.Workspace.Name)
 	fmt.Printf(" Location:  %s\n", m.WorkspacePath)
-	fmt.Printf(" Manifest:  %s\n", filepath.Join(m.WorkspacePath, ".manifest-repo"))
 	fmt.Println(strings.Repeat("-", 70))
 
-	// Show repo projects
-	projects := m.getRepoProjects()
-	fmt.Printf(" Repo Projects (%d):\n", len(projects))
-	for _, project := range projects {
-		agent := ""
-		for _, p := range m.Config.Workspace.Manifest.Projects {
-			if p.Name == project {
-				if p.Agent != "" {
-					agent = fmt.Sprintf("→ %s", p.Agent)
-				} else {
-					agent = "no agent"
-				}
-				break
+	// Show repositories
+	if m.GitManager != nil {
+		statuses, _ := m.GitManager.Status()
+		fmt.Printf(" Repositories (%d):\n", len(statuses))
+		for _, status := range statuses {
+			statusIcon := "✓"
+			statusText := "clean"
+			if status.Error != nil {
+				statusIcon = "✗"
+				statusText = status.Error.Error()
+			} else if !status.Clean {
+				statusIcon = "●"
+				statusText = fmt.Sprintf("%d modified", len(status.Modified))
 			}
+			
+			// Find agent for this repo
+			agent := "no agent"
+			for _, p := range m.Config.Workspace.Manifest.Projects {
+				if p.Name == status.Name {
+					if p.Agent != "" {
+						agent = fmt.Sprintf("→ %s", p.Agent)
+					}
+					break
+				}
+			}
+			
+			fmt.Printf("   %s %-20s %-15s %s\n", statusIcon, status.Name, statusText, agent)
 		}
-		fmt.Printf("   📁 %-20s %s\n", project, agent)
 	}
 
 	fmt.Println(strings.Repeat("-", 70))
 
 	// Show agent status
-	if len(m.State.Agents) == 0 {
-		fmt.Println(" Agents: No agents configured")
+	if m.State == nil || len(m.State.Agents) == 0 {
+		fmt.Println(" Agents: No agents running")
 	} else {
 		fmt.Println(" Agent Status:")
 		for name, status := range m.State.Agents {
@@ -256,32 +246,18 @@ func (m *Manager) ShowStatus() error {
 	}
 
 	fmt.Println(strings.Repeat("=", 70) + "\n")
-	fmt.Println("💡 Tip: Use 'repo status' to see detailed git status of all projects")
+	fmt.Println("💡 Commands:")
+	fmt.Println("  ./repo-claude sync      # Sync all repositories")
+	fmt.Println("  ./repo-claude start     # Start agents")
+	fmt.Println("  ./repo-claude forall    # Run command in all repos")
 
 	return nil
 }
 
-// getRepoProjects gets list of projects from repo
-func (m *Manager) getRepoProjects() []string {
-	cmd := exec.Command("repo", "list")
-	cmd.Dir = m.WorkspacePath
-	output, err := cmd.Output()
-	if err != nil {
-		return []string{}
+// ForAll runs a command in all repositories
+func (m *Manager) ForAll(command string, args []string) error {
+	if m.GitManager == nil {
+		return fmt.Errorf("no git manager initialized")
 	}
-
-	projects := []string{}
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			// Format: "path : project"
-			parts := strings.Split(line, " : ")
-			if len(parts) > 0 {
-				projects = append(projects, strings.TrimSpace(parts[0]))
-			}
-		}
-	}
-
-	return projects
+	return m.GitManager.ForAll(command, args...)
 }

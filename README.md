@@ -1,15 +1,18 @@
 # Repo-Claude
 
-Multi-agent orchestration using Repo tool and Claude Code for trunk-based development across multiple repositories.
+Simple multi-agent orchestration for Claude Code, managing multiple Git repositories with trunk-based development.
+
+> **Inspired by [Google's Repo tool](https://gerrit.googlesource.com/git-repo/)** - We've adapted Repo's multi-repository management concepts for AI agent orchestration, simplifying it for our specific use case. See our [architecture docs](docs/architecture.md) for details.
 
 ## Features
 
 - 🚀 **Single Binary**: No runtime dependencies (Python, Node.js, etc.)
-- 🔧 **Real Repo Tool Integration**: Uses the actual Repo tool for multi-repository management
+- 🔧 **Simple Git Management**: Direct git operations without complex tooling
 - 🤖 **Multi-Agent Orchestration**: Coordinate multiple Claude Code instances across repositories
 - 🌳 **Trunk-Based Development**: All agents work directly on main branch
 - 📝 **Shared Memory**: Cross-agent coordination through shared memory file
 - ⚡ **Fast**: Written in Go for optimal performance
+- 🎯 **Easy Configuration**: Single YAML file controls everything
 
 ## Prerequisites
 
@@ -69,7 +72,6 @@ brew install repo-claude
 3. **Check status**:
    ```bash
    ./repo-claude status
-   repo status  # Use repo tool directly
    ```
 
 4. **Stop agents**:
@@ -115,9 +117,9 @@ my-project/
 ├── repo-claude          # Executable
 ├── repo-claude.yaml     # Configuration
 ├── shared-memory.md     # Agent coordination
-├── .manifest-repo/      # Local git repo with manifest
-│   └── default.xml     # Repo manifest
 ├── .repo/              # Repo metadata
+│   └── manifests/      # Local git repo with manifest
+│       └── default.xml # Repo manifest
 ├── backend/            # Repository (main branch)
 │   └── CLAUDE.md      # Agent context
 └── frontend/          # Repository (main branch)
@@ -163,13 +165,19 @@ make release
 
 ## Architecture
 
-Repo-Claude leverages the Repo tool (used for Android and ChromiumOS) to manage multiple Git repositories. Each agent works in its own repository with awareness of other repositories through relative paths and shared memory.
+Repo-Claude uses direct Git operations to manage multiple repositories. Each agent works in its own repository with awareness of other repositories through relative paths and shared memory.
 
 Key components:
+- **GitManager**: Handles all Git operations (clone, sync, status)
 - **Manager**: Core orchestration logic
 - **Config**: YAML configuration and state management
-- **Manifest**: Repo manifest generation
 - **Agent**: Claude Code process management
+
+### Inspiration and History
+
+This project was inspired by Google's Android Repo tool, adopting its multi-repository management concepts while simplifying for AI agent orchestration. We initially used Repo directly but found it added unnecessary complexity for our use case.
+
+See our [detailed architecture documentation](docs/architecture.md) and [design decisions](docs/adr/) for more information.
 
 ## Contributing
 

@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	version = "0.0.1"
+	version = "0.0.2"
 	rootCmd = &cobra.Command{
 		Use:   "repo-claude",
 		Short: "Multi-agent orchestration using Repo tool and Claude Code",
@@ -26,6 +26,7 @@ func init() {
 	rootCmd.AddCommand(stopCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(syncCmd)
+	rootCmd.AddCommand(forallCmd)
 }
 
 func main() {
@@ -37,13 +38,25 @@ func main() {
 
 var initCmd = &cobra.Command{
 	Use:   "init [project-name]",
-	Short: "Initialize a new workspace",
-	Args:  cobra.ExactArgs(1),
+	Short: "Initialize a new workspace or reinitialize from existing config",
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		projectName := args[0]
+		var projectName string
+		var workspacePath string
+		
+		if len(args) > 0 {
+			// Project name provided - create new workspace
+			projectName = args[0]
+			workspacePath = projectName
+		} else {
+			// No project name - use current directory
+			projectName = "."
+			workspacePath = "."
+		}
+		
 		interactive, _ := cmd.Flags().GetBool("interactive")
 		
-		mgr := manager.New(projectName)
+		mgr := manager.New(workspacePath)
 		return mgr.InitWorkspace(projectName, interactive)
 	},
 }
@@ -94,13 +107,26 @@ var statusCmd = &cobra.Command{
 
 var syncCmd = &cobra.Command{
 	Use:   "sync",
-	Short: "Sync all repositories using repo tool",
+	Short: "Sync all repositories",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		mgr, err := manager.LoadFromCurrentDir()
 		if err != nil {
 			return fmt.Errorf("no repo-claude workspace found: %w", err)
 		}
 		return mgr.Sync()
+	},
+}
+
+var forallCmd = &cobra.Command{
+	Use:   "forall [command]",
+	Short: "Run a command in all repositories",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		mgr, err := manager.LoadFromCurrentDir()
+		if err != nil {
+			return fmt.Errorf("no repo-claude workspace found: %w", err)
+		}
+		return mgr.ForAll(args[0], args[1:])
 	},
 }
 

@@ -22,13 +22,12 @@ func (m *Manager) setupCoordination() error {
 ## Coordination Notes
 - Agents will update this file with their progress
 - Use this for cross-repository coordination
-- All repositories managed by Repo tool
+- All repositories managed by repo-claude
 
-## Repo Commands Available
-- ` + "`repo status`" + ` - Show status of all projects
-- ` + "`repo sync`" + ` - Sync all projects
-- ` + "`repo forall -c '<command>'`" + ` - Run command in all projects
-- ` + "`repo list`" + ` - List all projects
+## Commands Available
+- ` + "`./repo-claude status`" + ` - Show status of all projects
+- ` + "`./repo-claude sync`" + ` - Sync all projects
+- ` + "`./repo-claude forall '<command>'`" + ` - Run command in all projects
 
 ## Decisions
 - Document architectural decisions here
@@ -92,20 +91,18 @@ func (m *Manager) createClaudeMD(project config.Project) error {
 - **Specialization**: %s
 - **Model**: %s
 
-## Repo Tool Integration
-- **This workspace uses Repo tool for multi-repository management**
+## Multi-Repository Management
+- **This workspace uses repo-claude for multi-repository management**
 - **All work happens on main branch (trunk-based development)**
 - **Workspace root**: @%s
 
 ## Coordination
 - **Shared Memory**: @%s
 
-## Repo Commands You Can Use
+## Commands You Can Use
 - %s - Show status of all projects
 - %s - Sync all projects from remotes
 - %s - Run git status in all projects
-- %s - Pull latest changes in all projects
-- %s - List all projects in workspace
 
 ## Cross-Repository Awareness
 You have access to these related repositories:
@@ -125,19 +122,16 @@ You have access to these related repositories:
 - Use %s for workspace-wide operations
 - Coordinate with other agents through shared memory
 
-## Example Repo Tool Usage
+## Example Usage
 %s
 # See status of all projects
-repo status
+./repo-claude status
 
 # Sync all projects
-repo sync
+./repo-claude sync
 
 # Run a command in all projects
-repo forall -c 'git log --oneline -5'
-
-# See workspace structure
-repo list
+./repo-claude forall 'git log --oneline -5'
 %s
 `,
 		project.Agent,
@@ -148,15 +142,13 @@ repo list
 		agentConfig.Model,
 		workspaceRel,
 		sharedMemoryRel,
-		"`repo status`",
-		"`repo sync`",
-		"`repo forall -c 'git status'`",
-		"`repo forall -c 'git pull'`",
-		"`repo list`",
+		"`./repo-claude status`",
+		"`./repo-claude sync`",
+		"`./repo-claude forall 'git status'`",
 		strings.Join(otherProjects, "\n"),
-		"`repo sync`",
+		"`./repo-claude sync`",
 		project.Name,
-		"`repo forall`",
+		"`./repo-claude forall`",
 		"```bash",
 		"```",
 	)

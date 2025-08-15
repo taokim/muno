@@ -3,12 +3,12 @@ package manager
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/yourusername/repo-claude/internal/config"
-	"github.com/yourusername/repo-claude/internal/manifest"
+	"github.com/yourusername/repo-claude/internal/git"
 )
 
 // Manager handles the repo-claude workspace
@@ -16,6 +16,7 @@ type Manager struct {
 	WorkspacePath string
 	Config        *config.Config
 	State         *config.State
+	GitManager    *git.Manager
 	agents        map[string]*Agent
 	mu            sync.Mutex
 }
@@ -53,23 +54,29 @@ func LoadFromCurrentDir() (*Manager, error) {
 		return nil, fmt.Errorf("loading config: %w", err)
 	}
 
+	// Convert config projects to git repositories
+	repos := configToRepos(cfg)
+	gitMgr := git.NewManager(cwd, repos)
+
 	statePath := filepath.Join(cwd, ".repo-claude-state.json")
-	state, err := config.LoadState(statePath)
-	if err != nil {
-		return nil, fmt.Errorf("loading state: %w", err)
-	}
+	state, _ := config.LoadState(statePath) // Ignore error if state doesn't exist
 
 	return &Manager{
 		WorkspacePath: cwd,
 		Config:        cfg,
 		State:         state,
+		GitManager:    gitMgr,
 		agents:        make(map[string]*Agent),
 	}, nil
 }
 
 // InitWorkspace initializes a new workspace
 func (m *Manager) InitWorkspace(projectName string, interactive bool) error {
-	fmt.Printf("🚀 Initializing Repo-Claude workspace: %s\n", projectName)
+	if projectName == "." {
+		fmt.Println("🚀 Initializing Repo-Claude in current directory")
+	} else {
+		fmt.Printf("🚀 Initializing Repo-Claude workspace: %s\n", projectName)
+	}
 
 	// Create workspace directory
 	if err := os.MkdirAll(m.WorkspacePath, 0755); err != nil {
@@ -81,41 +88,42 @@ func (m *Manager) InitWorkspace(projectName string, interactive bool) error {
 		return fmt.Errorf("changing to workspace: %w", err)
 	}
 
-	// Create configuration
-	m.Config = config.DefaultConfig(projectName)
-	
-	if interactive {
-		if err := m.interactiveConfig(); err != nil {
-			return fmt.Errorf("interactive configuration: %w", err)
+	// Check if repo-claude.yaml already exists
+	configPath := filepath.Join(m.WorkspacePath, "repo-claude.yaml")
+	if _, err := os.Stat(configPath); err == nil {
+		// Configuration exists, load it
+		fmt.Println("📄 Found existing repo-claude.yaml, loading configuration...")
+		cfg, err := config.Load(configPath)
+		if err != nil {
+			return fmt.Errorf("loading existing config: %w", err)
+		}
+		m.Config = cfg
+	} else {
+		// No existing config, create new one
+		fmt.Println("📝 Creating new configuration...")
+		m.Config = config.DefaultConfig(projectName)
+		
+		if interactive {
+			if err := m.interactiveConfig(); err != nil {
+				return fmt.Errorf("interactive configuration: %w", err)
+			}
+		}
+
+		// Save configuration
+		if err := m.Config.Save(configPath); err != nil {
+			return fmt.Errorf("saving config: %w", err)
 		}
 	}
 
-	// Save configuration
-	configPath := filepath.Join(m.WorkspacePath, "repo-claude.yaml")
-	if err := m.Config.Save(configPath); err != nil {
-		return fmt.Errorf("saving config: %w", err)
-	}
+	// Initialize GitManager
+	repos := configToRepos(m.Config)
+	m.GitManager = git.NewManager(m.WorkspacePath, repos)
 
-	// Generate manifest XML
-	manifestXML, err := manifest.Generate(m.Config)
-	if err != nil {
-		return fmt.Errorf("generating manifest: %w", err)
-	}
-
-	// Create manifest repository
-	if err := manifest.CreateManifestRepo(m.WorkspacePath, manifestXML); err != nil {
-		return fmt.Errorf("creating manifest repo: %w", err)
-	}
-
-	// Initialize repo workspace
-	if err := m.initRepoWorkspace(); err != nil {
-		return fmt.Errorf("initializing repo: %w", err)
-	}
-
-	// Sync repositories (allow failure for initial setup)
-	if err := m.repoSync(); err != nil {
-		fmt.Printf("⚠️  Initial sync skipped: %v\n", err)
-		fmt.Println("You can run './repo-claude sync' after updating the configuration")
+	// Clone repositories
+	fmt.Println("📦 Cloning repositories...")
+	if err := m.GitManager.Clone(); err != nil {
+		fmt.Printf("⚠️  Some repositories failed to clone: %v\n", err)
+		fmt.Println("You can run './repo-claude sync' to retry")
 	}
 
 	// Setup coordination files
@@ -128,54 +136,24 @@ func (m *Manager) InitWorkspace(projectName string, interactive bool) error {
 		return fmt.Errorf("copying executable: %w", err)
 	}
 
-	fmt.Println("✅ Workspace initialized using Repo tool!")
+	fmt.Println("✅ Workspace initialized!")
 	fmt.Printf("📍 Location: %s\n", m.WorkspacePath)
 	fmt.Println("\nNext steps:")
-	fmt.Printf("  cd %s\n", projectName)
+	if projectName != "." {
+		fmt.Printf("  cd %s\n", filepath.Base(m.WorkspacePath))
+	}
 	fmt.Println("  ./repo-claude start     # Start all agents")
 	fmt.Println("  ./repo-claude status    # Check status")
-	fmt.Println("  repo status             # Use repo tool directly")
 
 	return nil
 }
 
-// initRepoWorkspace initializes the repo workspace
-func (m *Manager) initRepoWorkspace() error {
-	fmt.Println("📦 Initializing Repo workspace...")
-	
-	manifestPath := filepath.Join(m.WorkspacePath, ".manifest-repo")
-	// Use file:// URL for local manifest repository
-	manifestURL := "file://" + manifestPath
-	cmd := exec.Command("repo", "init", "-u", manifestURL, "-b", "main")
-	cmd.Dir = m.WorkspacePath
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("repo init failed: %w", err)
+// Sync synchronizes all repositories
+func (m *Manager) Sync() error {
+	if m.GitManager == nil {
+		return fmt.Errorf("no git manager initialized")
 	}
-	
-	fmt.Println("✅ Repo workspace initialized")
-	return nil
-}
-
-// repoSync syncs all repositories
-func (m *Manager) repoSync() error {
-	fmt.Println("🔄 Syncing repositories with Repo...")
-	
-	cmd := exec.Command("repo", "sync", "-j4")
-	cmd.Dir = m.WorkspacePath
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	
-	if err := cmd.Run(); err != nil {
-		// For initial sync, repos might not exist yet
-		fmt.Println("⚠️  Initial sync skipped (repositories may not exist yet)")
-		return nil
-	}
-	
-	fmt.Println("✅ Repo sync completed")
-	return nil
+	return m.GitManager.Sync()
 }
 
 // copyExecutable copies the current executable to the workspace
@@ -199,4 +177,55 @@ func (m *Manager) copyExecutable() error {
 	}
 
 	return nil
+}
+
+// configToRepos converts config projects to git repositories
+func configToRepos(cfg *config.Config) []git.Repository {
+	var repos []git.Repository
+	
+	for _, project := range cfg.Workspace.Manifest.Projects {
+		// Build full URL from remote fetch + project name
+		url := cfg.Workspace.Manifest.RemoteFetch
+		if url[len(url)-1] != '/' {
+			url += "/"
+		}
+		url += project.Name
+		
+		// Handle .git suffix
+		if len(url) > 4 && url[len(url)-4:] != ".git" {
+			url += ".git"
+		}
+
+		// Use project-specific revision if provided, otherwise use default
+		branch := cfg.Workspace.Manifest.DefaultRevision
+		if project.Revision != "" {
+			branch = project.Revision
+		}
+		
+		// Use project-specific path if provided, otherwise use name
+		path := project.Name
+		if project.Path != "" {
+			path = project.Path
+		}
+		
+		repo := git.Repository{
+			Name:   project.Name,
+			Path:   path,
+			URL:    url,
+			Branch: branch,
+			Agent:  project.Agent,
+		}
+		
+		// Parse groups
+		if project.Groups != "" {
+			repo.Groups = strings.Split(project.Groups, ",")
+			for i := range repo.Groups {
+				repo.Groups[i] = strings.TrimSpace(repo.Groups[i])
+			}
+		}
+		
+		repos = append(repos, repo)
+	}
+	
+	return repos
 }
