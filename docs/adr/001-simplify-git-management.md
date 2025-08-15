@@ -15,6 +15,7 @@ Repo-Claude was initially built using the Android Repo tool, a repository manage
 3. **Unnecessary features**: Repo's advanced features (branch management, code review upload, cherry-picking) aren't needed for AI agent orchestration
 4. **Confusing UX**: Users questioned why they needed to create manifests when they already had `repo-claude.yaml`
 5. **Extra abstraction layer**: The translation between our config and Repo's manifest added complexity without clear benefit
+6. **Poor AI context flow**: AI agents need global documentation at the workspace root to understand the system context. Repo's manifest-only repositories don't support this pattern well, as they're designed purely for repository structure, not documentation
 
 ## Decision
 

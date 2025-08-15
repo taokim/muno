@@ -238,6 +238,43 @@ This project was inspired by Google's Android Repo tool, adopting its multi-repo
 
 See our [detailed architecture documentation](docs/architecture.md) and [design decisions](docs/adr/) for more information.
 
+## FAQ
+
+### Why not use Google's Repo tool directly?
+
+We initially used the Android Repo tool but found it incompatible with AI agent workflows for several reasons:
+
+1. **No Root Documentation Support**: Repo's manifest repositories are designed purely for repository structure, not documentation. AI agents need global context documentation at the workspace root, which Repo's manifest-only approach doesn't support well.
+
+2. **Complex Manifest Management**: Repo requires XML manifests in a separate git repository, adding complexity that confuses users who already have a simple YAML configuration.
+
+3. **Unnecessary Features**: Repo's advanced features (branch management, code review upload, cherry-picking) aren't needed for AI agent orchestration.
+
+4. **Heavy Dependencies**: Repo downloads ~30MB of Python scripts per workspace, while our Go implementation is a single 10MB binary.
+
+5. **Poor AI Context Flow**: AI agents typically read documentation from the root directory first to understand the system. Repo's structure, with manifests in a separate repository, breaks this natural context flow.
+
+See [ADR-001](docs/adr/001-simplify-git-management.md) for the detailed technical decision.
+
+### Can I use this without AI agents?
+
+Yes! While designed for AI agent orchestration, repo-claude works great for anyone managing multiple related repositories. Use it for:
+- Keeping multiple microservices in sync
+- Managing frontend/backend/mobile repos together
+- Coordinating shared libraries with their consumers
+
+### How does this compare to Git submodules?
+
+Unlike submodules, repositories managed by repo-claude:
+- Remain completely independent (no parent-child relationships)
+- Can be at different branches/commits
+- Don't require special git commands
+- Are easier to work with for both humans and AI agents
+
+### Is this a monorepo?
+
+No, this creates a monorepo-like experience while keeping repositories separate. You get the benefits of unified tooling and visibility without the drawbacks of a true monorepo (huge repository size, complex permissions, slow clones).
+
 ## Contributing
 
 1. Fork the repository
