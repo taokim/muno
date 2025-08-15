@@ -63,7 +63,7 @@ release:
   header: |
     ## Repo-Claude v{{.Version}}
     
-    Multi-agent orchestration using Repo tool and Claude Code.
+    Multi-repository orchestration for Claude Code agents.
     
   footer: |
     ## Installation
@@ -96,7 +96,7 @@ release:
 brews:
   - name: repo-claude
     homepage: https://github.com/taokim/repo-claude
-    description: Multi-agent orchestration using Repo tool and Claude Code
+    description: Multi-repository orchestration for Claude Code agents
     license: MIT
     skip_upload: auto
     repository:
@@ -112,4 +112,3 @@ brews:
     
     dependencies:
       - name: git
-      - name: repo
