@@ -153,6 +153,12 @@ func (m *Manager) InitWorkspace(projectName string, interactive bool) error {
 		return fmt.Errorf("setting up coordination: %w", err)
 	}
 
+	// Add workspace to .gitignore if we're in a git repository
+	if err := m.updateGitignore(); err != nil {
+		// Non-fatal error, just warn
+		fmt.Printf("⚠️  Warning: %v\n", err)
+	}
+
 	fmt.Println("✅ Workspace initialized!")
 	fmt.Printf("📍 Project root: %s\n", m.ProjectPath)
 	fmt.Printf("📁 Workspace: %s\n", m.WorkspacePath)
@@ -174,6 +180,91 @@ func (m *Manager) Sync() error {
 	return m.GitManager.Sync()
 }
 
+
+// updateGitignore adds the workspace directory to .gitignore if needed
+func (m *Manager) updateGitignore() error {
+	// Check if we're in a git repository
+	gitDir := filepath.Join(m.ProjectPath, ".git")
+	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
+		// Not in a git repo, nothing to do
+		return nil
+	}
+
+	gitignorePath := filepath.Join(m.ProjectPath, ".gitignore")
+	
+	// Calculate workspace path relative to project root
+	workspaceRel, err := filepath.Rel(m.ProjectPath, m.WorkspacePath)
+	if err != nil {
+		return fmt.Errorf("calculating relative workspace path: %w", err)
+	}
+	
+	// Ensure it ends with / to indicate directory
+	if !strings.HasSuffix(workspaceRel, "/") {
+		workspaceRel += "/"
+	}
+	
+	// Check if .gitignore exists
+	content := []byte{}
+	if data, err := os.ReadFile(gitignorePath); err == nil {
+		content = data
+	}
+	
+	// Check what needs to be added
+	lines := strings.Split(string(content), "\n")
+	workspaceIgnored := false
+	stateIgnored := false
+	
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == workspaceRel || trimmed == strings.TrimSuffix(workspaceRel, "/") {
+			workspaceIgnored = true
+		}
+		if trimmed == ".repo-claude-state.json" {
+			stateIgnored = true
+		}
+	}
+	
+	// If both are already ignored, nothing to do
+	if workspaceIgnored && stateIgnored {
+		return nil
+	}
+	
+	// Add to .gitignore
+	if len(content) > 0 && !strings.HasSuffix(string(content), "\n") {
+		content = append(content, '\n')
+	}
+	
+	// Build addition based on what's needed
+	var addition strings.Builder
+	addition.WriteString("\n# Repo-Claude workspace\n")
+	
+	if !workspaceIgnored {
+		addition.WriteString(workspaceRel)
+		addition.WriteString("\n")
+	}
+	
+	if !stateIgnored {
+		addition.WriteString(".repo-claude-state.json\n")
+	}
+	
+	content = append(content, []byte(addition.String())...)
+	
+	if err := os.WriteFile(gitignorePath, content, 0644); err != nil {
+		return fmt.Errorf("updating .gitignore: %w", err)
+	}
+	
+	// Report what was added
+	added := []string{}
+	if !workspaceIgnored {
+		added = append(added, workspaceRel)
+	}
+	if !stateIgnored {
+		added = append(added, ".repo-claude-state.json")
+	}
+	
+	fmt.Printf("📝 Added to .gitignore: %s\n", strings.Join(added, ", "))
+	return nil
+}
 
 // configToRepos converts config projects to git repositories
 func configToRepos(cfg *config.Config) []git.Repository {

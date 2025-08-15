@@ -91,6 +91,115 @@ func TestLoadFromCurrentDir(t *testing.T) {
 	})
 }
 
+func TestUpdateGitignore(t *testing.T) {
+	t.Run("NotInGitRepo", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		mgr := &Manager{
+			ProjectPath:   tmpDir,
+			WorkspacePath: filepath.Join(tmpDir, "workspace"),
+		}
+		
+		// Should not error when not in a git repo
+		err := mgr.updateGitignore()
+		assert.NoError(t, err)
+		
+		// Should not create .gitignore
+		_, err = os.Stat(filepath.Join(tmpDir, ".gitignore"))
+		assert.True(t, os.IsNotExist(err))
+	})
+	
+	t.Run("InGitRepo", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		
+		// Create a fake .git directory
+		gitDir := filepath.Join(tmpDir, ".git")
+		err := os.Mkdir(gitDir, 0755)
+		require.NoError(t, err)
+		
+		mgr := &Manager{
+			ProjectPath:   tmpDir,
+			WorkspacePath: filepath.Join(tmpDir, "workspace"),
+		}
+		
+		err = mgr.updateGitignore()
+		require.NoError(t, err)
+		
+		// Check .gitignore was created
+		gitignorePath := filepath.Join(tmpDir, ".gitignore")
+		content, err := os.ReadFile(gitignorePath)
+		require.NoError(t, err)
+		
+		// Check content
+		assert.Contains(t, string(content), "# Repo-Claude workspace")
+		assert.Contains(t, string(content), "workspace/")
+		assert.Contains(t, string(content), ".repo-claude-state.json")
+	})
+	
+	t.Run("ExistingGitignore", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		
+		// Create a fake .git directory
+		gitDir := filepath.Join(tmpDir, ".git")
+		err := os.Mkdir(gitDir, 0755)
+		require.NoError(t, err)
+		
+		// Create existing .gitignore
+		gitignorePath := filepath.Join(tmpDir, ".gitignore")
+		existingContent := "node_modules/\n*.log\n"
+		err = os.WriteFile(gitignorePath, []byte(existingContent), 0644)
+		require.NoError(t, err)
+		
+		mgr := &Manager{
+			ProjectPath:   tmpDir,
+			WorkspacePath: filepath.Join(tmpDir, "workspace"),
+		}
+		
+		err = mgr.updateGitignore()
+		require.NoError(t, err)
+		
+		// Check content
+		content, err := os.ReadFile(gitignorePath)
+		require.NoError(t, err)
+		
+		// Should preserve existing content
+		assert.Contains(t, string(content), "node_modules/")
+		assert.Contains(t, string(content), "*.log")
+		
+		// Should add new content
+		assert.Contains(t, string(content), "# Repo-Claude workspace")
+		assert.Contains(t, string(content), "workspace/")
+		assert.Contains(t, string(content), ".repo-claude-state.json")
+	})
+	
+	t.Run("AlreadyIgnored", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		
+		// Create a fake .git directory
+		gitDir := filepath.Join(tmpDir, ".git")
+		err := os.Mkdir(gitDir, 0755)
+		require.NoError(t, err)
+		
+		// Create .gitignore with workspace already ignored
+		gitignorePath := filepath.Join(tmpDir, ".gitignore")
+		existingContent := "workspace/\n.repo-claude-state.json\n"
+		err = os.WriteFile(gitignorePath, []byte(existingContent), 0644)
+		require.NoError(t, err)
+		
+		mgr := &Manager{
+			ProjectPath:   tmpDir,
+			WorkspacePath: filepath.Join(tmpDir, "workspace"),
+		}
+		
+		err = mgr.updateGitignore()
+		require.NoError(t, err)
+		
+		// Check content didn't change
+		content, err := os.ReadFile(gitignorePath)
+		require.NoError(t, err)
+		assert.Equal(t, existingContent, string(content))
+	})
+}
+
 func TestSetupCoordination(t *testing.T) {
 	tmpDir := t.TempDir()
 	
