@@ -1,7 +1,7 @@
 # Makefile for repo-claude
 
 # Variables
-BINARY_NAME=repo-claude
+BINARY_NAME=rc
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "1.0.0")
 BUILD_TIME=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 LDFLAGS=-ldflags "-X main.version=${VERSION} -X main.buildTime=${BUILD_TIME}"
@@ -17,7 +17,7 @@ all: clean test build
 build:
 	@echo "Building ${BINARY_NAME}..."
 	@mkdir -p $(GOBIN)
-	@go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME) ./cmd/$(BINARY_NAME)
+	@go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME) ./cmd/repo-claude
 	@echo "Build complete: $(GOBIN)/$(BINARY_NAME)"
 
 clean:
@@ -70,11 +70,11 @@ install: build
 build-all:
 	@echo "Building for all platforms..."
 	@mkdir -p $(GOBIN)
-	@GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-darwin-amd64 ./cmd/$(BINARY_NAME)
-	@GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-darwin-arm64 ./cmd/$(BINARY_NAME)
-	@GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-linux-amd64 ./cmd/$(BINARY_NAME)
-	@GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-linux-arm64 ./cmd/$(BINARY_NAME)
-	@GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-windows-amd64.exe ./cmd/$(BINARY_NAME)
+	@GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-darwin-amd64 ./cmd/repo-claude
+	@GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-darwin-arm64 ./cmd/repo-claude
+	@GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-linux-amd64 ./cmd/repo-claude
+	@GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-linux-arm64 ./cmd/repo-claude
+	@GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-windows-amd64.exe ./cmd/repo-claude
 	@echo "Multi-platform build complete"
 
 # Release with goreleaser
@@ -116,7 +116,7 @@ update-deps:
 # Help target
 help:
 	@echo "Available targets:"
-	@echo "  make build       - Build the binary"
+	@echo "  make build       - Build the binary (rc)"
 	@echo "  make test        - Run tests"
 	@echo "  make test-short  - Run short tests"
 	@echo "  make coverage    - Generate coverage report"

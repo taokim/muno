@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/yourusername/repo-claude/internal/config"
+	"github.com/taokim/repo-claude/internal/config"
 )
 
 func TestNewManager(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/yourusername/repo-claude/internal/config"
-	"github.com/yourusername/repo-claude/internal/git"
+	"github.com/taokim/repo-claude/internal/config"
+	"github.com/taokim/repo-claude/internal/git"
 )
 
 // Manager handles the repo-claude workspace

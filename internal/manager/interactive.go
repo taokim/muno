@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/yourusername/repo-claude/internal/config"
+	"github.com/taokim/repo-claude/internal/config"
 )
 
 // interactiveConfig handles interactive configuration setup

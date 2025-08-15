@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yourusername/repo-claude/internal/config"
+	"github.com/taokim/repo-claude/internal/config"
 )
 
 func TestPrompt(t *testing.T) {

@@ -6,13 +6,13 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"github.com/yourusername/repo-claude/internal/manager"
+	"github.com/taokim/repo-claude/internal/manager"
 )
 
 var (
-	version = "0.0.3"
+	version = "0.1.0"
 	rootCmd = &cobra.Command{
-		Use:   "repo-claude",
+		Use:   "rc",
 		Short: "Multi-agent orchestration using Repo tool and Claude Code",
 		Long: `Repo-Claude integrates the Repo tool with Claude Code for 
 trunk-based multi-agent development across multiple repositories.`,

@@ -8,7 +8,7 @@ before:
 
 builds:
   - id: repo-claude
-    binary: repo-claude
+    binary: rc
     main: ./cmd/repo-claude
     env:
       - CGO_ENABLED=0
@@ -55,7 +55,7 @@ changelog:
 
 release:
   github:
-    owner: yourusername
+    owner: taokim
     name: repo-claude
   draft: true
   prerelease: auto
@@ -70,9 +70,9 @@ release:
     
     ### macOS/Linux
     ```bash
-    curl -L https://github.com/yourusername/repo-claude/releases/download/v{{.Version}}/repo-claude_{{.Os}}_{{.Arch}}.tar.gz | tar xz
-    chmod +x repo-claude
-    sudo mv repo-claude /usr/local/bin/
+    curl -L https://github.com/taokim/repo-claude/releases/download/v{{.Version}}/repo-claude_{{.Os}}_{{.Arch}}.tar.gz | tar xz
+    chmod +x rc
+    sudo mv rc /usr/local/bin/
     ```
     
     ### Homebrew (coming soon)
@@ -82,19 +82,19 @@ release:
 
 brews:
   - name: repo-claude
-    homepage: https://github.com/yourusername/repo-claude
+    homepage: https://github.com/taokim/repo-claude
     description: Multi-agent orchestration using Repo tool and Claude Code
     license: MIT
     skip_upload: auto
     repository:
-      owner: yourusername
+      owner: taokim
       name: homebrew-tap
       branch: main
     folder: Formula
     test: |
-      system "#{bin}/repo-claude", "--version"
+      system "#{bin}/rc", "--version"
     install: |
-      bin.install "repo-claude"
+      bin.install "rc"
     
     dependencies:
       - name: git

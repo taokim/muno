@@ -1,4 +1,4 @@
-module github.com/yourusername/repo-claude
+module github.com/taokim/repo-claude
 
 go 1.21
 

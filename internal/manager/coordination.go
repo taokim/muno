@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	
-	"github.com/yourusername/repo-claude/internal/config"
+	"github.com/taokim/repo-claude/internal/config"
 )
 
 // setupCoordination creates coordination files
