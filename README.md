@@ -137,21 +137,24 @@ The `repo-claude.yaml` file defines your workspace:
 ```yaml
 workspace:
   name: my-project
+  path: workspace              # Optional: custom workspace directory (default: "workspace")
   manifest:
     remote_name: origin
     remote_fetch: https://github.com/yourorg/
     default_revision: main
     projects:
       - name: backend
+        path: services/backend # Optional: custom path (default: uses name)
         groups: core,services
         agent: backend-agent
+        revision: develop      # Optional: custom branch (default: uses default_revision)
       - name: frontend
         groups: core,ui
         agent: frontend-agent
 
 agents:
   backend-agent:
-    model: claude-sonnet-4
+    model: claude-sonnet-4      # Required: Claude model to use
     specialization: API development, database design
     auto_start: true
   frontend-agent:
@@ -160,6 +163,61 @@ agents:
     auto_start: true
     dependencies: [backend-agent]
 ```
+
+### Configuration Reference
+
+#### Workspace Configuration
+| Key | Type | Required | Default | Description |
+|-----|------|----------|---------|-------------|
+| `workspace.name` | string | Yes | - | Name of your workspace |
+| `workspace.path` | string | No | "workspace" | Directory where repos are cloned |
+| `workspace.manifest.remote_name` | string | Yes | - | Name for the remote (usually "origin") |
+| `workspace.manifest.remote_fetch` | string | Yes | - | Base URL for cloning repositories |
+| `workspace.manifest.default_revision` | string | Yes | - | Default branch/tag to use (e.g., "main") |
+| `workspace.manifest.projects` | array | Yes | - | List of repositories to manage |
+
+#### Project Configuration
+| Key | Type | Required | Default | Description |
+|-----|------|----------|---------|-------------|
+| `name` | string | Yes | - | Repository name |
+| `path` | string | No | name | Custom path within workspace |
+| `groups` | string | No | - | Comma-separated groups for organization |
+| `agent` | string | No | - | Agent assigned to this repository |
+| `revision` | string | No | default_revision | Custom branch/tag for this repo |
+
+#### Agent Configuration
+| Key | Type | Required | Default | Description |
+|-----|------|----------|---------|-------------|
+| `model` | string | Yes | - | Claude model (e.g., "claude-sonnet-4") |
+| `specialization` | string | Yes | - | Agent's expertise and focus areas |
+| `auto_start` | boolean | No | false | Start automatically with `rc start` |
+| `dependencies` | array | No | [] | Agents that must start before this one |
+
+### How Agent Configuration Works
+
+When you start an agent with `rc start backend-agent`, repo-claude:
+
+1. **Launches Claude Code** with the specified model:
+   ```bash
+   claude --model claude-sonnet-4 --append-system-prompt "..."
+   ```
+
+2. **Sets the agent's working directory** to its assigned repository
+
+3. **Provides context** through:
+   - **System prompt**: Includes the agent name and specialization
+   - **CLAUDE.md file**: Created in each repository with:
+     - Agent's model and specialization
+     - Links to other repositories and shared memory
+     - Available commands and guidelines
+     - Cross-repository awareness
+
+4. **Enables coordination** via `shared-memory.md` for inter-agent communication
+
+### Available Claude Models
+- `claude-sonnet-4` - Fast, efficient model for most tasks
+- `claude-opus-4` - Most capable model for complex tasks
+- `claude-haiku-4` - Fastest model for simple tasks
 
 ## Workspace Structure
 
