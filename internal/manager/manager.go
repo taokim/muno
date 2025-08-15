@@ -13,7 +13,8 @@ import (
 
 // Manager handles the repo-claude workspace
 type Manager struct {
-	WorkspacePath string
+	ProjectPath   string  // Path to the project root (where repo-claude.yaml is)
+	WorkspacePath string  // Path to the workspace subdirectory (where repos are cloned)
 	Config        *config.Config
 	State         *config.State
 	GitManager    *git.Manager
@@ -29,10 +30,11 @@ type Agent struct {
 }
 
 // New creates a new manager for initialization
-func New(workspacePath string) *Manager {
-	absPath, _ := filepath.Abs(workspacePath)
+func New(projectPath string) *Manager {
+	absPath, _ := filepath.Abs(projectPath)
 	return &Manager{
-		WorkspacePath: absPath,
+		ProjectPath:   absPath,
+		WorkspacePath: filepath.Join(absPath, "workspace"), // Default workspace path
 		agents:        make(map[string]*Agent),
 	}
 }
@@ -54,15 +56,26 @@ func LoadFromCurrentDir() (*Manager, error) {
 		return nil, fmt.Errorf("loading config: %w", err)
 	}
 
+	// Determine workspace path
+	workspacePath := filepath.Join(cwd, "workspace") // Default
+	if cfg.Workspace.Path != "" {
+		if filepath.IsAbs(cfg.Workspace.Path) {
+			workspacePath = cfg.Workspace.Path
+		} else {
+			workspacePath = filepath.Join(cwd, cfg.Workspace.Path)
+		}
+	}
+
 	// Convert config projects to git repositories
 	repos := configToRepos(cfg)
-	gitMgr := git.NewManager(cwd, repos)
+	gitMgr := git.NewManager(workspacePath, repos)
 
 	statePath := filepath.Join(cwd, ".repo-claude-state.json")
 	state, _ := config.LoadState(statePath) // Ignore error if state doesn't exist
 
 	return &Manager{
-		WorkspacePath: cwd,
+		ProjectPath:   cwd,
+		WorkspacePath: workspacePath,
 		Config:        cfg,
 		State:         state,
 		GitManager:    gitMgr,
@@ -78,18 +91,13 @@ func (m *Manager) InitWorkspace(projectName string, interactive bool) error {
 		fmt.Printf("🚀 Initializing Repo-Claude workspace: %s\n", projectName)
 	}
 
-	// Create workspace directory
-	if err := os.MkdirAll(m.WorkspacePath, 0755); err != nil {
-		return fmt.Errorf("creating workspace: %w", err)
+	// Create project directory if needed
+	if err := os.MkdirAll(m.ProjectPath, 0755); err != nil {
+		return fmt.Errorf("creating project directory: %w", err)
 	}
 
-	// Change to workspace directory
-	if err := os.Chdir(m.WorkspacePath); err != nil {
-		return fmt.Errorf("changing to workspace: %w", err)
-	}
-
-	// Check if repo-claude.yaml already exists
-	configPath := filepath.Join(m.WorkspacePath, "repo-claude.yaml")
+	// Check if repo-claude.yaml already exists in project root
+	configPath := filepath.Join(m.ProjectPath, "repo-claude.yaml")
 	if _, err := os.Stat(configPath); err == nil {
 		// Configuration exists, load it
 		fmt.Println("📄 Found existing repo-claude.yaml, loading configuration...")
@@ -115,6 +123,20 @@ func (m *Manager) InitWorkspace(projectName string, interactive bool) error {
 		}
 	}
 
+	// Update workspace path based on config
+	if m.Config.Workspace.Path != "" {
+		if filepath.IsAbs(m.Config.Workspace.Path) {
+			m.WorkspacePath = m.Config.Workspace.Path
+		} else {
+			m.WorkspacePath = filepath.Join(m.ProjectPath, m.Config.Workspace.Path)
+		}
+	}
+
+	// Create workspace directory
+	if err := os.MkdirAll(m.WorkspacePath, 0755); err != nil {
+		return fmt.Errorf("creating workspace: %w", err)
+	}
+
 	// Initialize GitManager
 	repos := configToRepos(m.Config)
 	m.GitManager = git.NewManager(m.WorkspacePath, repos)
@@ -137,10 +159,11 @@ func (m *Manager) InitWorkspace(projectName string, interactive bool) error {
 	}
 
 	fmt.Println("✅ Workspace initialized!")
-	fmt.Printf("📍 Location: %s\n", m.WorkspacePath)
+	fmt.Printf("📍 Project root: %s\n", m.ProjectPath)
+	fmt.Printf("📁 Workspace: %s\n", m.WorkspacePath)
 	fmt.Println("\nNext steps:")
-	if projectName != "." {
-		fmt.Printf("  cd %s\n", filepath.Base(m.WorkspacePath))
+	if projectName != "." && m.ProjectPath != "." {
+		fmt.Printf("  cd %s\n", filepath.Base(m.ProjectPath))
 	}
 	fmt.Println("  ./repo-claude start     # Start all agents")
 	fmt.Println("  ./repo-claude status    # Check status")
@@ -156,14 +179,14 @@ func (m *Manager) Sync() error {
 	return m.GitManager.Sync()
 }
 
-// copyExecutable copies the current executable to the workspace
+// copyExecutable copies the current executable to the project root
 func (m *Manager) copyExecutable() error {
 	executable, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("getting executable path: %w", err)
 	}
 
-	destPath := filepath.Join(m.WorkspacePath, "repo-claude")
+	destPath := filepath.Join(m.ProjectPath, "repo-claude")
 	
 	// Read source file
 	data, err := os.ReadFile(executable)

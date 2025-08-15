@@ -16,7 +16,8 @@ func TestNewManager(t *testing.T) {
 	mgr := New(tmpDir)
 	
 	assert.NotNil(t, mgr)
-	assert.Equal(t, tmpDir, filepath.Base(mgr.WorkspacePath))
+	assert.Equal(t, tmpDir, mgr.ProjectPath)
+	assert.Equal(t, filepath.Join(tmpDir, "workspace"), mgr.WorkspacePath)
 	assert.NotNil(t, mgr.agents)
 	assert.Len(t, mgr.agents, 0)
 }
@@ -57,7 +58,16 @@ func TestLoadFromCurrentDir(t *testing.T) {
 		mgr, err := LoadFromCurrentDir()
 		require.NoError(t, err)
 		assert.NotNil(t, mgr)
-		assert.Equal(t, tmpDir, mgr.WorkspacePath)
+		
+		// Use EvalSymlinks to handle /var vs /private/var on macOS
+		expectedProject, _ := filepath.EvalSymlinks(tmpDir)
+		actualProject, _ := filepath.EvalSymlinks(mgr.ProjectPath)
+		assert.Equal(t, expectedProject, actualProject)
+		
+		expectedWorkspace, _ := filepath.EvalSymlinks(filepath.Join(tmpDir, "workspace"))
+		actualWorkspace, _ := filepath.EvalSymlinks(mgr.WorkspacePath)
+		assert.Equal(t, expectedWorkspace, actualWorkspace)
+		
 		assert.NotNil(t, mgr.Config)
 		assert.NotNil(t, mgr.State)
 	})
@@ -83,7 +93,10 @@ func TestLoadFromCurrentDir(t *testing.T) {
 
 func TestCopyExecutable(t *testing.T) {
 	tmpDir := t.TempDir()
-	mgr := &Manager{WorkspacePath: tmpDir}
+	mgr := &Manager{
+		ProjectPath:   tmpDir,
+		WorkspacePath: filepath.Join(tmpDir, "workspace"),
+	}
 	
 	// Create a fake executable
 	fakeExe := filepath.Join(tmpDir, "fake-exe")
@@ -98,7 +111,7 @@ func TestCopyExecutable(t *testing.T) {
 	err = mgr.copyExecutable()
 	require.NoError(t, err)
 	
-	// Check if file was copied
+	// Check if file was copied to project root, not workspace
 	copiedPath := filepath.Join(tmpDir, "repo-claude")
 	assert.FileExists(t, copiedPath)
 	
@@ -113,6 +126,7 @@ func TestSetupCoordination(t *testing.T) {
 	
 	cfg := config.DefaultConfig("test")
 	mgr := &Manager{
+		ProjectPath:   filepath.Dir(tmpDir),
 		WorkspacePath: tmpDir,
 		Config:        cfg,
 	}
@@ -128,14 +142,14 @@ func TestSetupCoordination(t *testing.T) {
 	err := mgr.setupCoordination()
 	require.NoError(t, err)
 	
-	// Check shared memory was created
+	// Check shared memory was created in workspace
 	sharedMemPath := filepath.Join(tmpDir, "shared-memory.md")
 	assert.FileExists(t, sharedMemPath)
 	
 	content, err := os.ReadFile(sharedMemPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "# Shared Agent Memory")
-	assert.Contains(t, string(content), "repo status")
+	assert.Contains(t, string(content), "repo-claude status")
 	
 	// Check CLAUDE.md files were created
 	for _, project := range cfg.Workspace.Manifest.Projects {
@@ -147,23 +161,23 @@ func TestSetupCoordination(t *testing.T) {
 			require.NoError(t, err)
 			assert.Contains(t, string(content), project.Agent)
 			assert.Contains(t, string(content), project.Name)
-			assert.Contains(t, string(content), "Repo Tool Integration")
+			assert.Contains(t, string(content), "Multi-Repository Management")
 		}
 	}
 }
 
-func TestGetRepoProjects(t *testing.T) {
-	mgr := &Manager{WorkspacePath: "/tmp"}
-	
-	// This will return empty since repo is not initialized
-	projects := mgr.getRepoProjects()
-	assert.NotNil(t, projects)
-}
+// TestGetRepoProjects removed - no longer using repo tool
 
 func TestManagerSync(t *testing.T) {
-	mgr := &Manager{WorkspacePath: t.TempDir()}
+	tmpDir := t.TempDir()
+	mgr := &Manager{
+		ProjectPath:   tmpDir,
+		WorkspacePath: filepath.Join(tmpDir, "workspace"),
+		GitManager:    nil, // Will fail gracefully
+	}
 	
-	// This will fail since repo is not initialized, but should not panic
+	// This will fail since GitManager is not initialized
 	err := mgr.Sync()
-	assert.NoError(t, err) // repoSync handles errors gracefully
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no git manager")
 }

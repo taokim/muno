@@ -51,7 +51,12 @@ func (m *Manager) setupCoordination() error {
 
 // createClaudeMD creates a CLAUDE.md file for a repository
 func (m *Manager) createClaudeMD(project config.Project) error {
-	repoPath := filepath.Join(m.WorkspacePath, project.Name)
+	// Use project path if specified, otherwise use name
+	path := project.Name
+	if project.Path != "" {
+		path = project.Path
+	}
+	repoPath := filepath.Join(m.WorkspacePath, path)
 	
 	// Create repo directory if it doesn't exist
 	if err := os.MkdirAll(repoPath, 0755); err != nil {
@@ -73,13 +78,18 @@ func (m *Manager) createClaudeMD(project config.Project) error {
 	var otherProjects []string
 	for _, p := range m.Config.Workspace.Manifest.Projects {
 		if p.Name != project.Name {
-			otherPath, _ := filepath.Rel(repoPath, filepath.Join(m.WorkspacePath, p.Name))
+			// Use project path if specified, otherwise use name
+			otherPath := p.Name
+			if p.Path != "" {
+				otherPath = p.Path
+			}
+			otherPathRel, _ := filepath.Rel(repoPath, filepath.Join(m.WorkspacePath, otherPath))
 			agent := p.Agent
 			if agent == "" {
 				agent = "no agent"
 			}
 			otherProjects = append(otherProjects, fmt.Sprintf("- **%s** (%s): @%s - %s", 
-				p.Name, p.Groups, otherPath, agent))
+				p.Name, p.Groups, otherPathRel, agent))
 		}
 	}
 	

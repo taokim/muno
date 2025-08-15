@@ -1,0 +1,66 @@
+# Workspace Structure
+
+## Overview
+
+Repo-Claude organizes your multi-repository project with a clear separation between project configuration and repository workspace.
+
+## Default Structure
+
+```
+my-project/                     # Project root
+├── repo-claude.yaml           # Configuration file
+├── repo-claude                # Executable (copied during init)
+├── .repo-claude-state.json    # Agent state tracking
+└── workspace/                 # Default workspace directory
+    ├── shared-memory.md       # Agent coordination file
+    ├── backend/               # Cloned repository
+    │   └── CLAUDE.md         # Agent-specific instructions
+    ├── frontend/              # Cloned repository
+    │   └── CLAUDE.md         # Agent-specific instructions
+    └── mobile/                # Cloned repository
+        └── CLAUDE.md         # Agent-specific instructions
+```
+
+## Custom Workspace Path
+
+You can override the default `workspace` subdirectory in your configuration:
+
+```yaml
+workspace:
+  name: my-project
+  path: code  # Use 'code' instead of 'workspace'
+  # or
+  # path: /absolute/path/to/workspace  # Absolute path
+  manifest:
+    # ... rest of config
+```
+
+## Benefits
+
+1. **Clean Separation**: Configuration stays at project root, code in workspace
+2. **Portable**: Can move workspace without affecting configuration
+3. **Organized**: All repositories grouped in one location
+4. **Flexible**: Configure workspace path as needed
+
+## Configuration Example
+
+```yaml
+workspace:
+  name: fse-workspace
+  path: workspace  # Optional, defaults to 'workspace'
+  manifest:
+    remote_name: origin
+    remote_fetch: git@github.com:musinsa
+    default_revision: main
+    projects:
+      - name: moms-be
+        path: moms/moms-be  # Path within workspace
+        groups: moms,backend
+        agent: backend-agent
+```
+
+In this example:
+- Project root: `./fse-workspace/`
+- Configuration: `./fse-workspace/repo-claude.yaml`
+- Repositories: `./fse-workspace/workspace/moms/moms-be/`
+- Shared memory: `./fse-workspace/workspace/shared-memory.md`

@@ -19,7 +19,8 @@ func TestStartAgent(t *testing.T) {
 	}
 	
 	mgr := &Manager{
-		WorkspacePath: tmpDir,
+		ProjectPath:   tmpDir,
+		WorkspacePath: filepath.Join(tmpDir, "workspace"),
 		Config:        cfg,
 		State:         state,
 		agents:        make(map[string]*Agent),
@@ -34,12 +35,13 @@ func TestStartAgent(t *testing.T) {
 	t.Run("RepositoryNotFound", func(t *testing.T) {
 		err := mgr.StartAgent("backend-agent")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "repository backend not found")
+		// Error message now includes full path due to workspace structure
+		assert.Contains(t, err.Error(), "not found")
 	})
 	
 	t.Run("ValidAgentButNoClaudeCLI", func(t *testing.T) {
-		// Create repository directory
-		backendDir := filepath.Join(tmpDir, "backend")
+		// Create repository directory in workspace
+		backendDir := filepath.Join(tmpDir, "workspace", "backend")
 		err := os.MkdirAll(backendDir, 0755)
 		require.NoError(t, err)
 		
@@ -175,7 +177,8 @@ func TestShowStatus(t *testing.T) {
 	}
 	
 	mgr := &Manager{
-		WorkspacePath: tmpDir,
+		ProjectPath:   tmpDir,
+		WorkspacePath: filepath.Join(tmpDir, "workspace"),
 		Config:        cfg,
 		State:         state,
 		agents:        make(map[string]*Agent),

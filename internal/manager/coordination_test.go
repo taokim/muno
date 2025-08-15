@@ -37,6 +37,7 @@ func TestCreateClaudeMD(t *testing.T) {
 	}
 	
 	mgr := &Manager{
+		ProjectPath:   filepath.Dir(tmpDir),
 		WorkspacePath: tmpDir,
 		Config:        cfg,
 	}
@@ -55,7 +56,7 @@ func TestCreateClaudeMD(t *testing.T) {
 		assert.Contains(t, string(content), "backend-agent")
 		assert.Contains(t, string(content), "Backend development")
 		assert.Contains(t, string(content), "backend")
-		assert.Contains(t, string(content), "repo status")
+		assert.Contains(t, string(content), "repo-claude status")
 		assert.Contains(t, string(content), "Cross-Repository Awareness")
 		assert.Contains(t, string(content), "frontend")
 	})
@@ -164,6 +165,7 @@ func TestCoordinationFileContent(t *testing.T) {
 	}
 	
 	mgr := &Manager{
+		ProjectPath:   filepath.Dir(tmpDir),
 		WorkspacePath: tmpDir,
 		Config:        cfg,
 	}
@@ -191,7 +193,7 @@ func TestCoordinationFileContent(t *testing.T) {
 	assert.Contains(t, string(content), "api,core")
 	assert.Contains(t, string(content), "service-b")
 	assert.Contains(t, string(content), "web-app")
-	assert.Contains(t, string(content), "Repo Tool Integration")
+	assert.Contains(t, string(content), "Multi-Repository Management")
 	assert.Contains(t, string(content), "trunk-based development")
 	assert.Contains(t, string(content), "shared-memory.md")
 }
@@ -216,6 +218,7 @@ func TestRelativePathCalculation(t *testing.T) {
 	}
 	
 	mgr := &Manager{
+		ProjectPath:   filepath.Dir(tmpDir),
 		WorkspacePath: tmpDir,
 		Config:        cfg,
 	}
@@ -239,4 +242,65 @@ func TestRelativePathCalculation(t *testing.T) {
 	// Should have correct relative paths
 	assert.Contains(t, string(content), "../../shared-memory.md")
 	assert.Contains(t, string(content), "../../apps/web")
+}
+
+func TestCreateClaudeMDWithCustomPaths(t *testing.T) {
+	tmpDir := t.TempDir()
+	workspaceDir := filepath.Join(tmpDir, "workspace")
+	
+	cfg := &config.Config{
+		Workspace: config.WorkspaceConfig{
+			Manifest: config.Manifest{
+				Projects: []config.Project{
+					{
+						Name:   "service-a",
+						Path:   "backend/services/a",
+						Groups: "backend,api",
+						Agent:  "backend-agent",
+					},
+					{
+						Name:   "frontend",
+						Path:   "apps/web",
+						Groups: "frontend",
+						Agent:  "frontend-agent",
+					},
+				},
+			},
+		},
+		Agents: map[string]config.Agent{
+			"backend-agent": {
+				Model:          "claude-sonnet-4",
+				Specialization: "Backend API development",
+			},
+			"frontend-agent": {
+				Model:          "claude-sonnet-4",
+				Specialization: "Frontend development",
+			},
+		},
+	}
+	
+	mgr := &Manager{
+		ProjectPath:   tmpDir,
+		WorkspacePath: workspaceDir,
+		Config:        cfg,
+	}
+	
+	// Test creating CLAUDE.md for project with custom path
+	project := cfg.Workspace.Manifest.Projects[0]
+	err := mgr.createClaudeMD(project)
+	require.NoError(t, err)
+	
+	// Check file was created at the custom path
+	expectedPath := filepath.Join(workspaceDir, "backend/services/a/CLAUDE.md")
+	assert.FileExists(t, expectedPath)
+	
+	// Check content has correct relative paths
+	content, err := os.ReadFile(expectedPath)
+	require.NoError(t, err)
+	
+	// Should reference the correct relative path to shared memory
+	assert.Contains(t, string(content), "../../../shared-memory.md")
+	
+	// Should reference other projects with correct relative paths
+	assert.Contains(t, string(content), "../../../apps/web")
 }

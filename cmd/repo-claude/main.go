@@ -3,13 +3,14 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/yourusername/repo-claude/internal/manager"
 )
 
 var (
-	version = "0.0.2"
+	version = "0.0.3"
 	rootCmd = &cobra.Command{
 		Use:   "repo-claude",
 		Short: "Multi-agent orchestration using Repo tool and Claude Code",
@@ -42,21 +43,21 @@ var initCmd = &cobra.Command{
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var projectName string
-		var workspacePath string
+		var projectPath string
 		
 		if len(args) > 0 {
-			// Project name provided - create new workspace
+			// Project name provided - create new project directory
 			projectName = args[0]
-			workspacePath = projectName
+			projectPath = projectName
 		} else {
 			// No project name - use current directory
-			projectName = "."
-			workspacePath = "."
+			projectName = filepath.Base(".")
+			projectPath = "."
 		}
 		
 		interactive, _ := cmd.Flags().GetBool("interactive")
 		
-		mgr := manager.New(workspacePath)
+		mgr := manager.New(projectPath)
 		return mgr.InitWorkspace(projectName, interactive)
 	},
 }

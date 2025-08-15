@@ -17,6 +17,7 @@ type Config struct {
 // WorkspaceConfig represents workspace configuration
 type WorkspaceConfig struct {
 	Name     string   `yaml:"name"`
+	Path     string   `yaml:"path,omitempty"`     // Optional workspace path (defaults to "workspace")
 	Manifest Manifest `yaml:"manifest"`
 }
 

@@ -31,7 +31,12 @@ func (m *Manager) StartAgent(agentName string) error {
 	var repoPath string
 	for _, project := range m.Config.Workspace.Manifest.Projects {
 		if project.Agent == agentName {
-			repoPath = filepath.Join(m.WorkspacePath, project.Name)
+			// Use project path if specified, otherwise use name
+			path := project.Name
+			if project.Path != "" {
+				path = project.Path
+			}
+			repoPath = filepath.Join(m.WorkspacePath, path)
 			break
 		}
 	}
