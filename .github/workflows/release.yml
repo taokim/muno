@@ -19,9 +19,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # Ensure we're on the tag ref, not detached HEAD
+          ref: ${{ github.ref }}
           
       - name: Fetch tags
-        run: git fetch --force --tags
+        run: |
+          git fetch --force --tags
+          echo "Current ref: ${{ github.ref }}"
+          echo "Current tag: ${{ github.ref_name }}"
+          git describe --tags --exact-match || echo "Not on a tag"
+          git log -1 --oneline
 
       - name: Set up Go
         uses: actions/setup-go@v5
