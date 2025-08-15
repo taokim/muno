@@ -1,10 +1,34 @@
 # Repo-Claude
 
-Multi-repository orchestration for Claude Code agents - manage dozens of Git repositories as a unified workspace with coordinated AI agents.
+Transform your multi-repository chaos into a monorepo-like development experience with AI agents.
 
-> **Multi-Repository Management** - Like Google's Repo tool for Android development, Repo-Claude manages multiple Git repositories as a single cohesive workspace. Perfect for microservices, mono-repo style workflows, or any project split across multiple repositories.
+## The Problem
 
-> **Inspired by [Google's Repo tool](https://gerrit.googlesource.com/git-repo/)** - We've adapted Repo's multi-repository management concepts for AI agent orchestration, simplifying it for our specific use case. See our [architecture docs](docs/architecture.md) for details.
+While Claude and other AI coding assistants excel at working within a single repository, modern software development often spans multiple repositories:
+- Microservices architectures with dozens of service repos
+- Frontend/backend separation across different repositories  
+- Shared libraries and components in separate repos
+- Mobile apps alongside web services
+
+**The Challenge**: AI agents struggle to understand and work across repository boundaries, missing critical context and dependencies that span multiple repos.
+
+## The Solution
+
+Repo-Claude brings Google's proven multi-repository management approach (used for Android's 1000+ repos) to AI agent orchestration:
+
+### 1. **Monorepo-Like Organization**
+Transform multiple Git repositories into a unified workspace while keeping them separate:
+- Single configuration file defines all repositories and their relationships
+- Manage dozens of repos with simple commands (`rc sync`, `rc status`)
+- Each repo maintains its independence while being part of a cohesive whole
+
+### 2. **Cross-Repository AI Agents**
+Enable AI agents to work seamlessly across repository boundaries:
+- Agents understand the full system context, not just individual repos
+- Shared memory enables coordination between agents working on different repos
+- Agents can reference code and dependencies across the entire workspace
+
+> **Inspired by [Google's Repo tool](https://gerrit.googlesource.com/git-repo/)** - We've adapted Repo's battle-tested multi-repository management concepts for the AI era, creating a monorepo-like experience without the complexity of actual monorepos.
 
 ## Features
 
@@ -82,6 +106,29 @@ sudo make install
    ```bash
    rc stop
    ```
+
+## Example: E-Commerce Platform
+
+Imagine you're building an e-commerce platform with:
+- `api-gateway` - API gateway repository
+- `user-service` - User authentication service
+- `order-service` - Order management service  
+- `inventory-service` - Inventory tracking
+- `web-frontend` - React web application
+- `mobile-app` - React Native mobile app
+
+Without Repo-Claude, AI agents can only see one repository at a time. They miss critical context like:
+- How the frontend calls the API gateway
+- Shared data models between services
+- Authentication flow across services
+- Dependencies between order and inventory services
+
+With Repo-Claude, agents work across all repositories simultaneously:
+- **Frontend Agent**: Updates web and mobile UI, understanding the full API structure
+- **Backend Agent**: Modifies services with awareness of all consumers
+- **API Agent**: Maintains gateway with knowledge of all services and clients
+
+All repositories remain separate (different teams can own them), but AI agents see the complete system - just like developers working in a monorepo.
 
 ## Configuration
 
