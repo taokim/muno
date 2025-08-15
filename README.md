@@ -1,14 +1,17 @@
 # Repo-Claude
 
-Simple multi-agent orchestration for Claude Code, managing multiple Git repositories with trunk-based development.
+Multi-repository orchestration for Claude Code agents - manage dozens of Git repositories as a unified workspace with coordinated AI agents.
+
+> **Multi-Repository Management** - Like Google's Repo tool for Android development, Repo-Claude manages multiple Git repositories as a single cohesive workspace. Perfect for microservices, mono-repo style workflows, or any project split across multiple repositories.
 
 > **Inspired by [Google's Repo tool](https://gerrit.googlesource.com/git-repo/)** - We've adapted Repo's multi-repository management concepts for AI agent orchestration, simplifying it for our specific use case. See our [architecture docs](docs/architecture.md) for details.
 
 ## Features
 
 - 🚀 **Single Binary**: No runtime dependencies (Python, Node.js, etc.)
-- 🔧 **Simple Git Management**: Direct git operations without complex tooling
+- 🗂️ **Multi-Repository Management**: Manage dozens of Git repositories as one unified workspace
 - 🤖 **Multi-Agent Orchestration**: Coordinate multiple Claude Code instances across repositories
+- 🔧 **Simple Git Operations**: Direct git commands with parallel execution for speed
 - 🌳 **Trunk-Based Development**: All agents work directly on main branch
 - 📝 **Shared Memory**: Cross-agent coordination through shared memory file
 - ⚡ **Fast**: Written in Go for optimal performance
