@@ -103,6 +103,7 @@ brews:
       owner: taokim
       name: homebrew-tap
       branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Formula
     test: |
       system "#{bin}/rc", "--version"

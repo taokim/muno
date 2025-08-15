@@ -8,7 +8,9 @@ on:
 permissions:
   contents: write
   packages: write
-
+  # Add this to allow writing to other repos
+  actions: write
+  
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
@@ -31,6 +33,4 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # If you want to publish to a separate homebrew tap repo, 
-          # you'll need a personal access token with repo scope
-          # HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

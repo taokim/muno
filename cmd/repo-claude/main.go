@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	version = "0.1.0"
+	version = "dev"
 	rootCmd = &cobra.Command{
 		Use:   "rc",
 		Short: "Multi-agent orchestration using Repo tool and Claude Code",
@@ -40,6 +40,7 @@ func main() {
 var initCmd = &cobra.Command{
 	Use:   "init [project-name]",
 	Short: "Initialize a new workspace or reinitialize from existing config",
+	Long:  "Initialize a new repo-claude workspace with the given project name, or use current directory if no name provided",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var projectName string

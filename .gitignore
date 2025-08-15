@@ -40,3 +40,4 @@ test-*/
 
 # Goreleaser
 dist/.tmp/
+.tmp/
