@@ -57,7 +57,7 @@ release:
   github:
     owner: taokim
     name: repo-claude
-  draft: false
+  draft: true
   prerelease: auto
   name_template: "{{.ProjectName}}-v{{.Version}}"
   header: |
