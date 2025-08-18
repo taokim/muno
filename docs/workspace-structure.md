@@ -48,21 +48,21 @@ workspace:
 
 ```yaml
 workspace:
-  name: fse-workspace
+  name: my-workspace
   path: workspace  # Optional, defaults to 'workspace'
   manifest:
     remote_name: origin
-    remote_fetch: git@github.com:musinsa
+    remote_fetch: git@github.com:myorg
     default_revision: main
     projects:
-      - name: moms-be
-        path: moms/moms-be  # Path within workspace
-        groups: moms,backend
+      - name: backend-repo
+        path: services/backend  # Path within workspace
+        groups: services,backend
         agent: backend-agent
 ```
 
 In this example:
-- Project root: `./fse-workspace/`
-- Configuration: `./fse-workspace/repo-claude.yaml`
-- Repositories: `./fse-workspace/workspace/moms/moms-be/`
-- Shared memory: `./fse-workspace/workspace/shared-memory.md`
+- Project root: `./my-workspace/`
+- Configuration: `./my-workspace/repo-claude.yaml`
+- Repositories: `./my-workspace/workspace/services/backend/`
+- Shared memory: `./my-workspace/workspace/shared-memory.md`

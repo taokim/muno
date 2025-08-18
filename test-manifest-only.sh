@@ -23,8 +23,8 @@ cat > default.xml << EOF
 <manifest>
   <remote name="origin" fetch="git@github.com:musinsa/"/>
   <default remote="origin" revision="main" sync-j="4"/>
-  <project name="fse-root-repo" path="backend"/>
-  <project name="fse-root-repo" path="frontend"/>
+  <project name="test-repo" path="backend"/>
+  <project name="test-repo" path="frontend"/>
 </manifest>
 EOF
 
