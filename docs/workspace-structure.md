@@ -8,17 +8,19 @@ Repo-Claude organizes your multi-repository project with a clear separation betw
 
 ```
 my-project/                     # Project root
-├── repo-claude.yaml           # Configuration file
 ├── repo-claude                # Executable (copied during init)
-├── .repo-claude-state.json    # Agent state tracking
-└── workspace/                 # Default workspace directory
+├── repo-claude.yaml           # Configuration file
+├── .repo-claude-state.json    # Agent runtime state tracking (JSON)
+└── workspace/                 # Contains all managed git repositories
     ├── shared-memory.md       # Agent coordination file
-    ├── backend/               # Cloned repository
-    │   └── CLAUDE.md         # Agent-specific instructions
-    ├── frontend/              # Cloned repository
-    │   └── CLAUDE.md         # Agent-specific instructions
-    └── mobile/                # Cloned repository
-        └── CLAUDE.md         # Agent-specific instructions
+    ├── backend/               # Git repository (trunk/main branch)
+    │   └── CLAUDE.md         # Agent-specific context for backend-agent
+    ├── frontend/              # Git repository (trunk/main branch)
+    │   └── CLAUDE.md         # Agent-specific context for frontend-agent
+    ├── mobile/                # Git repository (trunk/main branch)
+    │   └── CLAUDE.md         # Agent-specific context for mobile-agent
+    └── shared-libs/           # Git repository (trunk/main branch)
+        └── CLAUDE.md         # Shared context (no dedicated agent)
 ```
 
 ## Custom Workspace Path
