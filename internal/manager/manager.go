@@ -20,6 +20,11 @@ type Manager struct {
 	GitManager    *git.Manager
 	agents        map[string]*Agent
 	mu            sync.Mutex
+	
+	// Interfaces for external dependencies (default to real implementations)
+	CmdExecutor     CommandExecutor
+	FileSystem      FileSystem
+	ProcessManager  ProcessManager
 }
 
 // Agent represents a running Claude Code instance
@@ -36,6 +41,9 @@ func New(projectPath string) *Manager {
 		ProjectPath:   absPath,
 		WorkspacePath: filepath.Join(absPath, "workspace"), // Default workspace path
 		agents:        make(map[string]*Agent),
+		CmdExecutor:   RealCommandExecutor{},
+		FileSystem:    RealFileSystem{},
+		ProcessManager: RealProcessManager{},
 	}
 }
 
@@ -47,7 +55,8 @@ func LoadFromCurrentDir() (*Manager, error) {
 	}
 
 	configPath := filepath.Join(cwd, "repo-claude.yaml")
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+	fs := RealFileSystem{}
+	if _, err := fs.Stat(configPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("no repo-claude.yaml found in current directory")
 	}
 
@@ -80,6 +89,9 @@ func LoadFromCurrentDir() (*Manager, error) {
 		State:         state,
 		GitManager:    gitMgr,
 		agents:        make(map[string]*Agent),
+		CmdExecutor:   RealCommandExecutor{},
+		FileSystem:    RealFileSystem{},
+		ProcessManager: RealProcessManager{},
 	}, nil
 }
 
@@ -92,13 +104,16 @@ func (m *Manager) InitWorkspace(projectName string, interactive bool) error {
 	}
 
 	// Create project directory if needed
-	if err := os.MkdirAll(m.ProjectPath, 0755); err != nil {
+	if m.FileSystem == nil {
+		m.FileSystem = RealFileSystem{}
+	}
+	if err := m.FileSystem.MkdirAll(m.ProjectPath, 0755); err != nil {
 		return fmt.Errorf("creating project directory: %w", err)
 	}
 
 	// Check if repo-claude.yaml already exists in project root
 	configPath := filepath.Join(m.ProjectPath, "repo-claude.yaml")
-	if _, err := os.Stat(configPath); err == nil {
+	if _, err := m.FileSystem.Stat(configPath); err == nil {
 		// Configuration exists, load it
 		fmt.Println("📄 Found existing repo-claude.yaml, loading configuration...")
 		cfg, err := config.Load(configPath)
@@ -133,7 +148,7 @@ func (m *Manager) InitWorkspace(projectName string, interactive bool) error {
 	}
 
 	// Create workspace directory
-	if err := os.MkdirAll(m.WorkspacePath, 0755); err != nil {
+	if err := m.FileSystem.MkdirAll(m.WorkspacePath, 0755); err != nil {
 		return fmt.Errorf("creating workspace: %w", err)
 	}
 
@@ -184,8 +199,11 @@ func (m *Manager) Sync() error {
 // updateGitignore adds the workspace directory to .gitignore if needed
 func (m *Manager) updateGitignore() error {
 	// Check if we're in a git repository
+	if m.FileSystem == nil {
+		m.FileSystem = RealFileSystem{}
+	}
 	gitDir := filepath.Join(m.ProjectPath, ".git")
-	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
+	if _, err := m.FileSystem.Stat(gitDir); os.IsNotExist(err) {
 		// Not in a git repo, nothing to do
 		return nil
 	}
@@ -205,7 +223,7 @@ func (m *Manager) updateGitignore() error {
 	
 	// Check if .gitignore exists
 	content := []byte{}
-	if data, err := os.ReadFile(gitignorePath); err == nil {
+	if data, err := m.FileSystem.ReadFile(gitignorePath); err == nil {
 		content = data
 	}
 	
@@ -249,7 +267,7 @@ func (m *Manager) updateGitignore() error {
 	
 	content = append(content, []byte(addition.String())...)
 	
-	if err := os.WriteFile(gitignorePath, content, 0644); err != nil {
+	if err := m.FileSystem.WriteFile(gitignorePath, content, 0644); err != nil {
 		return fmt.Errorf("updating .gitignore: %w", err)
 	}
 	

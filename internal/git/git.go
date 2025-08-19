@@ -259,5 +259,8 @@ func (m *Manager) ForAll(command string, args ...string) error {
 
 // GetRepositories returns the list of repositories
 func (m *Manager) GetRepositories() []Repository {
-	return m.Repositories
+	// Return a copy to prevent external modifications
+	repos := make([]Repository, len(m.Repositories))
+	copy(repos, m.Repositories)
+	return repos
 }

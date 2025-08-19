@@ -1,0 +1,36 @@
+workspace:
+    name: existing-project
+    manifest:
+        remote_name: origin
+        remote_fetch: https://github.com/yourorg/
+        default_revision: main
+        projects:
+            - name: backend
+              groups: core,services
+              agent: backend-agent
+            - name: frontend
+              groups: core,ui
+              agent: frontend-agent
+            - name: mobile
+              groups: mobile,ui
+              agent: mobile-agent
+            - name: shared-libs
+              groups: shared,core
+agents:
+    backend-agent:
+        model: claude-sonnet-4
+        specialization: API development, database design, backend services
+        auto_start: true
+        dependencies: []
+    frontend-agent:
+        model: claude-sonnet-4
+        specialization: React/Vue development, UI/UX implementation
+        auto_start: true
+        dependencies:
+            - backend-agent
+    mobile-agent:
+        model: claude-sonnet-4
+        specialization: Mobile app development, native iOS/Android
+        auto_start: false
+        dependencies:
+            - backend-agent

@@ -12,8 +12,11 @@ import (
 // setupCoordination creates coordination files
 func (m *Manager) setupCoordination() error {
 	// Create shared memory file
+	if m.FileSystem == nil {
+		m.FileSystem = RealFileSystem{}
+	}
 	sharedMemoryPath := filepath.Join(m.WorkspacePath, "shared-memory.md")
-	if _, err := os.Stat(sharedMemoryPath); os.IsNotExist(err) {
+	if _, err := m.FileSystem.Stat(sharedMemoryPath); os.IsNotExist(err) {
 		content := `# Shared Agent Memory
 
 ## Current Tasks
@@ -32,7 +35,7 @@ func (m *Manager) setupCoordination() error {
 ## Decisions
 - Document architectural decisions here
 `
-		if err := os.WriteFile(sharedMemoryPath, []byte(content), 0644); err != nil {
+		if err := m.FileSystem.WriteFile(sharedMemoryPath, []byte(content), 0644); err != nil {
 			return fmt.Errorf("creating shared memory: %w", err)
 		}
 	}
@@ -58,8 +61,11 @@ func (m *Manager) createClaudeMD(project config.Project) error {
 	}
 	repoPath := filepath.Join(m.WorkspacePath, path)
 	
+	if m.FileSystem == nil {
+		m.FileSystem = RealFileSystem{}
+	}
 	// Create repo directory if it doesn't exist
-	if err := os.MkdirAll(repoPath, 0755); err != nil {
+	if err := m.FileSystem.MkdirAll(repoPath, 0755); err != nil {
 		return fmt.Errorf("creating repo directory: %w", err)
 	}
 	
@@ -163,5 +169,5 @@ rc forall 'git log --oneline -5'
 		"```",
 	)
 	
-	return os.WriteFile(claudeMDPath, []byte(content), 0644)
+	return m.FileSystem.WriteFile(claudeMDPath, []byte(content), 0644)
 }

@@ -1,0 +1,187 @@
+# Example repo-claude.yaml with presets and flexible configurations
+
+workspace:
+  name: my-awesome-project
+  manifest:
+    version: 1
+    projects:
+      - name: frontend
+        url: https://github.com/myorg/frontend
+        branch: main
+        agent: frontend-dev
+        tags: [ui, critical]
+      
+      - name: backend
+        url: https://github.com/myorg/backend  
+        branch: main
+        agent: backend-dev
+        tags: [api, critical]
+      
+      - name: mobile
+        url: https://github.com/myorg/mobile
+        branch: main
+        agent: mobile-dev
+        tags: [ui, mobile]
+      
+      - name: auth-service
+        url: https://github.com/myorg/auth-service
+        branch: main
+        agent: auth-specialist
+        tags: [api, security, microservice]
+      
+      - name: data-service
+        url: https://github.com/myorg/data-service
+        branch: main
+        agent: data-engineer
+        tags: [api, data, microservice]
+      
+      - name: legacy-api
+        url: https://github.com/myorg/legacy-api
+        branch: main
+        agent: legacy-expert
+        tags: [api, legacy, migration]
+
+  # Presets for common development scenarios
+  presets:
+    fullstack:
+      description: "Full-stack development (frontend + backend)"
+      repositories: [frontend, backend]
+      shared_memory_scope: "fullstack"
+      terminal_layout: "split-horizontal"
+    
+    backend-all:
+      description: "All backend services"
+      repositories: [backend, auth-service, data-service]
+      shared_memory_scope: "backend"
+      terminal_layout: "tabs"
+    
+    microservices:
+      description: "Microservices development"
+      tags: [microservice]  # Select by tag instead of explicit repos
+      shared_memory_scope: "microservices"
+      terminal_layout: "separate-windows"
+    
+    migration:
+      description: "Legacy system migration"
+      repositories: [legacy-api, backend]
+      agents_override:  # Override default agents for this preset
+        legacy-api: analyzer
+        backend: migrator
+      shared_memory_scope: "migration"
+    
+    mobile-stack:
+      description: "Mobile app with backend"
+      repositories: [mobile, backend, auth-service]
+      shared_memory_scope: "mobile"
+      terminal_layout: "tabs"
+    
+    ui-only:
+      description: "Frontend and mobile UI work"
+      tags: [ui]
+      shared_memory_scope: "ui"
+      terminal_layout: "split-vertical"
+
+agents:
+  frontend-dev:
+    model: claude-3-5-sonnet-20241022
+    specialization: "React, TypeScript, responsive design, accessibility"
+    auto_start: true
+    dependencies: []
+
+  backend-dev:
+    model: claude-3-5-sonnet-20241022
+    specialization: "Node.js, Express, PostgreSQL, REST APIs"
+    auto_start: true
+    dependencies: []
+
+  mobile-dev:
+    model: claude-3-5-sonnet-20241022
+    specialization: "React Native, iOS, Android, mobile performance"
+    auto_start: false
+    dependencies: []
+
+  auth-specialist:
+    model: claude-3-5-sonnet-20241022
+    specialization: "Authentication, OAuth, JWT, security best practices"
+    auto_start: false
+    dependencies: []
+
+  data-engineer:
+    model: claude-3-5-sonnet-20241022
+    specialization: "Data modeling, ETL, caching, query optimization"
+    auto_start: false
+    dependencies: []
+
+  legacy-expert:
+    model: claude-3-5-sonnet-20241022
+    specialization: "Legacy code analysis, refactoring, migration strategies"
+    auto_start: false
+    dependencies: []
+
+  analyzer:
+    model: claude-3-5-sonnet-20241022
+    specialization: "Code analysis, architecture review, technical debt assessment"
+    auto_start: false
+    dependencies: []
+
+  migrator:
+    model: claude-3-5-sonnet-20241022
+    specialization: "System migration, data transformation, backward compatibility"
+    auto_start: false
+    dependencies: []
+
+# Terminal preferences for better developer experience
+terminal_preferences:
+  default_layout: "foreground-single"
+  layouts:
+    split-horizontal:
+      command: "tmux-split-h"  # Custom command to split horizontally
+      fallback: "separate-windows"
+    
+    split-vertical:
+      command: "tmux-split-v"
+      fallback: "separate-windows"
+    
+    tabs:
+      command: "terminal-tabs"  # Platform-specific
+      fallback: "separate-windows"
+    
+    separate-windows:
+      command: "new-terminal"   # Opens new terminal windows
+      fallback: "background"    # Falls back to background if not supported
+    
+    foreground-single:
+      command: "foreground"     # Runs in current terminal
+      fallback: "background"
+
+# Shared memory configuration
+shared_memory:
+  default_scope: "all"  # What agents can see by default
+  scopes:
+    all:
+      description: "All agents can read and write"
+      agents: ["*"]
+    
+    fullstack:
+      description: "Frontend and backend communication"
+      agents: [frontend-dev, backend-dev]
+    
+    backend:
+      description: "Backend services coordination"
+      agents: [backend-dev, auth-specialist, data-engineer]
+    
+    microservices:
+      description: "Microservices communication"
+      agents: [auth-specialist, data-engineer]
+    
+    migration:
+      description: "Migration-specific communication"
+      agents: [legacy-expert, analyzer, migrator]
+    
+    mobile:
+      description: "Mobile and API coordination"
+      agents: [mobile-dev, backend-dev, auth-specialist]
+    
+    ui:
+      description: "UI components coordination"
+      agents: [frontend-dev, mobile-dev]
