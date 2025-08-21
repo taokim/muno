@@ -19,31 +19,33 @@ Repo-Claude Go is a multi-repository orchestration tool that launches Claude Cod
 
 ### Running the Tool
 ```bash
-# Build the binary
-go build -o repo-claude cmd/main.go
+# Build the binary (creates ./bin/rc)
+make build
+# OR manually:
+go build -o bin/rc ./cmd/repo-claude
 
 # Initialize a new workspace
-./repo-claude init <workspace-name>
+./bin/rc init <workspace-name>
 
 # Start scopes
-./repo-claude start              # Start all auto-start scopes
-./repo-claude start <scope-name> # Start specific scope
-./repo-claude start <repo-name>  # Start scope containing this repo
-./repo-claude start --new-window # Open in new window instead of tab
+./bin/rc start              # Start all auto-start scopes
+./bin/rc start <scope-name> # Start specific scope
+./bin/rc start <repo-name>  # Start scope containing this repo
+./bin/rc start --new-window # Open in new window instead of tab
 
 # List running scopes
-./repo-claude ps                 # Shows numbered list for easy kill
+./bin/rc ps                 # Shows numbered list for easy kill
 
 # Stop scopes
-./repo-claude kill               # Stop all scopes
-./repo-claude kill <scope-name>  # Stop specific scope
-./repo-claude kill 1 2           # Stop by numbers from ps output
+./bin/rc kill               # Stop all scopes
+./bin/rc kill <scope-name>  # Stop specific scope
+./bin/rc kill 1 2           # Stop by numbers from ps output
 
 # Check status
-./repo-claude status
+./bin/rc status
 
 # Sync repositories
-./repo-claude sync
+./bin/rc sync
 ```
 
 ### Development Commands
@@ -164,6 +166,8 @@ Go dependencies (see `go.mod`):
 
 ## Testing
 
+**Coverage Requirement**: Maintain test coverage above 80% for all packages.
+
 ```bash
 # Unit tests
 go test ./pkg/...
@@ -174,7 +178,17 @@ go test ./test/integration/...
 # Coverage report
 go test -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out
+
+# Check coverage percentage
+go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out | tail -1
 ```
+
+### Testing Guidelines
+- Write unit tests for all new functionality
+- Aim for >80% test coverage per package
+- Use table-driven tests for multiple test cases
+- Mock external dependencies appropriately
+- Test both success and error paths
 
 ## Extension Points
 
@@ -199,7 +213,7 @@ go tool cover -html=coverage.out
 # Build release binaries
 make release
 
-# Build for current platform
+# Build for current platform (creates ./bin/rc)
 make build
 
 # Run linters
@@ -207,4 +221,11 @@ make lint
 
 # Clean build artifacts
 make clean
+
+# Check version (format: YYMMDDHHMM for local builds, git tag for releases)
+./bin/rc --version
 ```
+
+### Binary Location
+- Local builds: `./bin/rc` (in project root)
+- Installed: `$GOPATH/bin/rc` (via `make install`)

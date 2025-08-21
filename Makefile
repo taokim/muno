@@ -2,7 +2,8 @@
 
 # Variables
 BINARY_NAME=rc
-VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "1.0.0")
+# For local builds, use YYMMDDHHMM format. For tagged releases, use git tag
+VERSION=$(shell git describe --tags --exact-match 2>/dev/null || date '+%y%m%d%H%M')
 BUILD_TIME=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 LDFLAGS=-ldflags "-X main.version=${VERSION} -X main.buildTime=${BUILD_TIME}"
 GOBASE=$(shell pwd)

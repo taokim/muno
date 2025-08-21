@@ -114,12 +114,16 @@ func (m *Manager) displayScopesNumbered(scopes []*ScopeInfo, opts AgentListOptio
 		return nil
 	}
 	
+	// Load current state to get current scope info
+	statePath := fmt.Sprintf("%s/.repo-claude-state.json", m.ProjectPath)
+	state, _ := config.LoadState(statePath)
+	
 	// Create tabwriter for aligned output
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 	
 	// Print header
-	fmt.Fprintln(w, "#\tSCOPE\tSTATUS\tPID\tREPOS")
-	fmt.Fprintln(w, "-\t-----\t------\t---\t-----")
+	fmt.Fprintln(w, "#\tSCOPE\tSTATUS\tPID\tCURRENT SCOPE (REPOS)\tCHANGED")
+	fmt.Fprintln(w, "-\t-----\t------\t---\t--------------------\t-------")
 	
 	// Store scope mapping for kill command
 	m.mu.Lock()
@@ -144,16 +148,47 @@ func (m *Manager) displayScopesNumbered(scopes []*ScopeInfo, opts AgentListOptio
 			pidStr = fmt.Sprintf("%d", scope.PID)
 		}
 		
-		// Format repos
-		reposStr := strings.Join(scope.Repos, ", ")
-		if reposStr == "" {
-			reposStr = "(no repos)"
-		}
-		if len(reposStr) > 50 {
-			reposStr = reposStr[:47] + "..."
+		// Get current scope info from state
+		currentScopeStr := ""
+		changedStr := "-"
+		if state != nil && state.Scopes != nil {
+			if scopeStatus, exists := state.Scopes[scope.Name]; exists {
+				// Check if scope has changed
+				if scopeStatus.CurrentScope != "" && scopeStatus.CurrentScope != scope.Name {
+					// Format current repos
+					reposStr := strings.Join(scopeStatus.CurrentRepos, ", ")
+					if len(reposStr) > 30 {
+						reposStr = reposStr[:27] + "..."
+					}
+					currentScopeStr = fmt.Sprintf("%s (%s) 📍", scopeStatus.CurrentScope, reposStr)
+					
+					// Format time since change
+					if scopeStatus.LastChange != "" {
+						if t, err := time.Parse(time.RFC3339, scopeStatus.LastChange); err == nil {
+							changedStr = formatDuration(time.Since(t)) + " ago"
+						}
+					}
+				} else {
+					// No change, show original repos
+					reposStr := strings.Join(scope.Repos, ", ")
+					if len(reposStr) > 40 {
+						reposStr = reposStr[:37] + "..."
+					}
+					currentScopeStr = fmt.Sprintf("%s (%s)", scope.Name, reposStr)
+				}
+			}
 		}
 		
-		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\n", num, scope.Name, status, pidStr, reposStr)
+		// If no state info, use default
+		if currentScopeStr == "" {
+			reposStr := strings.Join(scope.Repos, ", ")
+			if len(reposStr) > 40 {
+				reposStr = reposStr[:37] + "..."
+			}
+			currentScopeStr = fmt.Sprintf("%s (%s)", scope.Name, reposStr)
+		}
+		
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\n", num, scope.Name, status, pidStr, currentScopeStr, changedStr)
 	}
 	
 	w.Flush()
@@ -267,6 +302,7 @@ func (m *Manager) displayScopesTable(scopes []*ScopeInfo, opts AgentListOptions)
 	
 	return nil
 }
+
 
 // sortScopes sorts the scope list based on the specified field
 func sortScopes(scopes []*ScopeInfo, sortBy string) {

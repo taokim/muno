@@ -183,6 +183,180 @@ func TestUpdateAgent(t *testing.T) {
 	})
 }
 
+func TestUpdateScope(t *testing.T) {
+	t.Run("AddNewScope", func(t *testing.T) {
+		state := &State{
+			Scopes: make(map[string]ScopeStatus),
+		}
+		scope := ScopeStatus{
+			Name:   "new-scope",
+			Status: "running",
+			PID:    1234,
+			Repos:  []string{"repo1", "repo2"},
+		}
+		
+		state.UpdateScope(scope)
+		
+		assert.Len(t, state.Scopes, 1)
+		stored := state.Scopes["new-scope"]
+		assert.Equal(t, scope.Name, stored.Name)
+		assert.Equal(t, scope.Status, stored.Status)
+		assert.NotEmpty(t, stored.LastActivity)
+		// Check that CurrentRepos and CurrentScope are initialized
+		assert.Equal(t, scope.Repos, stored.CurrentRepos)
+		assert.Equal(t, scope.Name, stored.CurrentScope)
+	})
+	
+	t.Run("UpdateExistingScope", func(t *testing.T) {
+		state := &State{
+			Scopes: make(map[string]ScopeStatus),
+		}
+		// First add a scope
+		scope1 := ScopeStatus{
+			Name:   "existing-scope",
+			Status: "running",
+			PID:    5555,
+			Repos:  []string{"repo1", "repo2"},
+		}
+		state.UpdateScope(scope1)
+		
+		// Wait a bit to ensure different timestamp
+		time.Sleep(100 * time.Millisecond)
+		
+		// Update the scope
+		scope2 := ScopeStatus{
+			Name:         "existing-scope",
+			Status:       "stopped",
+			PID:          0,
+			Repos:        []string{"repo1", "repo2"},
+			CurrentRepos: []string{"repo3"}, // Changed repos
+			CurrentScope: "different-scope",  // Changed scope
+		}
+		state.UpdateScope(scope2)
+		
+		assert.Len(t, state.Scopes, 1)
+		updated := state.Scopes["existing-scope"]
+		assert.Equal(t, "stopped", updated.Status)
+		assert.Equal(t, 0, updated.PID)
+		assert.Equal(t, []string{"repo3"}, updated.CurrentRepos)
+		assert.Equal(t, "different-scope", updated.CurrentScope)
+		assert.NotEmpty(t, updated.LastActivity)
+	})
+}
+
+func TestChangeScopeContext(t *testing.T) {
+	state := &State{
+		Scopes: make(map[string]ScopeStatus),
+	}
+	
+	t.Run("ChangeScopeForExistingSession", func(t *testing.T) {
+		// Add a scope first
+		scope := ScopeStatus{
+			Name:         "test-session",
+			Status:       "running",
+			PID:          1234,
+			Repos:        []string{"repo1", "repo2"},
+			CurrentRepos: []string{"repo1", "repo2"},
+			CurrentScope: "test-session",
+		}
+		state.UpdateScope(scope)
+		
+		// Change scope context
+		err := state.ChangeScopeContext("test-session", "new-scope", []string{"repo3", "repo4"})
+		require.NoError(t, err)
+		
+		// Verify changes
+		updated := state.Scopes["test-session"]
+		assert.Equal(t, "new-scope", updated.CurrentScope)
+		assert.Equal(t, []string{"repo3", "repo4"}, updated.CurrentRepos)
+		assert.NotEmpty(t, updated.LastChange)
+		assert.NotEmpty(t, updated.LastActivity)
+	})
+	
+	t.Run("ChangeScopeForNonExistentSession", func(t *testing.T) {
+		err := state.ChangeScopeContext("non-existent", "new-scope", []string{"repo1"})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "scope session non-existent not found")
+	})
+}
+
+func TestScopeStateRoundTrip(t *testing.T) {
+	tmpDir := t.TempDir()
+	statePath := filepath.Join(tmpDir, "scope-roundtrip.json")
+	
+	// Create a complex state with scopes
+	original := &State{
+		Scopes: map[string]ScopeStatus{
+			"scope1": {
+				Name:         "scope1",
+				Status:       "running",
+				PID:          1111,
+				Repos:        []string{"repo1", "repo2"},
+				CurrentRepos: []string{"repo3"},
+				CurrentScope: "different-scope",
+				LastActivity: time.Now().Format(time.RFC3339),
+				LastChange:   time.Now().Add(-5 * time.Minute).Format(time.RFC3339),
+			},
+			"scope2": {
+				Name:         "scope2",
+				Status:       "stopped",
+				Repos:        []string{"repo4", "repo5"},
+				CurrentRepos: []string{"repo4", "repo5"},
+				CurrentScope: "scope2",
+				LastActivity: time.Now().Add(-1 * time.Hour).Format(time.RFC3339),
+			},
+		},
+		// Also test backward compatibility with agents
+		Agents: map[string]AgentStatus{
+			"legacy-agent": {
+				Name:         "legacy-agent",
+				Status:       "running",
+				PID:          9999,
+				Repository:   "legacy-repo",
+				LastActivity: time.Now().Format(time.RFC3339),
+			},
+		},
+	}
+	
+	// Save
+	err := original.Save(statePath)
+	require.NoError(t, err)
+	
+	// Load
+	loaded, err := LoadState(statePath)
+	require.NoError(t, err)
+	
+	// Compare all fields
+	assert.Equal(t, original.Timestamp, loaded.Timestamp)
+	assert.Len(t, loaded.Scopes, len(original.Scopes))
+	assert.Len(t, loaded.Agents, len(original.Agents))
+	
+	// Check scopes
+	for name, originalScope := range original.Scopes {
+		loadedScope, exists := loaded.Scopes[name]
+		assert.True(t, exists, "Scope %s should exist", name)
+		assert.Equal(t, originalScope.Name, loadedScope.Name)
+		assert.Equal(t, originalScope.Status, loadedScope.Status)
+		assert.Equal(t, originalScope.PID, loadedScope.PID)
+		assert.Equal(t, originalScope.Repos, loadedScope.Repos)
+		assert.Equal(t, originalScope.CurrentRepos, loadedScope.CurrentRepos)
+		assert.Equal(t, originalScope.CurrentScope, loadedScope.CurrentScope)
+		assert.Equal(t, originalScope.LastActivity, loadedScope.LastActivity)
+		assert.Equal(t, originalScope.LastChange, loadedScope.LastChange)
+	}
+	
+	// Check legacy agents
+	for name, originalAgent := range original.Agents {
+		loadedAgent, exists := loaded.Agents[name]
+		assert.True(t, exists, "Agent %s should exist", name)
+		assert.Equal(t, originalAgent.Name, loadedAgent.Name)
+		assert.Equal(t, originalAgent.Status, loadedAgent.Status)
+		assert.Equal(t, originalAgent.PID, loadedAgent.PID)
+		assert.Equal(t, originalAgent.Repository, loadedAgent.Repository)
+		assert.Equal(t, originalAgent.LastActivity, loadedAgent.LastActivity)
+	}
+}
+
 func TestStateRoundTrip(t *testing.T) {
 	tmpDir := t.TempDir()
 	statePath := filepath.Join(tmpDir, "roundtrip.json")
