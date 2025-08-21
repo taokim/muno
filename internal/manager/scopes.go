@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 	
@@ -44,7 +43,7 @@ func (m *Manager) StartScopeWithOptions(scopeName string, opts StartOptions) err
 		return fmt.Errorf("getting current directory: %w", err)
 	}
 
-	location := "new tab"
+	location := "current terminal"
 	if opts.NewWindow {
 		location = "new window"
 	}
@@ -70,12 +69,6 @@ func (m *Manager) StartScopeWithOptions(scopeName string, opts StartOptions) err
 	// Start the command
 	err = cmd.Start()
 	if err != nil {
-		// If we tried to open in a tab and it failed, try opening in a new window
-		if !opts.NewWindow && runtime.GOOS == "darwin" {
-			fmt.Printf("⚠️  Failed to open in tab, trying new window...\n")
-			opts.NewWindow = true
-			return m.StartScopeWithOptions(scopeName, opts)
-		}
 		return fmt.Errorf("failed to start scope: %w", err)
 	}
 
@@ -163,6 +156,12 @@ func (m *Manager) StartAllScopesWithOptions(opts StartOptions) error {
 	if len(toStart) == 0 {
 		fmt.Println("No auto-start scopes configured")
 		return nil
+	}
+	
+	// Auto-enable new window when starting multiple scopes
+	if !opts.NewWindow && len(toStart) > 1 {
+		opts.NewWindow = true
+		fmt.Printf("🪟 Opening %d scopes in new windows\n", len(toStart))
 	}
 
 	// Start scopes respecting dependencies

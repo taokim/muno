@@ -6,7 +6,8 @@
       "Bash(go tool cover:*)",
       "Bash(rm:*)",
       "Bash(make:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git commit:*)"
     ],
     "deny": []
   }

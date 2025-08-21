@@ -15,7 +15,7 @@ import (
 
 // StartOptions defines how agents should be started
 type StartOptions struct {
-	NewWindow  bool // Open in new window instead of tab (default: false, open in tab)
+	NewWindow  bool // Open in new window (default: false, run in current terminal)
 	LogOutput  bool // Log output to files (kept for debugging)
 }
 
@@ -57,13 +57,13 @@ func (m *Manager) StartAgentWithOptions(agentName string, opts StartOptions) err
 		return fmt.Errorf("repository %s not found, run 'rc sync' first", repoPath)
 	}
 
-	location := "new tab"
+	location := "current terminal"
 	if opts.NewWindow {
 		location = "new window"
 	}
 	fmt.Printf("🚀 Starting %s in %s (%s) [legacy agent mode]\n", agentName, repoPath, location)
 
-	// Build command - always open in new terminal window
+	// Build command
 	systemPrompt := fmt.Sprintf("You are %s, specialized in: %s. "+
 		"You are working in a multi-agent environment. "+
 		"Check shared-memory.md for coordination with other agents.",
@@ -79,19 +79,29 @@ func (m *Manager) StartAgentWithOptions(agentName string, opts StartOptions) err
 	var cmd Cmd
 	if m.CmdExecutor != nil {
 		// Use the command executor interface for testing
-		switch runtime.GOOS {
-		case "darwin":
-			script := fmt.Sprintf(`
-				tell application "Terminal"
-					do script "cd %s && export RC_AGENT_NAME='%s'; export RC_WORKSPACE_ROOT='%s'; claude --model %s --append-system-prompt '%s'"
-					activate
-				end tell
-			`, repoPath, agentName, m.WorkspacePath, agentConfig.Model, systemPrompt)
-			cmd = m.CmdExecutor.Command("osascript", "-e", script)
-		default:
-			// For other platforms, use a simple command for testing
+		if opts.NewWindow {
+			// New window mode
+			switch runtime.GOOS {
+			case "darwin":
+				script := fmt.Sprintf(`
+					tell application "Terminal"
+						do script "cd %s && export RC_AGENT_NAME='%s'; export RC_WORKSPACE_ROOT='%s'; claude --model %s --append-system-prompt '%s'"
+						activate
+					end tell
+				`, repoPath, agentName, m.WorkspacePath, agentConfig.Model, systemPrompt)
+				cmd = m.CmdExecutor.Command("osascript", "-e", script)
+			default:
+				// For other platforms, use a simple command for testing
+				cmd = m.CmdExecutor.Command("xterm", "-e", "bash", "-c", fmt.Sprintf("cd %s && claude --model %s --append-system-prompt '%s'; exec bash", repoPath, agentConfig.Model, systemPrompt))
+			}
+		} else {
+			// Current terminal mode
 			cmd = m.CmdExecutor.Command("claude", "--model", agentConfig.Model, "--append-system-prompt", systemPrompt)
 			cmd.SetDir(repoPath)
+			// Set environment variables
+			for k, v := range envVars {
+				cmd.SetEnv(append(os.Environ(), fmt.Sprintf("%s=%s", k, v)))
+			}
 		}
 	} else {
 		// Use the real implementation
@@ -101,21 +111,11 @@ func (m *Manager) StartAgentWithOptions(agentName string, opts StartOptions) err
 
 	// Start the command
 	err := cmd.Start()
-
 	if err != nil {
-		// If we tried to open in a tab and it failed, try opening in a new window
-		if !opts.NewWindow && runtime.GOOS == "darwin" {
-			fmt.Printf("⚠️  Failed to open in tab, trying new window...\n")
-			opts.NewWindow = true
-			m.mu.Unlock() // Unlock before recursive call
-			err := m.StartAgentWithOptions(agentName, opts)
-			m.mu.Lock() // Re-lock after return
-			return err
-		}
 		return fmt.Errorf("failed to start: %w", err)
 	}
 
-	// Track agent (always track since we always open in new window)
+	// Track agent
 	m.agents[agentName] = &Agent{
 		Name:    agentName,
 		Process: cmd.Process(),
@@ -157,6 +157,12 @@ func (m *Manager) StartAllAgentsWithOptions(opts StartOptions) error {
 	if len(toStart) == 0 {
 		fmt.Println("No auto-start agents configured [legacy mode]")
 		return nil
+	}
+	
+	// Auto-enable new window when starting multiple agents
+	if !opts.NewWindow && len(toStart) > 1 {
+		opts.NewWindow = true
+		fmt.Printf("🪟 Opening %d agents in new windows [legacy mode]\n", len(toStart))
 	}
 
 	// Start agents respecting dependencies
@@ -293,7 +299,7 @@ func (m *Manager) StartInteractive(opts StartOptions) error {
 	return m.StartByRepos(selectedRepos, opts)
 }
 
-// createNewTerminalCommand creates a command to open claude in a new terminal tab or window
+// createNewTerminalCommand creates a command to run claude in current terminal or new window
 func createNewTerminalCommand(agentName, repoPath, model, systemPrompt string, envVars map[string]string, newWindow bool) *exec.Cmd {
 	// Build environment variable exports
 	var envExports []string
@@ -304,36 +310,32 @@ func createNewTerminalCommand(agentName, repoPath, model, systemPrompt string, e
 	
 	claudeCmd := fmt.Sprintf("%s; claude --model %s --append-system-prompt '%s'", envExportsStr, model, systemPrompt)
 	
+	// If not opening in new window, run in current terminal
+	if !newWindow {
+		cmd := exec.Command("claude", "--model", model, "--append-system-prompt", systemPrompt)
+		cmd.Dir = repoPath
+		// Set environment variables
+		for k, v := range envVars {
+			cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", k, v))
+		}
+		// Connect to current terminal
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd
+	}
+	
+	// Open in new window
 	switch runtime.GOOS {
 	case "darwin": // macOS
-		if newWindow {
-			// Open in new window
-			script := fmt.Sprintf(`
-				tell application "Terminal"
-					do script "cd %s && %s"
-					activate
-				end tell
-			`, repoPath, claudeCmd)
-			return exec.Command("osascript", "-e", script)
-		} else {
-			// Try to open in new tab first
-			fullCommand := fmt.Sprintf("cd %s && %s", repoPath, claudeCmd)
-			
-			// First try to open in a new tab
-			tabScript := fmt.Sprintf(`
-				tell application "Terminal"
-					activate
-					tell application "System Events" to keystroke "t" using command down
-					delay 0.5
-					do script "%s" in selected tab of the front window
-				end tell
-			`, fullCommand)
-			
-			// Create a command that tries tab first, falls back to window
-			cmd := exec.Command("osascript", "-e", tabScript)
-			// If tab creation fails, we'll handle it in the caller
-			return cmd
-		}
+		// Open in new window
+		script := fmt.Sprintf(`
+			tell application "Terminal"
+				do script "cd %s && %s"
+				activate
+			end tell
+		`, repoPath, claudeCmd)
+		return exec.Command("osascript", "-e", script)
 		
 	case "linux":
 		// Try common terminal emulators

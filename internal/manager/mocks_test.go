@@ -21,6 +21,7 @@ type MockCommand struct {
 	Response string
 	Error    error
 	ExitCode int
+	OnCall   func() // Callback when command is called
 }
 
 func (m *MockCommandExecutor) Execute(cmd string, args ...string) error {
@@ -308,6 +309,12 @@ func (c *MockCmd) Start() error {
 		c.process = &os.Process{Pid: 12345}
 	}
 	// Check if we have an error configured
+	// First check exact command name match
+	cmdName := strings.Split(c.fullCmd, " ")[0]
+	if response, ok := c.commands[cmdName]; ok {
+		return response.Error
+	}
+	// Fallback to pattern matching
 	for pattern, response := range c.commands {
 		if strings.Contains(c.fullCmd, pattern) {
 			return response.Error
@@ -331,14 +338,28 @@ func (m *MockCommandExecutor) Command(name string, arg ...string) Cmd {
 		Error  error
 	})
 	
+	// Find the matching command
 	for _, mc := range m.Commands {
-		key := mc.Cmd + " " + strings.Join(mc.Args, " ")
-		commands[key] = struct {
-			Output []byte
-			Error  error
-		}{
-			Output: []byte(mc.Response),
-			Error:  mc.Error,
+		if mc.Cmd == name {
+			// Call the callback if present
+			if mc.OnCall != nil {
+				mc.OnCall()
+			}
+			
+			// key := mc.Cmd
+			// if len(mc.Args) > 0 {
+			// 	key = mc.Cmd + " " + strings.Join(mc.Args, " ")
+			// }
+			commands[mc.Cmd] = struct {
+				Output []byte
+				Error  error
+			}{
+				Output: []byte(mc.Response),
+				Error:  mc.Error,
+			}
+			// Use just the command name as key for simpler matching
+			commands[name] = commands[mc.Cmd]
+			break
 		}
 	}
 	

@@ -26,7 +26,7 @@ Transform multiple Git repositories into a unified workspace while keeping them 
 Work with flexible scopes that span multiple repositories:
 - Define scopes by feature, team, or domain (e.g., "backend", "order-flow", "mobile")
 - Each scope includes all relevant repositories for a complete context
-- Claude Code sessions open in tabs by default for better workflow
+- Claude Code sessions run in current terminal by default, with automatic new windows for multiple sessions
 - Dynamic scope switching coming in Phase 2
 
 > **Inspired by [Google's Repo tool](https://gerrit.googlesource.com/git-repo/)** - We've adapted Repo's battle-tested multi-repository management concepts for the AI era, creating a monorepo-like experience without the complexity of actual monorepos.
@@ -97,7 +97,8 @@ sudo make install
    rc start              # Start all auto-start scopes
    rc start backend      # Start specific scope
    rc start order-service # Start scope containing this repo
-   rc start --new-window  # Open in new window instead of tab
+   rc start --new-window  # Force open in new window
+   rc start scope1 scope2 # Multiple scopes auto-open in new windows
    ```
 
 3. **Check status**:
@@ -220,7 +221,7 @@ scopes:
 
 When you start a scope with `rc start backend`, repo-claude:
 
-1. **Launches Claude Code** in a new terminal tab (or window with `--new-window`):
+1. **Launches Claude Code** in current terminal (or new window with `--new-window` or when starting multiple scopes):
    ```bash
    claude --model claude-sonnet-4 --append-system-prompt "..."
    ```
@@ -274,7 +275,9 @@ Note:
 - The `rc` command is installed system-wide via Homebrew or manual installation
 - Repositories are cloned into the `workspace/` subdirectory by default
 - You can customize the workspace path in `repo-claude.yaml` if needed
-- Claude Code sessions open in new tabs by default (use `--new-window` for separate windows)
+- Claude Code sessions run in current terminal by default
+- Multiple sessions automatically open in new windows
+- Use `--new-window` to force new window for single session
 
 ## Migration from Agent-Based Configuration
 
@@ -304,7 +307,7 @@ Repo-Claude now uses a scope-based architecture instead of agent-based. To migra
 3. **Command changes**:
    - `rc stop` → `rc kill`
    - `rc ps` now shows numbered output by default
-   - `rc start` opens in tabs instead of windows
+   - `rc start` runs in current terminal by default
 
 The tool maintains backwards compatibility with agent-based configs but will show "[legacy mode]" in output.
 
@@ -354,7 +357,7 @@ Key components:
 - **Manager**: Core orchestration logic
 - **Config**: YAML configuration and state management
 - **Scope**: Claude Code session management with multi-repository context
-- **ProcessManager**: Handles terminal tab/window creation
+- **ProcessManager**: Handles terminal and window management
 
 ### Inspiration and History
 

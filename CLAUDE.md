@@ -9,7 +9,7 @@ Repo-Claude Go is a multi-repository orchestration tool that launches Claude Cod
 **Key Features:**
 - Scope-based development across multiple repositories
 - Flexible repository grouping with wildcard support
-- Terminal tab support (default) with optional new windows
+- Runs in current terminal by default, with automatic new windows for multiple sessions
 - Shared memory for cross-scope communication
 - Trunk-based development workflow
 - Direct git management (no Google repo tool dependency)
@@ -31,7 +31,8 @@ go build -o bin/rc ./cmd/repo-claude
 ./bin/rc start              # Start all auto-start scopes
 ./bin/rc start <scope-name> # Start specific scope
 ./bin/rc start <repo-name>  # Start scope containing this repo
-./bin/rc start --new-window # Open in new window instead of tab
+./bin/rc start --new-window # Force open in new window
+./bin/rc start scope1 scope2 # Multiple scopes auto-open in new windows
 
 # List running scopes
 ./bin/rc ps                 # Shows numbered list for easy kill

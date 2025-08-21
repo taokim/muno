@@ -70,7 +70,7 @@ func TestStartAgentWithOptions(t *testing.T) {
 			errorMsg:   "repository",
 		},
 		{
-			name:      "Valid agent - new window",
+			name:      "Valid agent - current terminal",
 			agentName: "test-agent",
 			opts:      StartOptions{},
 			setupFunc: func(m *Manager, tmpDir string) error {
@@ -301,94 +301,170 @@ func TestStartPreset(t *testing.T) {
 }
 
 func TestStartAllAgentsWithOptions(t *testing.T) {
-	tmpDir := t.TempDir()
-	
-	mgr := &Manager{
-		WorkspacePath: tmpDir,
-		Config: &config.Config{
-			Workspace: config.WorkspaceConfig{
-				Name: "test",
-				Manifest: config.Manifest{
-					Projects: []config.Project{
-						{Name: "frontend", Agent: "frontend-dev"},
-						{Name: "backend", Agent: "backend-dev"},
-					},
-				},
-			},
-			Agents: map[string]config.Agent{
-				"frontend-dev": {Model: "test", Specialization: "frontend", AutoStart: true},
-				"backend-dev":  {Model: "test", Specialization: "backend", AutoStart: false},
-				"other-dev":    {Model: "test", Specialization: "other", AutoStart: true},
-			},
-		},
-		agents: make(map[string]*Agent),
-	}
-
-	// Create repositories
-	for _, project := range mgr.Config.Workspace.Manifest.Projects {
-		repoPath := filepath.Join(tmpDir, project.Name)
-		os.MkdirAll(filepath.Join(repoPath, ".git"), 0755)
-	}
-
-	// Use mock command executor to avoid launching real processes
-	mgr.CmdExecutor = &MockCommandExecutor{
-		Commands: []MockCommand{
-			{
-				Cmd:   "claude",
-				Error: fmt.Errorf("claude command not found"),
-			},
-		},
-	}
-
-	err := mgr.StartAllAgentsWithOptions(StartOptions{})
-	
-	// Should try to start auto-start agents but fail due to missing claude CLI
-	if err == nil {
-		// Should have attempted to start frontend-dev
-		// Can't really test success without mocking the CLI
-	}
-}
-
-func TestCreateNewTerminalCommand(t *testing.T) {
 	tests := []struct {
-		name     string
-		platform string
+		name              string
+		autoStartCount    int
+		initialNewWindow  bool
+		expectedNewWindow bool
 	}{
 		{
-			name:     "macOS command",
-			platform: "darwin",
+			name:              "Single auto-start agent - current terminal",
+			autoStartCount:    1,
+			initialNewWindow:  false,
+			expectedNewWindow: false,
 		},
 		{
-			name:     "Linux command",
-			platform: "linux",
+			name:              "Multiple auto-start agents - auto new windows",
+			autoStartCount:    2,
+			initialNewWindow:  false,
+			expectedNewWindow: true, // Should auto-enable new windows
 		},
 		{
-			name:     "Windows command",
-			platform: "windows",
-		},
-		{
-			name:     "Unknown platform",
-			platform: "unknown",
+			name:              "Multiple agents with explicit new window",
+			autoStartCount:    2,
+			initialNewWindow:  true,
+			expectedNewWindow: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Note: We can't actually change runtime.GOOS, so this is more of a
-			// documentation test to show the function handles different platforms
+			tmpDir := t.TempDir()
+			
+			agents := map[string]config.Agent{}
+			projects := []config.Project{}
+			
+			// Create the specified number of auto-start agents
+			for i := 0; i < tt.autoStartCount; i++ {
+				agentName := fmt.Sprintf("agent-%d", i)
+				repoName := fmt.Sprintf("repo-%d", i)
+				agents[agentName] = config.Agent{
+					Model:          "test",
+					Specialization: "test",
+					AutoStart:      true,
+				}
+				projects = append(projects, config.Project{
+					Name:  repoName,
+					Agent: agentName,
+				})
+			}
+			
+			// Add one non-auto-start agent
+			agents["manual-agent"] = config.Agent{
+				Model:          "test",
+				Specialization: "test",
+				AutoStart:      false,
+			}
+			
+			mgr := &Manager{
+				WorkspacePath: tmpDir,
+				Config: &config.Config{
+					Workspace: config.WorkspaceConfig{
+						Name: "test",
+						Manifest: config.Manifest{
+							Projects: projects,
+						},
+					},
+					Agents: agents,
+				},
+				agents: make(map[string]*Agent),
+			}
+
+			// Create repositories
+			for _, project := range mgr.Config.Workspace.Manifest.Projects {
+				repoPath := filepath.Join(tmpDir, project.Name)
+				os.MkdirAll(filepath.Join(repoPath, ".git"), 0755)
+			}
+
+			// Track command calls
+			var capturedNewWindow bool
+			// var claudeCalled bool
+			mgr.CmdExecutor = &MockCommandExecutor{
+				Commands: []MockCommand{
+					{
+						Cmd:   "osascript",
+						OnCall: func() {
+							capturedNewWindow = true
+						},
+						Error: fmt.Errorf("mock osascript error"),
+					},
+					{
+						Cmd:   "claude",
+						OnCall: func() {
+							// claudeCalled = true
+						},
+						Error: fmt.Errorf("mock claude error"),
+					},
+				},
+			}
+
+			opts := StartOptions{NewWindow: tt.initialNewWindow}
+			err := mgr.StartAllAgentsWithOptions(opts)
+			
+			// We expect errors since claude CLI doesn't exist, but we can check the behavior
+			if err == nil && tt.autoStartCount > 0 {
+				t.Error("Expected error when starting agents without claude CLI")
+			}
+			
+			// Check if new window was used as expected
+			if tt.expectedNewWindow && !capturedNewWindow {
+				t.Error("Expected new window to be used but it wasn't")
+			}
+			if !tt.expectedNewWindow && capturedNewWindow {
+				t.Error("Did not expect new window but it was used")
+			}
+		})
+	}
+}
+
+func TestCreateNewTerminalCommand(t *testing.T) {
+	tests := []struct {
+		name            string
+		platform        string
+		newWindow       bool
+		expectOsascript bool // For macOS window creation
+	}{
+		{
+			name:            "current terminal",
+			platform:        "darwin",
+			newWindow:       false,
+			expectOsascript: false,
+		},
+		{
+			name:            "new window on macOS",
+			platform:        "darwin",
+			newWindow:       true,
+			expectOsascript: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			envVars := map[string]string{
 				"RC_AGENT_NAME": "test-agent",
 				"RC_WORKSPACE_ROOT": "/test/workspace",
 			}
-			cmd := createNewTerminalCommand("test-agent", "/path/to/repo", "claude-3", "test prompt", envVars, false)
+			cmd := createNewTerminalCommand("test-agent", "/path/to/repo", "claude-3", "test prompt", envVars, tt.newWindow)
 			
 			if cmd == nil {
 				t.Error("Expected command, got nil")
+				return
 			}
 			
-			// Check that command is constructed
+			// Check that command is constructed correctly
 			if len(cmd.Args) == 0 {
 				t.Error("Expected command arguments")
+				return
+			}
+			
+			// For current terminal, should use claude directly
+			if !tt.newWindow && !strings.Contains(cmd.Path, "claude") {
+				t.Errorf("Expected claude command for current terminal, got %s", cmd.Path)
+			}
+			
+			// For new window on macOS, should use osascript
+			if tt.expectOsascript && !strings.Contains(cmd.Path, "osascript") {
+				t.Errorf("Expected osascript for new window on macOS, got %s", cmd.Path)
 			}
 		})
 	}

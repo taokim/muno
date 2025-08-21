@@ -155,6 +155,12 @@ Examples:
 				NewWindow: newWindow,
 			}
 			
+			// Auto-enable new window when starting multiple items
+			if !newWindow && len(args) > 1 {
+				opts.NewWindow = true
+				fmt.Println("🪟 Opening multiple sessions in new windows")
+			}
+			
 			// Use scopes if configured, otherwise fall back to legacy agents
 			if len(mgr.Config.Scopes) > 0 {
 				if len(args) == 0 {
@@ -191,7 +197,7 @@ Examples:
 	cmd.Flags().StringSliceVarP(&repos, "repos", "r", nil, "Start scopes for specific repositories")
 	cmd.Flags().StringVarP(&preset, "preset", "p", "", "Start scopes matching a preset tag")
 	cmd.Flags().BoolVarP(&interactive, "interactive", "i", false, "Choose scopes interactively")
-	cmd.Flags().BoolVar(&newWindow, "new-window", false, "Open in new window instead of tab (default: new tab)")
+	cmd.Flags().BoolVar(&newWindow, "new-window", false, "Open in new window instead of current terminal")
 	
 	return cmd
 }
