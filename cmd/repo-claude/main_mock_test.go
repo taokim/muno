@@ -64,7 +64,7 @@ func TestRunFunction(t *testing.T) {
 // Test command initialization
 func TestCommandInitialization(t *testing.T) {
 	// Test that all commands are properly initialized
-	commands := []string{"init", "start", "stop", "status", "sync", "forall", "ps"}
+	commands := []string{"init", "start", "kill", "status", "sync", "forall", "ps"}
 	
 	app := NewApp()
 	
@@ -93,8 +93,6 @@ func TestCommandFlags(t *testing.T) {
 		shorthand string
 	}{
 		{"init", "non-interactive", "bool", ""},
-		{"start", "foreground", "bool", ""},
-		{"start", "new-window", "bool", ""},
 		{"start", "repos", "string", ""},
 		{"start", "preset", "string", ""},
 		{"start", "interactive", "bool", ""},
@@ -145,7 +143,7 @@ func TestCommandFlags(t *testing.T) {
 
 // Test help output
 func TestHelpOutput(t *testing.T) {
-	commands := []string{"", "init", "start", "stop", "status", "sync", "forall", "ps"}
+	commands := []string{"", "init", "start", "kill", "status", "sync", "forall", "ps"}
 	
 	for _, cmd := range commands {
 		t.Run("help_"+cmd, func(t *testing.T) {
@@ -172,7 +170,7 @@ func TestHelpOutput(t *testing.T) {
 			// Check for expected content
 			if cmd == "" {
 				// Root help should mention repo-claude or rc
-				if !strings.Contains(output, "Multi-agent orchestration") && !strings.Contains(output, "rc") {
+				if !strings.Contains(output, "Multi-repository orchestration") && !strings.Contains(output, "rc") {
 					t.Error("Root help missing repo-claude reference")
 				}
 			} else {

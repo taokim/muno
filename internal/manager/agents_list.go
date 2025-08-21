@@ -48,6 +48,8 @@ func (m *Manager) ListAgents(opts AgentListOptions) error {
 		return m.displayAgentsJSON(agents)
 	case "simple":
 		return m.displayAgentsSimple(agents)
+	case "numbered":
+		return m.displayAgentsNumbered(agents, opts)
 	default:
 		return m.displayAgentsTable(agents, opts)
 	}
@@ -129,7 +131,7 @@ func (m *Manager) GetAgentsInfo(opts AgentListOptions) ([]*AgentInfo, error) {
 // displayAgentsTable shows agents in a formatted table
 func (m *Manager) displayAgentsTable(agents []*AgentInfo, opts AgentListOptions) error {
 	if len(agents) == 0 {
-		fmt.Println("No agents running. Use 'rc start' to start agents.")
+		fmt.Println("No agents running. Use 'rc start' to start agents. [legacy mode]")
 		return nil
 	}
 	
@@ -138,7 +140,7 @@ func (m *Manager) displayAgentsTable(agents []*AgentInfo, opts AgentListOptions)
 	
 	// Print header
 	fmt.Println("\n" + strings.Repeat("=", 90))
-	fmt.Println(" CLAUDE CODE AGENTS")
+	fmt.Println(" CLAUDE CODE AGENTS [LEGACY MODE]")
 	fmt.Println(strings.Repeat("=", 90))
 	fmt.Printf(" Workspace: %s\n", m.Config.Workspace.Name)
 	fmt.Printf(" Time: %s\n", time.Now().Format("2006-01-02 15:04:05"))
@@ -230,11 +232,71 @@ func (m *Manager) displayAgentsTable(agents []*AgentInfo, opts AgentListOptions)
 	
 	// Tips
 	fmt.Println("\n💡 Tips:")
-	fmt.Println("  rc ps aux           # Show all agents with details")
+	fmt.Println("  rc ps aux           # Show all with details")
 	fmt.Println("  rc ps -ef           # Full format listing")
 	fmt.Println("  rc ps --logs        # Show with recent logs")
-	fmt.Println("  rc start <agent>    # Start a specific agent")
-	fmt.Println("  rc stop <agent>     # Stop a specific agent")
+	fmt.Println("  rc start <name>     # Start a specific scope/agent")
+	fmt.Println("  rc kill <name>      # Kill a specific scope/agent")
+	
+	return nil
+}
+
+// displayAgentsNumbered shows agents in numbered format for easy kill reference
+func (m *Manager) displayAgentsNumbered(agents []*AgentInfo, opts AgentListOptions) error {
+	if len(agents) == 0 {
+		fmt.Println("No agents to display. Use 'rc start' to start agents. [legacy mode]")
+		return nil
+	}
+	
+	// Create tabwriter for aligned output
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+	
+	// Print header
+	fmt.Fprintln(w, "#\tNAME\tSTATUS\tPID\tREPOS")
+	fmt.Fprintln(w, "-\t-----\t------\t---\t-----")
+	
+	// Store agent mapping for kill command
+	m.mu.Lock()
+	m.numberToAgent = make(map[int]string)
+	m.mu.Unlock()
+	
+	for i, agent := range agents {
+		num := i + 1
+		
+		// Store mapping
+		m.mu.Lock()
+		m.numberToAgent[num] = agent.Name
+		m.mu.Unlock()
+		
+		status := "⚫"
+		if agent.Status == "running" {
+			status = "🟢"
+		}
+		
+		pidStr := "-"
+		if agent.PID > 0 {
+			pidStr = fmt.Sprintf("%d", agent.PID)
+		}
+		
+		// Get repos for this agent
+		repos := m.getAgentRepos(agent.Name)
+		reposStr := strings.Join(repos, ", ")
+		if reposStr == "" {
+			reposStr = "(no repos)"
+		}
+		if len(reposStr) > 50 {
+			reposStr = reposStr[:47] + "..."
+		}
+		
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\n", num, agent.Name, status, pidStr, reposStr)
+	}
+	
+	w.Flush()
+	
+	// Tips
+	fmt.Println("\n💡 Usage:")
+	fmt.Println("  rc kill 1        # Kill by number")
+	fmt.Println("  rc kill backend  # Kill by name")
 	
 	return nil
 }

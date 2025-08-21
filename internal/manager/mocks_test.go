@@ -293,8 +293,28 @@ func (c *MockCmd) Output() ([]byte, error) {
 	return nil, fmt.Errorf("command not found: %s", c.fullCmd)
 }
 
-func (c *MockCmd) Run() error                          { return nil }
-func (c *MockCmd) Start() error                        { return nil }
+func (c *MockCmd) Run() error {
+	// Check if we have an error configured for this command
+	for pattern, response := range c.commands {
+		if strings.Contains(c.fullCmd, pattern) {
+			return response.Error
+		}
+	}
+	return nil
+}
+func (c *MockCmd) Start() error {
+	// Set a fake process when starting
+	if c.process == nil {
+		c.process = &os.Process{Pid: 12345}
+	}
+	// Check if we have an error configured
+	for pattern, response := range c.commands {
+		if strings.Contains(c.fullCmd, pattern) {
+			return response.Error
+		}
+	}
+	return nil
+}
 func (c *MockCmd) Wait() error                         { return nil }
 func (c *MockCmd) StdoutPipe() (io.ReadCloser, error) { return nil, nil }
 func (c *MockCmd) StderrPipe() (io.ReadCloser, error) { return nil, nil }

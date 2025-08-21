@@ -4,15 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Repo-Claude Go is a multi-repository orchestration tool that launches Claude Code agents to work collaboratively across different repositories in a shared workspace. This Go implementation is the active version that replaces the deprecated Python implementation.
+Repo-Claude Go is a multi-repository orchestration tool that launches Claude Code sessions with flexible scopes spanning multiple repositories. This Go implementation is the active version that replaces the deprecated Python implementation.
 
 **Key Features:**
-- Multi-agent coordination across repositories
-- Shared memory for inter-agent communication
+- Scope-based development across multiple repositories
+- Flexible repository grouping with wildcard support
+- Terminal tab support (default) with optional new windows
+- Shared memory for cross-scope communication
 - Trunk-based development workflow
-- Configurable workspace structure
-- Agent dependency management
 - Direct git management (no Google repo tool dependency)
+- Environment variables passed to Claude sessions for context
 
 ## Commands
 
@@ -24,13 +25,19 @@ go build -o repo-claude cmd/main.go
 # Initialize a new workspace
 ./repo-claude init <workspace-name>
 
-# Start agents
-./repo-claude start              # Start all auto-start agents
-./repo-claude start <agent-name> # Start specific agent
+# Start scopes
+./repo-claude start              # Start all auto-start scopes
+./repo-claude start <scope-name> # Start specific scope
+./repo-claude start <repo-name>  # Start scope containing this repo
+./repo-claude start --new-window # Open in new window instead of tab
 
-# Stop agents
-./repo-claude stop               # Stop all agents
-./repo-claude stop <agent-name>  # Stop specific agent
+# List running scopes
+./repo-claude ps                 # Shows numbered list for easy kill
+
+# Stop scopes
+./repo-claude kill               # Stop all scopes
+./repo-claude kill <scope-name>  # Stop specific scope
+./repo-claude kill 1 2           # Stop by numbers from ps output
 
 # Check status
 ./repo-claude status
@@ -61,24 +68,27 @@ go install ./cmd/repo-claude
 ### Core Components
 
 1. **RepoClaudeManager** (`pkg/manager/manager.go`)
-   - Main orchestration class managing workspace, configuration, and agent lifecycle
+   - Main orchestration class managing workspace, configuration, and scope lifecycle
    - Handles direct git operations (replacing Google's repo tool)
-   - Manages agent process lifecycle and state persistence
+   - Manages Claude Code session lifecycle and state persistence
 
 2. **Configuration System** (`pkg/config/`)
-   - YAML-based configuration (`repo-claude.yaml`) for workspace and agent settings
-   - JSON state file (`.repo-claude-state.json`) for runtime agent status
-   - Embedded default configuration template
+   - YAML-based configuration (`repo-claude.yaml`) with scope definitions
+   - JSON state file (`.repo-claude-state.json`) for runtime scope status
+   - Supports both new scope-based and legacy agent-based configs
+   - Wildcard support in repository patterns
 
 3. **Git Management** (`pkg/git/`)
    - Direct git operations for cloning and syncing repositories
    - Branch management and status checking
    - Replaces Google's repo tool functionality
 
-4. **Agent Management** (`pkg/agent/`)
-   - Launches Claude Code instances with specialized system prompts
-   - Supports agent dependencies and auto-start configuration
-   - Creates CLAUDE.md files in each repository for agent context
+4. **Scope Management** (`pkg/manager/scopes.go`)
+   - Launches Claude Code instances with multi-repository context
+   - Sets environment variables (RC_SCOPE_ID, RC_SCOPE_NAME, RC_SCOPE_REPOS, RC_WORKSPACE_ROOT)
+   - Supports scope dependencies and auto-start configuration
+   - Creates CLAUDE.md files in each repository for workspace context
+   - Terminal tab management with fallback to windows
 
 ### Workspace Structure
 
@@ -86,11 +96,12 @@ See [docs/workspace-structure.md](docs/workspace-structure.md) for detailed work
 
 ### Key Design Patterns
 
-1. **Trunk-Based Development**: All agents work directly on main branch
-2. **Shared Memory Pattern**: `shared-memory.md` file for cross-agent coordination
-3. **Repository-Agent Mapping**: Each agent is assigned to specific repositories
+1. **Trunk-Based Development**: All scopes work directly on main branch
+2. **Shared Memory Pattern**: `shared-memory.md` file for cross-scope coordination
+3. **Flexible Scope Mapping**: Scopes can include multiple repositories with wildcards
 4. **Direct Git Management**: Uses native git commands instead of Google's repo tool
-5. **State Persistence**: JSON-based state tracking for agent lifecycle
+5. **State Persistence**: JSON-based state tracking for scope lifecycle
+6. **Terminal Integration**: Smart tab/window management for better workflow
 
 ### Data Flow
 
@@ -101,12 +112,14 @@ See [docs/workspace-structure.md](docs/workspace-structure.md) for detailed work
    - Creates CLAUDE.md files in each repository
    - Initializes shared memory file
 
-2. **Agent Lifecycle**: 
-   - Load config → check dependencies → start in order → track state → handle termination
+2. **Scope Lifecycle**: 
+   - Load config → resolve repos → check dependencies → start in order → track state → handle termination
+   - Environment variables provide scope context to Claude sessions
 
 3. **Coordination**: 
-   - Agents read/write to shared memory
-   - Cross-repository awareness through relative paths
+   - Scopes read/write to shared memory
+   - Cross-repository awareness through environment variables
+   - Working directory is user's current directory (not locked to single repo)
 
 ## Dependencies
 
@@ -126,13 +139,16 @@ Go dependencies (see `go.mod`):
    - Branch tracking and status monitoring
 
 2. **Process Management**: 
-   - Uses `os/exec` for non-blocking agent execution
+   - Uses `os/exec` for non-blocking Claude Code execution
+   - Terminal tab creation via AppleScript on macOS
+   - Fallback to new window if tab creation fails
    - Signal handling for graceful shutdown
-   - Process monitoring and restart capabilities
+   - Process monitoring with numbered tracking
 
 3. **Dependency Resolution**: 
-   - Topological sort for agent startup order
-   - Dependency validation before agent launch
+   - Topological sort for scope startup order
+   - Dependency validation before scope launch
+   - Repository pattern matching with wildcard support
 
 4. **Error Handling**: 
    - Graceful degradation when repositories or tools are missing
@@ -162,11 +178,12 @@ go tool cover -html=coverage.out
 
 ## Extension Points
 
-1. **Agent Configuration**: Add new agents in the `agents` section of config
+1. **Scope Configuration**: Add new scopes in the `scopes` section of config
 2. **Project Structure**: Modify repository projects in workspace configuration
 3. **Coordination Mechanisms**: Extend shared memory format or add new coordination files
 4. **Command Extensions**: Add new subcommands in the CLI
 5. **Git Strategies**: Implement alternative branching strategies beyond trunk-based
+6. **Terminal Support**: Add tab support for more terminal emulators
 
 ## Code Style
 

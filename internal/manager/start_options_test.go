@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -69,13 +70,23 @@ func TestStartAgentWithOptions(t *testing.T) {
 			errorMsg:   "repository",
 		},
 		{
-			name:      "Valid agent with foreground option",
+			name:      "Valid agent - new window",
 			agentName: "test-agent",
-			opts:      StartOptions{Foreground: true},
+			opts:      StartOptions{},
 			setupFunc: func(m *Manager, tmpDir string) error {
 				// Create repository directory with .git
 				repoPath := filepath.Join(tmpDir, "test-repo")
 				os.MkdirAll(filepath.Join(repoPath, ".git"), 0755)
+				
+				// Use mock command executor that fails
+				m.CmdExecutor = &MockCommandExecutor{
+					Commands: []MockCommand{
+						{
+							Cmd:   "claude",
+							Error: fmt.Errorf("claude command not found"),
+						},
+					},
+				}
 				return nil
 			},
 			expectError: true, // Will fail because claude CLI doesn't exist
@@ -334,7 +345,11 @@ func TestCreateNewTerminalCommand(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Note: We can't actually change runtime.GOOS, so this is more of a
 			// documentation test to show the function handles different platforms
-			cmd := createNewTerminalCommand("test-agent", "/path/to/repo", "claude-3", "test prompt")
+			envVars := map[string]string{
+				"RC_AGENT_NAME": "test-agent",
+				"RC_WORKSPACE_ROOT": "/test/workspace",
+			}
+			cmd := createNewTerminalCommand("test-agent", "/path/to/repo", "claude-3", "test prompt", envVars, false)
 			
 			if cmd == nil {
 				t.Error("Expected command, got nil")

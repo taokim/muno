@@ -20,7 +20,6 @@ func TestIntegrationWorkflow(t *testing.T) {
 	
 	// Check required tools
 	checkTool(t, "git")
-	checkTool(t, "repo")
 	
 	// Create temporary directory
 	tmpDir := t.TempDir()
@@ -35,12 +34,13 @@ func TestIntegrationWorkflow(t *testing.T) {
 	cmd := exec.Command(binary, "init", projectName, "--non-interactive")
 	cmd.Dir = tmpDir
 	output, err := cmd.CombinedOutput()
+	t.Logf("Init output: %s", string(output))
 	require.NoError(t, err, "Init failed: %s", string(output))
 	
 	// Test init command results
 	t.Run("Init", func(t *testing.T) {
-		assert.Contains(t, string(output), "Initializing Repo-Claude workspace")
-		assert.Contains(t, string(output), "Workspace initialized")
+		assert.Contains(t, string(output), "🚀 Initializing Repo-Claude workspace")
+		assert.Contains(t, string(output), "✅ Workspace initialized")
 		
 		// Check created files
 		assert.FileExists(t, filepath.Join(projectDir, "repo-claude.yaml"))
@@ -67,11 +67,11 @@ func TestIntegrationWorkflow(t *testing.T) {
 		
 		cmd := exec.Command(binary, "sync")
 		cmd.Dir = projectDir
-		output, err := cmd.CombinedOutput()
+		output, _ := cmd.CombinedOutput()
 		
 		// Sync might fail if repos don't exist, but command should run
-		_ = err // Ignore error since repos don't exist
-		assert.Contains(t, string(output), "Syncing repositories")
+		// Even if sync fails, we should see the sync message
+		assert.Contains(t, string(output), "🔄 Syncing repositories")
 	})
 }
 
@@ -101,8 +101,9 @@ func buildBinary(t *testing.T, tmpDir string) string {
 }
 
 // createDummyRepos creates dummy git repositories for testing
-func createDummyRepos(t *testing.T, workspaceDir string) {
+func createDummyRepos(t *testing.T, projectDir string) {
 	repos := []string{"backend", "frontend", "mobile", "shared-libs"}
+	workspaceDir := filepath.Join(projectDir, "workspace")
 	
 	for _, repo := range repos {
 		repoPath := filepath.Join(workspaceDir, repo)
@@ -145,12 +146,12 @@ func TestConfigValidation(t *testing.T) {
 	assert.NoError(t, err, "init should succeed: %s", string(output))
 	
 	// Test commands without workspace
-	cmds := []string{"start", "stop", "status", "sync"}
+	cmds := []string{"start", "kill", "status", "sync"}
 	for _, cmdName := range cmds {
 		cmd := exec.Command(binary, cmdName)
 		cmd.Dir = tmpDir
 		output, err := cmd.CombinedOutput()
 		assert.Error(t, err, "%s should fail without workspace", cmdName)
-		assert.Contains(t, string(output), "no repo-claude workspace found")
+		assert.Contains(t, string(output), "no repo-claude.yaml found")
 	}
 }

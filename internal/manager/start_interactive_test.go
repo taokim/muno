@@ -162,8 +162,7 @@ func TestManager_StartInteractive(t *testing.T) {
 
 			// Create mock start options
 			opts := StartOptions{
-				Foreground: false,
-				NewWindow:  false,
+				LogOutput: false,
 			}
 
 			// Since we can't easily test the actual interactive function,

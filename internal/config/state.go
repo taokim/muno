@@ -10,10 +10,22 @@ import (
 // State represents the runtime state of the system
 type State struct {
 	Timestamp string                 `json:"timestamp"`
-	Agents    map[string]AgentStatus `json:"agents"`
+	Scopes    map[string]ScopeStatus `json:"scopes"`
+	
+	// Deprecated: Agents field for backwards compatibility
+	Agents    map[string]AgentStatus `json:"agents,omitempty"`
 }
 
-// AgentStatus represents the status of a running agent
+// ScopeStatus represents the status of a running scope
+type ScopeStatus struct {
+	Name         string   `json:"name"`
+	Status       string   `json:"status"` // running, stopped, error
+	PID          int      `json:"pid,omitempty"`
+	Repos        []string `json:"repos"`
+	LastActivity string   `json:"last_activity"`
+}
+
+// AgentStatus represents the status of a running agent (deprecated)
 type AgentStatus struct {
 	Name         string `json:"name"`
 	Status       string `json:"status"` // running, stopped, error
@@ -26,6 +38,7 @@ type AgentStatus struct {
 func LoadState(path string) (*State, error) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return &State{
+			Scopes: make(map[string]ScopeStatus),
 			Agents: make(map[string]AgentStatus),
 		}, nil
 	}
@@ -40,6 +53,9 @@ func LoadState(path string) (*State, error) {
 		return nil, fmt.Errorf("parsing state: %w", err)
 	}
 
+	if state.Scopes == nil {
+		state.Scopes = make(map[string]ScopeStatus)
+	}
 	if state.Agents == nil {
 		state.Agents = make(map[string]AgentStatus)
 	}
@@ -63,7 +79,13 @@ func (s *State) Save(path string) error {
 	return nil
 }
 
-// UpdateAgent updates or adds an agent status
+// UpdateScope updates or adds a scope status
+func (s *State) UpdateScope(status ScopeStatus) {
+	status.LastActivity = time.Now().Format(time.RFC3339)
+	s.Scopes[status.Name] = status
+}
+
+// UpdateAgent updates or adds an agent status (deprecated - for backwards compatibility)
 func (s *State) UpdateAgent(status AgentStatus) {
 	status.LastActivity = time.Now().Format(time.RFC3339)
 	s.Agents[status.Name] = status

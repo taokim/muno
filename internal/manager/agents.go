@@ -19,7 +19,7 @@ func (m *Manager) StopAgent(agentName string) error {
 
 	agent, exists := m.agents[agentName]
 	if !exists || agent.Process == nil {
-		return fmt.Errorf("agent %s is not running", agentName)
+		return fmt.Errorf("agent %s is not running (legacy mode)", agentName)
 	}
 
 	// Terminate the process
@@ -44,7 +44,7 @@ func (m *Manager) StopAgent(agentName string) error {
 		}
 	}
 
-	fmt.Printf("🛑 %s stopped\n", agentName)
+	fmt.Printf("🛑 %s stopped [legacy agent mode]\n", agentName)
 	return nil
 }
 
@@ -55,7 +55,7 @@ func (m *Manager) StartAllAgents() error {
 
 // StopAllAgents stops all running agents
 func (m *Manager) StopAllAgents() error {
-	fmt.Println("🛑 Stopping all agents...")
+	fmt.Println("🛑 Stopping all agents... [legacy mode]")
 
 	for name := range m.agents {
 		if err := m.StopAgent(name); err != nil {
@@ -64,6 +64,30 @@ func (m *Manager) StopAllAgents() error {
 	}
 
 	return nil
+}
+
+// KillByNumber kills an agent by its number from ps output
+func (m *Manager) KillByNumber(num int) error {
+	m.mu.Lock()
+	agentName, exists := m.numberToAgent[num]
+	m.mu.Unlock()
+	
+	if !exists {
+		return fmt.Errorf("no agent with number %d", num)
+	}
+	
+	return m.StopAgent(agentName)
+}
+
+// getAgentRepos returns the list of repositories assigned to an agent
+func (m *Manager) getAgentRepos(agentName string) []string {
+	var repos []string
+	for _, project := range m.Config.Workspace.Manifest.Projects {
+		if project.Agent == agentName {
+			repos = append(repos, project.Name)
+		}
+	}
+	return repos
 }
 
 // ShowStatus displays the current status
@@ -107,25 +131,46 @@ func (m *Manager) ShowStatus() error {
 
 	fmt.Println(strings.Repeat("-", 70))
 
-	// Show agent status
-	if m.State == nil || len(m.State.Agents) == 0 {
-		fmt.Println(" Agents: No agents running")
-	} else {
-		fmt.Println(" Agent Status:")
-		for name, status := range m.State.Agents {
-			emoji := "🟢"
-			if status.Status != "running" {
-				emoji = "⚫"
+	// Show scope or agent status
+	if len(m.Config.Scopes) > 0 {
+		// Show scopes
+		if m.State == nil || len(m.State.Scopes) == 0 {
+			fmt.Println(" Scopes: No scopes running")
+		} else {
+			fmt.Println(" Scope Status:")
+			for name, status := range m.State.Scopes {
+				emoji := "🟢"
+				if status.Status != "running" {
+					emoji = "⚫"
+				}
+				reposStr := strings.Join(status.Repos, ", ")
+				if len(reposStr) > 40 {
+					reposStr = reposStr[:37] + "..."
+				}
+				fmt.Printf("   %s %-20s %-10s %s\n", emoji, name, status.Status, reposStr)
 			}
-			fmt.Printf("   %s %-20s %-10s %s\n", emoji, name, status.Status, status.Repository)
+		}
+	} else {
+		// Legacy agent display
+		if m.State == nil || len(m.State.Agents) == 0 {
+			fmt.Println(" Agents: No agents running [legacy mode]")
+		} else {
+			fmt.Println(" Agent Status: [legacy mode]")
+			for name, status := range m.State.Agents {
+				emoji := "🟢"
+				if status.Status != "running" {
+					emoji = "⚫"
+				}
+				fmt.Printf("   %s %-20s %-10s %s\n", emoji, name, status.Status, status.Repository)
+			}
 		}
 	}
 
 	fmt.Println(strings.Repeat("=", 70) + "\n")
 	fmt.Println("💡 Commands:")
-	fmt.Println("  rc ps        # Show agent processes")
+	fmt.Println("  rc ps        # Show scope processes")
 	fmt.Println("  rc sync      # Sync all repositories")
-	fmt.Println("  rc start     # Start agents")
+	fmt.Println("  rc start     # Start scopes")
 	fmt.Println("  rc forall    # Run command in all repos")
 
 	return nil

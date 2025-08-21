@@ -10,8 +10,11 @@ import (
 
 // Config represents the main configuration structure
 type Config struct {
-	Workspace WorkspaceConfig `yaml:"workspace"`
-	Agents    map[string]Agent `yaml:"agents"`
+	Workspace WorkspaceConfig  `yaml:"workspace"`
+	Scopes    map[string]Scope `yaml:"scopes"`
+	
+	// Deprecated: Agents field for backwards compatibility (will be removed)
+	Agents    map[string]Agent `yaml:"agents,omitempty"`
 }
 
 // WorkspaceConfig represents workspace configuration
@@ -38,7 +41,16 @@ type Project struct {
 	Revision string `yaml:"revision,omitempty"` // Custom branch/revision
 }
 
-// Agent represents an AI agent configuration
+// Scope represents a working context with associated repositories
+type Scope struct {
+	Repos        []string `yaml:"repos"`              // List of repository names or patterns
+	Description  string   `yaml:"description"`        // Human-readable description
+	Model        string   `yaml:"model"`              // Claude model to use
+	AutoStart    bool     `yaml:"auto_start"`         // Whether to auto-start this scope
+	Dependencies []string `yaml:"dependencies,omitempty"` // Other scopes that must be running
+}
+
+// Agent represents an AI agent configuration (deprecated)
 type Agent struct {
 	Model           string   `yaml:"model"`
 	Specialization  string   `yaml:"specialization"`
@@ -56,30 +68,45 @@ func DefaultConfig(projectName string) *Config {
 				RemoteFetch:     "https://github.com/yourorg/",
 				DefaultRevision: "main",
 				Projects: []Project{
-					{Name: "backend", Groups: "core,services", Agent: "backend-agent"},
-					{Name: "frontend", Groups: "core,ui", Agent: "frontend-agent"},
-					{Name: "mobile", Groups: "mobile,ui", Agent: "mobile-agent"},
+					{Name: "auth-service", Groups: "backend,services"},
+					{Name: "order-service", Groups: "backend,services"},
+					{Name: "payment-service", Groups: "backend,services"},
+					{Name: "web-app", Groups: "frontend,ui"},
+					{Name: "mobile-app", Groups: "mobile,ui"},
 					{Name: "shared-libs", Groups: "shared,core"},
 				},
 			},
 		},
-		Agents: map[string]Agent{
-			"backend-agent": {
-				Model:          "claude-sonnet-4",
-				Specialization: "API development, database design, backend services",
-				AutoStart:      true,
+		Scopes: map[string]Scope{
+			"backend": {
+				Repos:       []string{"auth-service", "order-service", "payment-service"},
+				Description: "Backend services development",
+				Model:       "claude-sonnet-4", 
+				AutoStart:   true,
 			},
-			"frontend-agent": {
-				Model:          "claude-sonnet-4",
-				Specialization: "React/Vue development, UI/UX implementation",
-				AutoStart:      true,
-				Dependencies:   []string{"backend-agent"},
+			"frontend": {
+				Repos:       []string{"web-app", "mobile-app"},
+				Description: "Frontend and mobile development",
+				Model:       "claude-sonnet-4",
+				AutoStart:   true,
 			},
-			"mobile-agent": {
-				Model:          "claude-sonnet-4",
-				Specialization: "Mobile app development, native iOS/Android",
-				AutoStart:      false,
-				Dependencies:   []string{"backend-agent"},
+			"fullstack": {
+				Repos:       []string{"backend/*", "frontend", "shared-libs"},
+				Description: "Full-stack development",
+				Model:       "claude-sonnet-4",
+				AutoStart:   false,
+			},
+			"order-flow": {
+				Repos:       []string{"order-service", "payment-service", "shipping-service"},
+				Description: "Order processing pipeline",
+				Model:       "claude-sonnet-4",
+				AutoStart:   false,
+			},
+			"infra": {
+				Repos:       []string{"shared-libs"},
+				Description: "Infrastructure and shared libraries",
+				Model:       "claude-sonnet-4",
+				AutoStart:   false,
 			},
 		},
 	}

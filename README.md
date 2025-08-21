@@ -1,6 +1,6 @@
 # Repo-Claude
 
-Transform your multi-repository chaos into a monorepo-like development experience with AI agents.
+Transform your multi-repository chaos into a unified development experience with AI-powered scopes.
 
 ## The Problem
 
@@ -22,11 +22,12 @@ Transform multiple Git repositories into a unified workspace while keeping them 
 - Manage dozens of repos with simple commands (`rc sync`, `rc status`)
 - Each repo maintains its independence while being part of a cohesive whole
 
-### 2. **Cross-Repository AI Agents**
-Enable AI agents to work seamlessly across repository boundaries:
-- Agents understand the full system context, not just individual repos
-- Shared memory enables coordination between agents working on different repos
-- Agents can reference code and dependencies across the entire workspace
+### 2. **Scope-Based AI Development**
+Work with flexible scopes that span multiple repositories:
+- Define scopes by feature, team, or domain (e.g., "backend", "order-flow", "mobile")
+- Each scope includes all relevant repositories for a complete context
+- Claude Code sessions open in tabs by default for better workflow
+- Dynamic scope switching coming in Phase 2
 
 > **Inspired by [Google's Repo tool](https://gerrit.googlesource.com/git-repo/)** - We've adapted Repo's battle-tested multi-repository management concepts for the AI era, creating a monorepo-like experience without the complexity of actual monorepos.
 
@@ -34,10 +35,10 @@ Enable AI agents to work seamlessly across repository boundaries:
 
 - 🚀 **Single Binary**: No runtime dependencies (Python, Node.js, etc.)
 - 🗂️ **Multi-Repository Management**: Manage dozens of Git repositories as one unified workspace
-- 🤖 **Multi-Agent Orchestration**: Coordinate multiple Claude Code instances across repositories
+- 🤖 **Scope-Based Orchestration**: Launch Claude Code sessions with multi-repository context
 - 🔧 **Simple Git Operations**: Direct git commands with parallel execution for speed
 - 🌳 **Trunk-Based Development**: All agents work directly on main branch
-- 📝 **Shared Memory**: Cross-agent coordination through shared memory file
+- 📝 **Shared Memory**: Cross-scope coordination through shared memory file
 - ⚡ **Fast**: Written in Go for optimal performance
 - 🎯 **Easy Configuration**: Single YAML file controls everything
 
@@ -91,20 +92,25 @@ sudo make install
    cd my-project
    ```
 
-2. **Start agents**:
+2. **Start scopes**:
    ```bash
-   rc start              # Start all auto-start agents
-   rc start backend-agent # Start specific agent
+   rc start              # Start all auto-start scopes
+   rc start backend      # Start specific scope
+   rc start order-service # Start scope containing this repo
+   rc start --new-window  # Open in new window instead of tab
    ```
 
 3. **Check status**:
    ```bash
-   rc status
+   rc ps                 # List running scopes with numbers
+   rc status             # Show detailed workspace status
    ```
 
-4. **Stop agents**:
+4. **Stop scopes**:
    ```bash
-   rc stop
+   rc kill               # Stop all running scopes
+   rc kill backend       # Stop by name
+   rc kill 1 2           # Stop by numbers from ps output
    ```
 
 ## Example: E-Commerce Platform
@@ -123,12 +129,12 @@ Without Repo-Claude, AI agents can only see one repository at a time. They miss 
 - Authentication flow across services
 - Dependencies between order and inventory services
 
-With Repo-Claude, agents work across all repositories simultaneously:
-- **Frontend Agent**: Updates web and mobile UI, understanding the full API structure
-- **Backend Agent**: Modifies services with awareness of all consumers
-- **API Agent**: Maintains gateway with knowledge of all services and clients
+With Repo-Claude, you define scopes that group related repositories:
+- **Backend Scope**: Includes all backend services for comprehensive API work
+- **Frontend Scope**: Covers web and mobile apps with shared component awareness
+- **Order Flow Scope**: Spans order, inventory, and payment services for feature work
 
-All repositories remain separate (different teams can own them), but AI agents see the complete system - just like developers working in a monorepo.
+All repositories remain separate (different teams can own them), but Claude Code sessions see all repositories in their scope - providing the exact context needed for each task.
 
 ## Configuration
 
@@ -143,25 +149,42 @@ workspace:
     remote_fetch: https://github.com/yourorg/
     default_revision: main
     projects:
-      - name: backend
-        path: services/backend # Optional: custom path (default: uses name)
-        groups: core,services
-        agent: backend-agent
-        revision: develop      # Optional: custom branch (default: uses default_revision)
-      - name: frontend
-        groups: core,ui
-        agent: frontend-agent
+      - name: api-gateway
+        path: services/gateway
+        groups: core,backend
+      - name: user-service
+        path: services/user
+        groups: core,backend
+      - name: order-service
+        path: services/order
+        groups: core,backend
+      - name: inventory-service
+        path: services/inventory
+        groups: backend
+      - name: web-frontend
+        groups: frontend,web
+      - name: mobile-app
+        groups: frontend,mobile
 
-agents:
-  backend-agent:
-    model: claude-sonnet-4      # Required: Claude model to use
-    specialization: API development, database design
-    auto_start: true
-  frontend-agent:
+scopes:
+  backend:
+    repos: ["*-service", "api-gateway"]  # Wildcards supported
+    description: "Backend services and API gateway"
     model: claude-sonnet-4
-    specialization: React/Vue development, UI/UX
     auto_start: true
-    dependencies: [backend-agent]
+  
+  frontend:
+    repos: ["web-frontend", "mobile-app"]
+    description: "Web and mobile frontends"
+    model: claude-sonnet-4
+    auto_start: true
+    dependencies: [backend]  # Backend must be running first
+  
+  order-flow:
+    repos: ["order-service", "inventory-service", "api-gateway"]
+    description: "Order processing flow across services"
+    model: claude-opus-4     # Use more powerful model for complex work
+    auto_start: false
 ```
 
 ### Configuration Reference
@@ -182,37 +205,45 @@ agents:
 | `name` | string | Yes | - | Repository name |
 | `path` | string | No | name | Custom path within workspace |
 | `groups` | string | No | - | Comma-separated groups for organization |
-| `agent` | string | No | - | Agent assigned to this repository |
 | `revision` | string | No | default_revision | Custom branch/tag for this repo |
 
-#### Agent Configuration
+#### Scope Configuration
 | Key | Type | Required | Default | Description |
 |-----|------|----------|---------|-------------|
+| `repos` | array | Yes | - | Repository names or patterns (supports wildcards) |
+| `description` | string | Yes | - | Human-readable description of the scope |
 | `model` | string | Yes | - | Claude model (e.g., "claude-sonnet-4") |
-| `specialization` | string | Yes | - | Agent's expertise and focus areas |
 | `auto_start` | boolean | No | false | Start automatically with `rc start` |
-| `dependencies` | array | No | [] | Agents that must start before this one |
+| `dependencies` | array | No | [] | Scopes that must start before this one |
 
-### How Agent Configuration Works
+### How Scope Configuration Works
 
-When you start an agent with `rc start backend-agent`, repo-claude:
+When you start a scope with `rc start backend`, repo-claude:
 
-1. **Launches Claude Code** with the specified model:
+1. **Launches Claude Code** in a new terminal tab (or window with `--new-window`):
    ```bash
    claude --model claude-sonnet-4 --append-system-prompt "..."
    ```
 
-2. **Sets the agent's working directory** to its assigned repository
+2. **Sets environment variables** for the Claude session:
+   - `RC_SCOPE_ID`: Unique identifier for the scope instance
+   - `RC_SCOPE_NAME`: The scope name (e.g., "backend")
+   - `RC_SCOPE_REPOS`: Comma-separated list of repositories in scope
+   - `RC_WORKSPACE_ROOT`: Root directory of the workspace
 
 3. **Provides context** through:
-   - **System prompt**: Includes the agent name and specialization
-   - **CLAUDE.md file**: Created in each repository with:
-     - Agent's model and specialization
-     - Links to other repositories and shared memory
-     - Available commands and guidelines
-     - Cross-repository awareness
+   - **System prompt**: Includes scope name, description, and repositories
+   - **CLAUDE.md files**: Created in each repository with workspace context
+   - **Working directory**: Set to current directory (not locked to a single repo)
 
-4. **Enables coordination** via `shared-memory.md` for inter-agent communication
+4. **Enables coordination** via `shared-memory.md` for cross-scope communication
+
+### Repository Pattern Matching
+
+Scopes support wildcards in repository patterns:
+- `"*-service"` matches all repositories ending with "-service"
+- `"api-*"` matches all repositories starting with "api-"
+- `"user-service"` matches exactly "user-service"
 
 ### Available Claude Models
 - `claude-sonnet-4` - Fast, efficient model for most tasks
@@ -226,22 +257,56 @@ After running `rc init my-project`, you'll have:
 ```
 my-project/
 ├── repo-claude.yaml        # Configuration
-├── .repo-claude-state.json # Agent state tracking
+├── .repo-claude-state.json # Scope state tracking
 └── workspace/              # Default workspace directory
-    ├── shared-memory.md    # Agent coordination
-    ├── .repo/              # Repo metadata
-    │   └── manifests/      # Local git repo with manifest
-    │       └── default.xml # Repo manifest
-    ├── backend/            # Repository (main branch)
-    │   └── CLAUDE.md       # Agent context
-    └── frontend/           # Repository (main branch)
-        └── CLAUDE.md       # Agent context
+    ├── shared-memory.md    # Scope coordination
+    ├── api-gateway/        # Repository (main branch)
+    │   └── CLAUDE.md       # Workspace context
+    ├── user-service/       # Repository (main branch)
+    │   └── CLAUDE.md       # Workspace context
+    ├── order-service/      # Repository (main branch)
+    │   └── CLAUDE.md       # Workspace context
+    └── web-frontend/       # Repository (main branch)
+        └── CLAUDE.md       # Workspace context
 ```
 
 Note: 
 - The `rc` command is installed system-wide via Homebrew or manual installation
 - Repositories are cloned into the `workspace/` subdirectory by default
 - You can customize the workspace path in `repo-claude.yaml` if needed
+- Claude Code sessions open in new tabs by default (use `--new-window` for separate windows)
+
+## Migration from Agent-Based Configuration
+
+Repo-Claude now uses a scope-based architecture instead of agent-based. To migrate:
+
+1. **Update your configuration file**:
+   - Replace the `agents:` section with `scopes:`
+   - Define scopes that group related repositories
+   - Remove `agent:` fields from projects
+
+2. **Example migration**:
+   ```yaml
+   # Old agent-based config
+   agents:
+     backend-agent:
+       model: claude-sonnet-4
+       specialization: Backend development
+   
+   # New scope-based config
+   scopes:
+     backend:
+       repos: ["*-service", "api-gateway"]
+       description: "Backend services and API"
+       model: claude-sonnet-4
+   ```
+
+3. **Command changes**:
+   - `rc stop` → `rc kill`
+   - `rc ps` now shows numbered output by default
+   - `rc start` opens in tabs instead of windows
+
+The tool maintains backwards compatibility with agent-based configs but will show "[legacy mode]" in output.
 
 ## Development
 
@@ -288,7 +353,8 @@ Key components:
 - **GitManager**: Handles all Git operations (clone, sync, status)
 - **Manager**: Core orchestration logic
 - **Config**: YAML configuration and state management
-- **Agent**: Claude Code process management
+- **Scope**: Claude Code session management with multi-repository context
+- **ProcessManager**: Handles terminal tab/window creation
 
 ### Inspiration and History
 

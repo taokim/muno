@@ -205,7 +205,7 @@ func TestCommandStructure(t *testing.T) {
 	expectedCommands := []string{
 		"init",
 		"start", 
-		"stop",
+		"kill",
 		"status",
 		"sync",
 		"forall",
@@ -245,8 +245,6 @@ func TestStartCommandFlags(t *testing.T) {
 	
 	// Check that all expected flags exist
 	expectedFlags := []string{
-		"foreground",
-		"new-window",
 		"repos",
 		"preset",
 		"interactive",

@@ -18,8 +18,13 @@ type Manager struct {
 	Config        *config.Config
 	State         *config.State
 	GitManager    *git.Manager
-	agents        map[string]*Agent
+	scopes        map[string]*Scope
+	numberToScope map[int]string  // Maps numbers from ps output to scope names
 	mu            sync.Mutex
+	
+	// Legacy support
+	agents        map[string]*Agent   // Deprecated: for backwards compatibility
+	numberToAgent map[int]string      // Deprecated: for backwards compatibility
 	
 	// Interfaces for external dependencies (default to real implementations)
 	CmdExecutor     CommandExecutor
@@ -27,7 +32,15 @@ type Manager struct {
 	ProcessManager  ProcessManager
 }
 
-// Agent represents a running Claude Code instance
+// Scope represents a running Claude Code instance with scope context
+type Scope struct {
+	Name    string
+	Process *os.Process
+	Status  string
+	Repos   []string  // List of repositories in this scope
+}
+
+// Agent represents a running Claude Code instance (deprecated)
 type Agent struct {
 	Name    string
 	Process *os.Process
@@ -40,7 +53,10 @@ func New(projectPath string) *Manager {
 	return &Manager{
 		ProjectPath:   absPath,
 		WorkspacePath: filepath.Join(absPath, "workspace"), // Default workspace path
-		agents:        make(map[string]*Agent),
+		scopes:        make(map[string]*Scope),
+		numberToScope: make(map[int]string),
+		agents:        make(map[string]*Agent),  // Legacy support
+		numberToAgent: make(map[int]string),     // Legacy support
 		CmdExecutor:   RealCommandExecutor{},
 		FileSystem:    RealFileSystem{},
 		ProcessManager: RealProcessManager{},
@@ -88,7 +104,10 @@ func LoadFromCurrentDir() (*Manager, error) {
 		Config:        cfg,
 		State:         state,
 		GitManager:    gitMgr,
-		agents:        make(map[string]*Agent),
+		scopes:        make(map[string]*Scope),
+		numberToScope: make(map[int]string),
+		agents:        make(map[string]*Agent),  // Legacy support
+		numberToAgent: make(map[int]string),     // Legacy support
 		CmdExecutor:   RealCommandExecutor{},
 		FileSystem:    RealFileSystem{},
 		ProcessManager: RealProcessManager{},

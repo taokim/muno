@@ -15,9 +15,8 @@ import (
 
 // StartOptions defines how agents should be started
 type StartOptions struct {
-	Foreground bool // Run in foreground with output visible
-	NewWindow  bool // Open in new terminal window
-	LogOutput  bool // Log output to files
+	NewWindow  bool // Open in new window instead of tab (default: false, open in tab)
+	LogOutput  bool // Log output to files (kept for debugging)
 }
 
 // StartAgentWithOptions starts an agent with specific options
@@ -28,12 +27,12 @@ func (m *Manager) StartAgentWithOptions(agentName string, opts StartOptions) err
 	// Check if agent exists in config
 	agentConfig, exists := m.Config.Agents[agentName]
 	if !exists {
-		return fmt.Errorf("agent %s not found in configuration", agentName)
+		return fmt.Errorf("agent %s not found in configuration (legacy mode)", agentName)
 	}
 
 	// Check if already running
 	if agent, exists := m.agents[agentName]; exists && agent.Process != nil {
-		return fmt.Errorf("agent %s is already running", agentName)
+		return fmt.Errorf("agent %s is already running (legacy mode)", agentName)
 	}
 
 	// Find repository for this agent
@@ -50,7 +49,7 @@ func (m *Manager) StartAgentWithOptions(agentName string, opts StartOptions) err
 	}
 
 	if repoPath == "" {
-		return fmt.Errorf("no repository assigned to agent %s", agentName)
+		return fmt.Errorf("no repository assigned to agent %s (legacy mode)", agentName)
 	}
 
 	// Check if repository exists
@@ -58,95 +57,91 @@ func (m *Manager) StartAgentWithOptions(agentName string, opts StartOptions) err
 		return fmt.Errorf("repository %s not found, run 'rc sync' first", repoPath)
 	}
 
-	fmt.Printf("🚀 Starting %s in %s", agentName, repoPath)
-	if opts.Foreground {
-		fmt.Print(" (foreground mode)")
-	} else if opts.NewWindow {
-		fmt.Print(" (new window)")
+	location := "new tab"
+	if opts.NewWindow {
+		location = "new window"
 	}
-	fmt.Println()
+	fmt.Printf("🚀 Starting %s in %s (%s) [legacy agent mode]\n", agentName, repoPath, location)
 
-	// Build command
-	var cmd *exec.Cmd
-	
+	// Build command - always open in new terminal window
 	systemPrompt := fmt.Sprintf("You are %s, specialized in: %s. "+
 		"You are working in a multi-agent environment. "+
 		"Check shared-memory.md for coordination with other agents.",
 		agentName, agentConfig.Specialization)
 
-	if opts.NewWindow {
-		// Open in new terminal window
-		cmd = createNewTerminalCommand(agentName, repoPath, agentConfig.Model, systemPrompt)
-	} else {
-		// Regular claude command
-		cmd = exec.Command("claude",
-			"--model", agentConfig.Model,
-			"--append-system-prompt", systemPrompt)
-		cmd.Dir = repoPath
+	// Set environment variables for the Claude session
+	// TODO: Will be replaced with scope-based env vars in config refactor
+	envVars := map[string]string{
+		"RC_AGENT_NAME":    agentName,
+		"RC_WORKSPACE_ROOT": m.WorkspacePath,
+	}
 
-		if opts.Foreground {
-			// Run in foreground - connect stdin/stdout/stderr
-			cmd.Stdin = os.Stdin
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-		} else if opts.LogOutput {
-			// Log output to files
-			logDir := filepath.Join(m.WorkspacePath, ".logs")
-			os.MkdirAll(logDir, 0755)
-			
-			outFile, _ := os.Create(filepath.Join(logDir, fmt.Sprintf("%s-%s.log", 
-				agentName, time.Now().Format("20060102-150405"))))
-			cmd.Stdout = outFile
-			cmd.Stderr = outFile
+	var cmd Cmd
+	if m.CmdExecutor != nil {
+		// Use the command executor interface for testing
+		switch runtime.GOOS {
+		case "darwin":
+			script := fmt.Sprintf(`
+				tell application "Terminal"
+					do script "cd %s && export RC_AGENT_NAME='%s'; export RC_WORKSPACE_ROOT='%s'; claude --model %s --append-system-prompt '%s'"
+					activate
+				end tell
+			`, repoPath, agentName, m.WorkspacePath, agentConfig.Model, systemPrompt)
+			cmd = m.CmdExecutor.Command("osascript", "-e", script)
+		default:
+			// For other platforms, use a simple command for testing
+			cmd = m.CmdExecutor.Command("claude", "--model", agentConfig.Model, "--append-system-prompt", systemPrompt)
+			cmd.SetDir(repoPath)
 		}
+	} else {
+		// Use the real implementation
+		realCmd := createNewTerminalCommand(agentName, repoPath, agentConfig.Model, systemPrompt, envVars, opts.NewWindow)
+		cmd = &RealCmd{cmd: realCmd}
 	}
 
 	// Start the command
-	var err error
-	if opts.Foreground && !opts.NewWindow {
-		// Foreground mode - use Run() to block
-		err = cmd.Run()
-	} else {
-		// Background mode - use Start()
-		err = cmd.Start()
-	}
+	err := cmd.Start()
 
 	if err != nil {
-		return fmt.Errorf("failed to start agent: %w", err)
+		// If we tried to open in a tab and it failed, try opening in a new window
+		if !opts.NewWindow && runtime.GOOS == "darwin" {
+			fmt.Printf("⚠️  Failed to open in tab, trying new window...\n")
+			opts.NewWindow = true
+			return m.StartAgentWithOptions(agentName, opts)
+		}
+		return fmt.Errorf("failed to start: %w", err)
 	}
 
-	// Track agent (only for background processes)
-	if !opts.Foreground || opts.NewWindow {
-		m.agents[agentName] = &Agent{
-			Name:    agentName,
-			Process: cmd.Process,
-			Status:  "running",
-		}
-
-		// Update state
-		if m.State == nil {
-			m.State = &config.State{
-				Agents: make(map[string]config.AgentStatus),
-			}
-		}
-		m.State.Agents[agentName] = config.AgentStatus{
-			Name:         agentName,
-			Status:       "running",
-			PID:          cmd.Process.Pid,
-			Repository:   filepath.Base(repoPath),
-			LastActivity: time.Now().Format(time.RFC3339),
-		}
-		m.State.Save(filepath.Join(m.WorkspacePath, ".repo-claude-state.json"))
-
-		fmt.Printf("✅ %s started (PID: %d)\n", agentName, cmd.Process.Pid)
+	// Track agent (always track since we always open in new window)
+	m.agents[agentName] = &Agent{
+		Name:    agentName,
+		Process: cmd.Process(),
+		Status:  "running",
 	}
+
+	// Update state
+	if m.State == nil {
+		m.State = &config.State{
+			Agents: make(map[string]config.AgentStatus),
+		}
+	}
+	m.State.Agents[agentName] = config.AgentStatus{
+		Name:         agentName,
+		Status:       "running",
+		PID:          cmd.Process().Pid,
+		Repository:   filepath.Base(repoPath),
+		LastActivity: time.Now().Format(time.RFC3339),
+	}
+	m.State.Save(filepath.Join(m.WorkspacePath, ".repo-claude-state.json"))
+
+	fmt.Printf("✅ %s started (PID: %d) [legacy agent mode]\n", agentName, cmd.Process().Pid)
 
 	return nil
 }
 
 // StartAllAgentsWithOptions starts all auto-start agents with options
 func (m *Manager) StartAllAgentsWithOptions(opts StartOptions) error {
-	fmt.Println("🚀 Starting all auto-start agents...")
+	fmt.Println("🚀 Starting all auto-start agents... [legacy mode]")
 
 	// Get agents that should auto-start
 	var toStart []string
@@ -157,7 +152,7 @@ func (m *Manager) StartAllAgentsWithOptions(opts StartOptions) error {
 	}
 
 	if len(toStart) == 0 {
-		fmt.Println("No auto-start agents configured")
+		fmt.Println("No auto-start agents configured [legacy mode]")
 		return nil
 	}
 
@@ -200,7 +195,7 @@ func (m *Manager) StartAllAgentsWithOptions(opts StartOptions) error {
 
 // StartByRepos starts agents assigned to specific repositories
 func (m *Manager) StartByRepos(repos []string, opts StartOptions) error {
-	fmt.Printf("🚀 Starting agents for repositories: %s\n", strings.Join(repos, ", "))
+	fmt.Printf("🚀 Starting agents for repositories: %s [legacy mode]\n", strings.Join(repos, ", "))
 	
 	agentsToStart := make(map[string]bool)
 	
@@ -214,7 +209,7 @@ func (m *Manager) StartByRepos(repos []string, opts StartOptions) error {
 	}
 	
 	if len(agentsToStart) == 0 {
-		return fmt.Errorf("no agents assigned to repositories: %s", strings.Join(repos, ", "))
+		return fmt.Errorf("no agents assigned to repositories: %s [legacy mode]", strings.Join(repos, ", "))
 	}
 	
 	// Start the agents
@@ -295,20 +290,47 @@ func (m *Manager) StartInteractive(opts StartOptions) error {
 	return m.StartByRepos(selectedRepos, opts)
 }
 
-// createNewTerminalCommand creates a command to open claude in a new terminal window
-func createNewTerminalCommand(agentName, repoPath, model, systemPrompt string) *exec.Cmd {
-	claudeCmd := fmt.Sprintf("claude --model %s --append-system-prompt '%s'", model, systemPrompt)
+// createNewTerminalCommand creates a command to open claude in a new terminal tab or window
+func createNewTerminalCommand(agentName, repoPath, model, systemPrompt string, envVars map[string]string, newWindow bool) *exec.Cmd {
+	// Build environment variable exports
+	var envExports []string
+	for k, v := range envVars {
+		envExports = append(envExports, fmt.Sprintf("export %s='%s'", k, v))
+	}
+	envExportsStr := strings.Join(envExports, "; ")
+	
+	claudeCmd := fmt.Sprintf("%s; claude --model %s --append-system-prompt '%s'", envExportsStr, model, systemPrompt)
 	
 	switch runtime.GOOS {
 	case "darwin": // macOS
-		// Use Terminal.app or iTerm2 if available
-		script := fmt.Sprintf(`
-			tell application "Terminal"
-				do script "cd %s && %s"
-				activate
-			end tell
-		`, repoPath, claudeCmd)
-		return exec.Command("osascript", "-e", script)
+		if newWindow {
+			// Open in new window
+			script := fmt.Sprintf(`
+				tell application "Terminal"
+					do script "cd %s && %s"
+					activate
+				end tell
+			`, repoPath, claudeCmd)
+			return exec.Command("osascript", "-e", script)
+		} else {
+			// Try to open in new tab first
+			fullCommand := fmt.Sprintf("cd %s && %s", repoPath, claudeCmd)
+			
+			// First try to open in a new tab
+			tabScript := fmt.Sprintf(`
+				tell application "Terminal"
+					activate
+					tell application "System Events" to keystroke "t" using command down
+					delay 0.5
+					do script "%s" in selected tab of the front window
+				end tell
+			`, fullCommand)
+			
+			// Create a command that tries tab first, falls back to window
+			cmd := exec.Command("osascript", "-e", tabScript)
+			// If tab creation fails, we'll handle it in the caller
+			return cmd
+		}
 		
 	case "linux":
 		// Try common terminal emulators

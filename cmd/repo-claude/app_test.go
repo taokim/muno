@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"os"
 	"strings"
 	"testing"
 )
@@ -20,7 +19,7 @@ func TestApp_Execute(t *testing.T) {
 			name:       "Help command",
 			args:       []string{"--help"},
 			wantErr:    false,
-			wantOutput: "Multi-agent orchestration",
+			wantOutput: "Repo-Claude orchestrates Claude Code",
 		},
 		{
 			name:       "Version command",
@@ -44,19 +43,19 @@ func TestApp_Execute(t *testing.T) {
 			name:       "Start help",
 			args:       []string{"start", "--help"},
 			wantErr:    false,
-			wantOutput: "Start agents with flexible selection",
+			wantOutput: "Start scopes in new terminal windows",
 		},
 		{
 			name:       "Status help",
 			args:       []string{"status", "--help"},
 			wantErr:    false,
-			wantOutput: "Show agent and repo status",
+			wantOutput: "Show workspace status",
 		},
 		{
 			name:       "Ps help",
 			args:       []string{"ps", "--help"},
 			wantErr:    false,
-			wantOutput: "List agent processes",
+			wantOutput: "List running Claude Code instances",
 		},
 		{
 			name:       "Forall without arguments",
@@ -149,8 +148,6 @@ func TestApp_FlagParsing(t *testing.T) {
 			args: []string{"start", "--help"},
 			checkOutput: func(t *testing.T, output string) {
 				expectedFlags := []string{
-					"--foreground",
-					"--new-window",
 					"--repos",
 					"--preset",
 					"--interactive",
@@ -213,7 +210,7 @@ func TestApp_CommandStructure(t *testing.T) {
 	expectedCommands := []string{
 		"init",
 		"start",
-		"stop",
+		"kill",
 		"status",
 		"sync",
 		"forall",
@@ -240,23 +237,21 @@ func TestApp_CommandStructure(t *testing.T) {
 	}
 }
 
-// Test main function integration
-func TestRun(t *testing.T) {
-	// Save original args
-	oldArgs := os.Args
-	defer func() { os.Args = oldArgs }()
-	
+// Test main function integration via App
+func TestMainIntegration(t *testing.T) {
 	// Test successful run
-	os.Args = []string{"rc", "--help"}
-	code := run()
-	if code != 0 {
-		t.Errorf("run() with --help returned %d, want 0", code)
+	app := NewApp()
+	app.rootCmd.SetArgs([]string{"--help"})
+	err := app.Execute()
+	if err != nil {
+		t.Errorf("Execute() with --help returned error: %v", err)
 	}
 	
 	// Test error case (unknown command)
-	os.Args = []string{"rc", "unknown-command"}
-	code = run()
-	if code != 1 {
-		t.Errorf("run() with unknown command returned %d, want 1", code)
+	app2 := NewApp()
+	app2.rootCmd.SetArgs([]string{"unknown-command"})
+	err = app2.Execute()
+	if err == nil {
+		t.Error("Execute() with unknown command should return error")
 	}
 }
