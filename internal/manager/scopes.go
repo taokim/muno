@@ -37,11 +37,9 @@ func (m *Manager) StartScopeWithOptions(scopeName string, opts StartOptions) err
 		return fmt.Errorf("no repositories found for scope %s", scopeName)
 	}
 
-	// Use current directory as working directory
-	workDir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("getting current directory: %w", err)
-	}
+	// Use project root as working directory for consistency
+	// This ensures all scopes start from the same location
+	workDir := m.ProjectPath
 
 	location := "current terminal"
 	if opts.NewWindow {
@@ -61,13 +59,14 @@ func (m *Manager) StartScopeWithOptions(scopeName string, opts StartOptions) err
 		"RC_SCOPE_ID":        generateScopeID(scopeName),
 		"RC_SCOPE_NAME":      scopeName,
 		"RC_SCOPE_REPOS":     strings.Join(repos, ","),
-		"RC_WORKSPACE_ROOT":  workDir,
+		"RC_WORKSPACE_ROOT":  m.WorkspacePath,  // Path where repositories are cloned
+		"RC_PROJECT_ROOT":    m.ProjectPath,     // Path where repo-claude.yaml is located
 	}
 
 	cmd := createNewTerminalCommand(scopeName, workDir, scopeConfig.Model, systemPrompt, envVars, opts.NewWindow)
 
 	// Start the command
-	err = cmd.Start()
+	err := cmd.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start scope: %w", err)
 	}

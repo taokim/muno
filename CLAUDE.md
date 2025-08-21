@@ -88,10 +88,11 @@ go install ./cmd/repo-claude
 
 4. **Scope Management** (`pkg/manager/scopes.go`)
    - Launches Claude Code instances with multi-repository context
-   - Sets environment variables (RC_SCOPE_ID, RC_SCOPE_NAME, RC_SCOPE_REPOS, RC_WORKSPACE_ROOT)
+   - Sets environment variables (RC_SCOPE_ID, RC_SCOPE_NAME, RC_SCOPE_REPOS, RC_WORKSPACE_ROOT, RC_PROJECT_ROOT)
    - Supports scope dependencies and auto-start configuration
    - Creates CLAUDE.md files in each repository for workspace context
    - Terminal tab management with fallback to windows
+   - Working directory set to project root for consistency
 
 ### Workspace Structure
 

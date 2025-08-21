@@ -230,7 +230,8 @@ When you start a scope with `rc start backend`, repo-claude:
    - `RC_SCOPE_ID`: Unique identifier for the scope instance
    - `RC_SCOPE_NAME`: The scope name (e.g., "backend")
    - `RC_SCOPE_REPOS`: Comma-separated list of repositories in scope
-   - `RC_WORKSPACE_ROOT`: Root directory of the workspace
+   - `RC_WORKSPACE_ROOT`: Path where repositories are cloned (workspace directory)
+   - `RC_PROJECT_ROOT`: Path where repo-claude.yaml is located (project root)
 
 3. **Provides context** through:
    - **System prompt**: Includes scope name, description, and repositories
