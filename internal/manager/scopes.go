@@ -115,8 +115,14 @@ func (m *Manager) StopScope(scopeName string) error {
 		return fmt.Errorf("scope %s is not running", scopeName)
 	}
 
+	// Ensure ProcessManager is initialized
+	if m.ProcessManager == nil {
+		m.ProcessManager = RealProcessManager{}
+	}
+
 	// Terminate the process
-	if err := scope.Process.Signal(os.Interrupt); err != nil {
+	if err := m.ProcessManager.Signal(scope.Process, os.Interrupt); err != nil {
+		// If interrupt fails, try to kill the process
 		if err := scope.Process.Kill(); err != nil {
 			return fmt.Errorf("failed to stop scope: %w", err)
 		}

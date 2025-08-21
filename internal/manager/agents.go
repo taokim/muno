@@ -22,8 +22,14 @@ func (m *Manager) StopAgent(agentName string) error {
 		return fmt.Errorf("agent %s is not running (legacy mode)", agentName)
 	}
 
+	// Ensure ProcessManager is initialized
+	if m.ProcessManager == nil {
+		m.ProcessManager = RealProcessManager{}
+	}
+
 	// Terminate the process
-	if err := agent.Process.Signal(os.Interrupt); err != nil {
+	if err := m.ProcessManager.Signal(agent.Process, os.Interrupt); err != nil {
+		// If interrupt fails, try to kill the process
 		if err := agent.Process.Kill(); err != nil {
 			return fmt.Errorf("failed to stop agent: %w", err)
 		}
