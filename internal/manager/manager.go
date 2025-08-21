@@ -310,7 +310,11 @@ func configToRepos(cfg *config.Config) []git.Repository {
 	for _, project := range cfg.Workspace.Manifest.Projects {
 		// Build full URL from remote fetch + project name
 		url := cfg.Workspace.Manifest.RemoteFetch
-		if url[len(url)-1] != '/' {
+		if url == "" {
+			// Skip if no remote fetch URL
+			continue
+		}
+		if len(url) > 0 && url[len(url)-1] != '/' {
 			url += "/"
 		}
 		url += project.Name

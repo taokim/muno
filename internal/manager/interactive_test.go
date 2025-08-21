@@ -76,7 +76,7 @@ func TestInteractiveConfig(t *testing.T) {
 		
 		// Config should remain mostly unchanged
 		assert.Equal(t, "https://github.com/yourorg/", cfg.Workspace.Manifest.RemoteFetch)
-		assert.Len(t, cfg.Workspace.Manifest.Projects, 4)
+		assert.Len(t, cfg.Workspace.Manifest.Projects, 6)
 	})
 	
 	t.Run("CustomValues", func(t *testing.T) {
@@ -95,6 +95,12 @@ func TestInteractiveConfig(t *testing.T) {
 			"\n",                            // Project 4 name (default)
 			"\n",                            // Project 4 groups (default)
 			"\n",                            // Project 4 agent (default)
+			"\n",                            // Project 5 name (default)
+			"\n",                            // Project 5 groups (default)
+			"\n",                            // Project 5 agent (default)
+			"\n",                            // Project 6 name (default)
+			"\n",                            // Project 6 groups (default)
+			"\n",                            // Project 6 agent (default)
 			"y\n",                           // Add another project?
 			"new-service\n",                 // New project name
 			"service,new\n",                 // New project groups
@@ -139,8 +145,8 @@ func TestInteractiveConfig(t *testing.T) {
 		assert.Equal(t, "api-agent", cfg.Workspace.Manifest.Projects[0].Agent)
 		
 		// Check new project was added
-		assert.Len(t, cfg.Workspace.Manifest.Projects, 5)
-		lastProject := cfg.Workspace.Manifest.Projects[4]
+		assert.Len(t, cfg.Workspace.Manifest.Projects, 7)
+		lastProject := cfg.Workspace.Manifest.Projects[6]
 		assert.Equal(t, "new-service", lastProject.Name)
 		assert.Equal(t, "service,new", lastProject.Groups)
 		assert.Equal(t, "service-agent", lastProject.Agent)

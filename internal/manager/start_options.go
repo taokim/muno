@@ -107,7 +107,10 @@ func (m *Manager) StartAgentWithOptions(agentName string, opts StartOptions) err
 		if !opts.NewWindow && runtime.GOOS == "darwin" {
 			fmt.Printf("⚠️  Failed to open in tab, trying new window...\n")
 			opts.NewWindow = true
-			return m.StartAgentWithOptions(agentName, opts)
+			m.mu.Unlock() // Unlock before recursive call
+			err := m.StartAgentWithOptions(agentName, opts)
+			m.mu.Lock() // Re-lock after return
+			return err
 		}
 		return fmt.Errorf("failed to start: %w", err)
 	}
