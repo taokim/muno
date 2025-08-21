@@ -33,6 +33,7 @@ Thumbs.db
 
 # Project specific
 repo-claude
+rc
 !cmd/repo-claude/
 .repo-claude-state.json
 test-project/
