@@ -207,7 +207,8 @@ Claude sessions now receive these environment variables:
 - `RC_SCOPE_ID`: Unique scope instance ID
 - `RC_SCOPE_NAME`: The scope name
 - `RC_SCOPE_REPOS`: Comma-separated repo list
-- `RC_WORKSPACE_ROOT`: Workspace root directory
+- `RC_WORKSPACE_ROOT`: Path where repositories are cloned (workspace directory)
+- `RC_PROJECT_ROOT`: Path where repo-claude.yaml is located (project root)
 
 ## Tips for Effective Scopes
 
