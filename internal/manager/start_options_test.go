@@ -422,49 +422,52 @@ func TestCreateNewTerminalCommand(t *testing.T) {
 		name            string
 		platform        string
 		newWindow       bool
-		expectOsascript bool // For macOS window creation
+		expectCommand   string // Expected command to be invoked
 	}{
 		{
 			name:            "current terminal",
 			platform:        "darwin",
 			newWindow:       false,
-			expectOsascript: false,
+			expectCommand:   "claude",
 		},
 		{
 			name:            "new window on macOS",
 			platform:        "darwin",
 			newWindow:       true,
-			expectOsascript: true,
+			expectCommand:   "osascript",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Create a mock command executor
+			var capturedCommand string
+			mockExecutor := &MockCommandExecutor{
+				Commands: []MockCommand{
+					{
+						Cmd: tt.expectCommand,
+						OnCall: func() {
+							capturedCommand = tt.expectCommand
+						},
+						Error: nil,
+					},
+				},
+			}
+			
 			envVars := map[string]string{
 				"RC_AGENT_NAME": "test-agent",
 				"RC_WORKSPACE_ROOT": "/test/workspace",
 			}
-			cmd := createNewTerminalCommand("test-agent", "/path/to/repo", "claude-3", "test prompt", envVars, tt.newWindow)
+			cmd := createNewTerminalCommand(mockExecutor, "test-agent", "/path/to/repo", "claude-3", "test prompt", envVars, tt.newWindow)
 			
 			if cmd == nil {
 				t.Error("Expected command, got nil")
 				return
 			}
 			
-			// Check that command is constructed correctly
-			if len(cmd.Args) == 0 {
-				t.Error("Expected command arguments")
-				return
-			}
-			
-			// For current terminal, should use claude directly
-			if !tt.newWindow && !strings.Contains(cmd.Path, "claude") {
-				t.Errorf("Expected claude command for current terminal, got %s", cmd.Path)
-			}
-			
-			// For new window on macOS, should use osascript
-			if tt.expectOsascript && !strings.Contains(cmd.Path, "osascript") {
-				t.Errorf("Expected osascript for new window on macOS, got %s", cmd.Path)
+			// Verify the correct command was created
+			if capturedCommand != tt.expectCommand && tt.expectCommand != "" {
+				t.Errorf("Expected %s command to be created, but it wasn't", tt.expectCommand)
 			}
 		})
 	}
