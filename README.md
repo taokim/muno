@@ -36,6 +36,7 @@ Work with flexible scopes that span multiple repositories:
 - 🚀 **Single Binary**: No runtime dependencies (Python, Node.js, etc.)
 - 🗂️ **Multi-Repository Management**: Manage dozens of Git repositories as one unified workspace
 - 🤖 **Scope-Based Orchestration**: Launch Claude Code sessions with multi-repository context
+- 🎨 **Interactive TUI**: Beautiful terminal UI for selecting scopes and repos (powered by Bubbletea)
 - 🔧 **Simple Git Operations**: Direct git commands with parallel execution for speed
 - 🌳 **Trunk-Based Development**: All agents work directly on main branch
 - 📝 **Shared Memory**: Cross-scope coordination through shared memory file
@@ -121,12 +122,21 @@ sudo make install
 
 2. **Start scopes**:
    ```bash
-   rc start              # Start all auto-start scopes
-   rc start backend      # Start specific scope
+   rc start              # Interactive selection UI (NEW DEFAULT!)
+   rc start backend      # Start specific scope directly
    rc start order-service # Start scope containing this repo
-   rc start --new-window  # Force open in new window
+   rc start --all        # Start all auto-start scopes (non-interactive)
+   rc start -i backend   # Force interactive mode even with args
+   rc start --new-window # Force open in new window
    rc start scope1 scope2 # Multiple scopes auto-open in new windows
    ```
+   
+   The new **interactive mode** (default when no arguments) provides a rich TUI experience:
+   - Visual list of all scopes and repositories with status indicators
+   - Multi-select with space bar, start with enter
+   - Filter by running/stopped/scopes/repos with 'f' key
+   - Smart grouping shows which repos belong to each scope
+   - Keyboard shortcuts for select all ('a'), clear all ('n'), and help ('?')
 
 3. **Check status**:
    ```bash

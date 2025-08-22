@@ -119,40 +119,56 @@ func (a *App) newStartCmd() *cobra.Command {
 	var preset string
 	var interactive bool
 	var newWindow bool
+	var all bool
 	
 	cmd := &cobra.Command{
 		Use:   "start [scope-or-repo-names...]",
-		Short: "Start scopes in new terminal windows",
-		Long: `Start one or more scopes. Without arguments, starts all auto-start scopes.
-All scopes are started in new terminal windows.
+		Short: "Start scopes interactively or by name",
+		Long: `Start one or more scopes. Without arguments, launches interactive selection UI.
+With arguments, starts the specified scopes directly.
 		
 Examples:
-  rc start                    # Start all auto-start scopes
+  rc start                    # Interactive selection UI (default)
   rc start backend frontend   # Start specific scopes
   rc start order-service      # Start scope containing order-service repo
+  rc start --all              # Start all auto-start scopes (non-interactive)
   rc start --repos backend    # Start scopes for specific repos
   rc start --preset dev       # Start scopes matching a preset
-  rc start --interactive      # Choose scopes interactively`,
+  rc start -i backend         # Force interactive mode even with args`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return err
 			}
 			
-			// Handle different start modes
-			if interactive {
-				return fmt.Errorf("interactive mode not yet implemented")
+			// --all flag overrides everything and starts all auto-start scopes
+			if all {
+				opts := manager.StartOptions{
+					NewWindow: newWindow,
+				}
+				if len(mgr.Config.Scopes) > 0 {
+					return mgr.StartAllScopesWithOptions(opts)
+				} else {
+					return mgr.StartAllAgentsWithOptions(opts)
+				}
 			}
 			
-			if len(repos) > 0 {
-				return fmt.Errorf("--repos filtering not yet implemented")
-			}
-			
+			// Handle preset filtering
 			if preset != "" {
 				return fmt.Errorf("--preset filtering not yet implemented")
 			}
 			
-			// Default behavior: start specified scopes or all auto-start
+			// Handle repo filtering  
+			if len(repos) > 0 {
+				return fmt.Errorf("--repos filtering not yet implemented")
+			}
+			
+			// Interactive mode: either explicitly requested or no args provided
+			if interactive || len(args) == 0 {
+				return mgr.StartInteractiveTUI()
+			}
+			
+			// Direct start mode with arguments
 			opts := manager.StartOptions{
 				NewWindow: newWindow,
 			}
@@ -165,10 +181,6 @@ Examples:
 			
 			// Use scopes if configured, otherwise fall back to legacy agents
 			if len(mgr.Config.Scopes) > 0 {
-				if len(args) == 0 {
-					return mgr.StartAllScopesWithOptions(opts)
-				}
-				
 				// Start specific scopes or by repo name
 				for _, name := range args {
 					// First try as scope name
@@ -181,10 +193,6 @@ Examples:
 				}
 			} else {
 				// Legacy agent support
-				if len(args) == 0 {
-					return mgr.StartAllAgentsWithOptions(opts)
-				}
-				
 				// Start specific agents
 				for _, agentName := range args {
 					if err := mgr.StartAgentWithOptions(agentName, opts); err != nil {
@@ -198,8 +206,9 @@ Examples:
 	
 	cmd.Flags().StringSliceVarP(&repos, "repos", "r", nil, "Start scopes for specific repositories")
 	cmd.Flags().StringVarP(&preset, "preset", "p", "", "Start scopes matching a preset tag")
-	cmd.Flags().BoolVarP(&interactive, "interactive", "i", false, "Choose scopes interactively")
+	cmd.Flags().BoolVarP(&interactive, "interactive", "i", false, "Force interactive selection mode")
 	cmd.Flags().BoolVar(&newWindow, "new-window", false, "Open in new window instead of current terminal")
+	cmd.Flags().BoolVar(&all, "all", false, "Start all auto-start scopes (non-interactive)")
 	
 	return cmd
 }
