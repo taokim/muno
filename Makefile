@@ -64,8 +64,35 @@ vet:
 
 install: build
 	@echo "Installing ${BINARY_NAME}..."
-	@cp $(GOBIN)/$(BINARY_NAME) $(GOPATH)/bin/
-	@echo "Installed to $(GOPATH)/bin/$(BINARY_NAME)"
+	@if [ -z "$(GOPATH)" ]; then \
+		echo "GOPATH not set, installing to /usr/local/bin"; \
+		sudo cp $(GOBIN)/$(BINARY_NAME) /usr/local/bin/ || cp $(GOBIN)/$(BINARY_NAME) ~/bin/; \
+	else \
+		mkdir -p $(GOPATH)/bin; \
+		cp $(GOBIN)/$(BINARY_NAME) $(GOPATH)/bin/; \
+		echo "Installed to $(GOPATH)/bin/$(BINARY_NAME)"; \
+	fi
+
+install-local: build
+	@echo "Installing ${BINARY_NAME} to ~/bin..."
+	@mkdir -p ~/bin
+	@cp $(GOBIN)/$(BINARY_NAME) ~/bin/
+	@echo "Installed to ~/bin/$(BINARY_NAME)"
+	@echo "Make sure ~/bin is in your PATH"
+
+install-dev: build
+	@echo "Installing development version as ${BINARY_NAME}-dev..."
+	@sudo ln -sf $(GOBIN)/$(BINARY_NAME) /usr/local/bin/$(BINARY_NAME)-dev
+	@echo "Installed to /usr/local/bin/$(BINARY_NAME}-dev"
+	@echo "Use 'rc' for production, 'rc-dev' for development"
+
+dev: build
+	@echo "Running development version..."
+	@$(GOBIN)/$(BINARY_NAME) $(filter-out $@,$(MAKECMDGOALS))
+
+# Catch all target for dev command arguments
+%:
+	@:
 
 # Cross-compilation targets
 build-all:
@@ -125,6 +152,8 @@ help:
 	@echo "  make fmt         - Format code"
 	@echo "  make vet         - Run go vet"
 	@echo "  make install     - Install binary to GOPATH/bin"
+	@echo "  make install-dev - Install as rc-dev (for development)"
+	@echo "  make dev [args]  - Run development version directly"
 	@echo "  make build-all   - Build for all platforms"
 	@echo "  make release-dry - Dry run release"
 	@echo "  make release     - Create release"
