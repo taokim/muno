@@ -105,8 +105,10 @@ func (m *Manager) StartAgentWithOptions(agentName string, opts StartOptions) err
 		}
 	} else {
 		// Use the real implementation
-		realCmd := createNewTerminalCommand(agentName, repoPath, agentConfig.Model, systemPrompt, envVars, opts.NewWindow)
-		cmd = &RealCmd{cmd: realCmd}
+		if m.CmdExecutor == nil {
+			m.CmdExecutor = &RealCommandExecutor{}
+		}
+		cmd = createNewTerminalCommand(m.CmdExecutor, agentName, repoPath, agentConfig.Model, systemPrompt, envVars, opts.NewWindow)
 	}
 
 	// Start the command
@@ -300,7 +302,7 @@ func (m *Manager) StartInteractive(opts StartOptions) error {
 }
 
 // createNewTerminalCommand creates a command to run claude in current terminal or new window
-func createNewTerminalCommand(agentName, repoPath, model, systemPrompt string, envVars map[string]string, newWindow bool) *exec.Cmd {
+func createNewTerminalCommand(executor CommandExecutor, agentName, repoPath, model, systemPrompt string, envVars map[string]string, newWindow bool) Cmd {
 	// Build environment variable exports
 	var envExports []string
 	for k, v := range envVars {
@@ -312,16 +314,14 @@ func createNewTerminalCommand(agentName, repoPath, model, systemPrompt string, e
 	
 	// If not opening in new window, run in current terminal
 	if !newWindow {
-		cmd := exec.Command("claude", "--model", model, "--append-system-prompt", systemPrompt)
-		cmd.Dir = repoPath
+		cmd := executor.Command("claude", "--model", model, "--append-system-prompt", systemPrompt)
+		cmd.SetDir(repoPath)
 		// Set environment variables
+		envList := os.Environ()
 		for k, v := range envVars {
-			cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", k, v))
+			envList = append(envList, fmt.Sprintf("%s=%s", k, v))
 		}
-		// Connect to current terminal
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.SetEnv(envList)
 		return cmd
 	}
 	
@@ -335,7 +335,7 @@ func createNewTerminalCommand(agentName, repoPath, model, systemPrompt string, e
 				activate
 			end tell
 		`, repoPath, claudeCmd)
-		return exec.Command("osascript", "-e", script)
+		return executor.Command("osascript", "-e", script)
 		
 	case "linux":
 		// Try common terminal emulators
@@ -350,21 +350,21 @@ func createNewTerminalCommand(agentName, repoPath, model, systemPrompt string, e
 		
 		for _, term := range terminals {
 			if _, err := exec.LookPath(term.cmd); err == nil {
-				return exec.Command(term.cmd, term.args...)
+				return executor.Command(term.cmd, term.args...)
 			}
 		}
 		
 		// Fallback
-		return exec.Command("xterm", "-e", "bash", "-c", fmt.Sprintf("cd %s && %s; exec bash", repoPath, claudeCmd))
+		return executor.Command("xterm", "-e", "bash", "-c", fmt.Sprintf("cd %s && %s; exec bash", repoPath, claudeCmd))
 		
 	case "windows":
 		// Windows Terminal or cmd
-		return exec.Command("cmd", "/c", "start", "cmd", "/k", fmt.Sprintf("cd /d %s && %s", repoPath, claudeCmd))
+		return executor.Command("cmd", "/c", "start", "cmd", "/k", fmt.Sprintf("cd /d %s && %s", repoPath, claudeCmd))
 		
 	default:
 		// Fallback to running in same terminal
-		cmd := exec.Command("claude", "--model", model, "--append-system-prompt", systemPrompt)
-		cmd.Dir = repoPath
+		cmd := executor.Command("claude", "--model", model, "--append-system-prompt", systemPrompt)
+		cmd.SetDir(repoPath)
 		return cmd
 	}
 }

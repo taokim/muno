@@ -63,7 +63,12 @@ func (m *Manager) StartScopeWithOptions(scopeName string, opts StartOptions) err
 		"RC_PROJECT_ROOT":    m.ProjectPath,     // Path where repo-claude.yaml is located
 	}
 
-	cmd := createNewTerminalCommand(scopeName, workDir, scopeConfig.Model, systemPrompt, envVars, opts.NewWindow)
+	// Ensure CmdExecutor is initialized
+	if m.CmdExecutor == nil {
+		m.CmdExecutor = &RealCommandExecutor{}
+	}
+	
+	cmd := createNewTerminalCommand(m.CmdExecutor, scopeName, workDir, scopeConfig.Model, systemPrompt, envVars, opts.NewWindow)
 
 	// Start the command
 	err := cmd.Start()
@@ -74,7 +79,7 @@ func (m *Manager) StartScopeWithOptions(scopeName string, opts StartOptions) err
 	// Track scope
 	m.scopes[scopeName] = &Scope{
 		Name:    scopeName,
-		Process: cmd.Process,
+		Process: cmd.Process(),
 		Status:  "running",
 		Repos:   repos,
 	}
@@ -88,13 +93,13 @@ func (m *Manager) StartScopeWithOptions(scopeName string, opts StartOptions) err
 	m.State.UpdateScope(config.ScopeStatus{
 		Name:         scopeName,
 		Status:       "running",
-		PID:          cmd.Process.Pid,
+		PID:          cmd.Process().Pid,
 		Repos:        repos,
 		LastActivity: time.Now().Format(time.RFC3339),
 	})
 	m.State.Save(filepath.Join(m.ProjectPath, ".repo-claude-state.json"))
 
-	fmt.Printf("✅ Scope %s started (PID: %d)\n", scopeName, cmd.Process.Pid)
+	fmt.Printf("✅ Scope %s started (PID: %d)\n", scopeName, cmd.Process().Pid)
 
 	return nil
 }
@@ -109,8 +114,14 @@ func (m *Manager) StopScope(scopeName string) error {
 		return fmt.Errorf("scope %s is not running", scopeName)
 	}
 
+	// Ensure ProcessManager is initialized
+	if m.ProcessManager == nil {
+		m.ProcessManager = RealProcessManager{}
+	}
+
 	// Terminate the process
-	if err := scope.Process.Signal(os.Interrupt); err != nil {
+	if err := m.ProcessManager.Signal(scope.Process, os.Interrupt); err != nil {
+		// If interrupt fails, try to kill the process
 		if err := scope.Process.Kill(); err != nil {
 			return fmt.Errorf("failed to stop scope: %w", err)
 		}
