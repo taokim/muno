@@ -74,19 +74,69 @@ install: build
 	fi
 
 install-local: build
-	@echo "Installing ${BINARY_NAME} to ~/bin..."
-	@mkdir -p ~/bin
-	@cp $(GOBIN)/$(BINARY_NAME) ~/bin/
-	@echo "Installed to ~/bin/$(BINARY_NAME)"
-	@echo "Make sure ~/bin is in your PATH"
+	@echo "Installing $(BINARY_NAME) to local user directory..."
+	@LOCAL_BIN_DIR=""; \
+	for dir in "$$HOME/.local/bin" "$$HOME/bin" "$$HOME/.bin"; do \
+		shortdir=$$(echo "$$dir" | sed "s|$$HOME|~|"); \
+		if echo "$$PATH" | grep -q "$$dir" || echo "$$PATH" | grep -q "$$shortdir"; then \
+			LOCAL_BIN_DIR="$$dir"; \
+			break; \
+		fi; \
+	done; \
+	if [ -z "$$LOCAL_BIN_DIR" ]; then \
+		echo "❌ No local bin directory found in PATH."; \
+		echo ""; \
+		echo "Please choose one of these options:"; \
+		echo "1. Add ~/.local/bin to PATH (recommended):"; \
+		echo "   mkdir -p ~/.local/bin"; \
+		echo "   echo 'export PATH=\"$$HOME/.local/bin:$$PATH\"' >> ~/.zshrc"; \
+		echo "   source ~/.zshrc"; \
+		echo ""; \
+		echo "2. Add ~/bin to PATH:"; \
+		echo "   mkdir -p ~/bin"; \
+		echo "   echo 'export PATH=\"$$HOME/bin:$$PATH\"' >> ~/.zshrc"; \
+		echo "   source ~/.zshrc"; \
+		echo ""; \
+		echo "Then run 'make install-local' again."; \
+		exit 1; \
+	else \
+		mkdir -p "$$LOCAL_BIN_DIR"; \
+		cp $(GOBIN)/$(BINARY_NAME) "$$LOCAL_BIN_DIR/"; \
+		echo "✅ Installed to $$LOCAL_BIN_DIR/$(BINARY_NAME)"; \
+	fi
 
 install-dev: build
 	@echo "Installing development version as $(BINARY_NAME)-dev..."
-	@mkdir -p ~/bin
-	@ln -sf $(GOBIN)/$(BINARY_NAME) ~/bin/$(BINARY_NAME)-dev
-	@echo "Installed to ~/bin/$(BINARY_NAME)-dev"
-	@echo "Use 'rc' for production, 'rc-dev' for development"
-	@echo "Make sure ~/bin is in your PATH"
+	@LOCAL_BIN_DIR=""; \
+	for dir in "$$HOME/.local/bin" "$$HOME/bin" "$$HOME/.bin"; do \
+		shortdir=$$(echo "$$dir" | sed "s|$$HOME|~|"); \
+		if echo "$$PATH" | grep -q "$$dir" || echo "$$PATH" | grep -q "$$shortdir"; then \
+			LOCAL_BIN_DIR="$$dir"; \
+			break; \
+		fi; \
+	done; \
+	if [ -z "$$LOCAL_BIN_DIR" ]; then \
+		echo "❌ No local bin directory found in PATH."; \
+		echo ""; \
+		echo "Please choose one of these options:"; \
+		echo "1. Add ~/.local/bin to PATH (recommended):"; \
+		echo "   mkdir -p ~/.local/bin"; \
+		echo "   echo 'export PATH=\"$$HOME/.local/bin:$$PATH\"' >> ~/.zshrc"; \
+		echo "   source ~/.zshrc"; \
+		echo ""; \
+		echo "2. Add ~/bin to PATH:"; \
+		echo "   mkdir -p ~/bin"; \
+		echo "   echo 'export PATH=\"$$HOME/bin:$$PATH\"' >> ~/.zshrc"; \
+		echo "   source ~/.zshrc"; \
+		echo ""; \
+		echo "Then run 'make install-dev' again."; \
+		exit 1; \
+	else \
+		mkdir -p "$$LOCAL_BIN_DIR"; \
+		ln -sf $(GOBIN)/$(BINARY_NAME) "$$LOCAL_BIN_DIR/$(BINARY_NAME)-dev"; \
+		echo "✅ Installed to $$LOCAL_BIN_DIR/$(BINARY_NAME)-dev"; \
+		echo "Use 'rc' for production, 'rc-dev' for development"; \
+	fi
 
 dev: build
 	@echo "Running development version..."
