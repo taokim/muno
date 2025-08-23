@@ -165,7 +165,7 @@ Examples:
 			
 			// Interactive mode: either explicitly requested or no args provided
 			if interactive || len(args) == 0 {
-				return mgr.StartInteractiveTUI()
+				return mgr.StartInteractiveTUIV2()
 			}
 			
 			// Direct start mode with arguments
