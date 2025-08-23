@@ -57,7 +57,7 @@ agents:
 
 Handles all Git operations:
 - **Clone**: Parallel cloning of repositories
-- **Sync**: Pulling latest changes from remotes
+- **Sync**: Pulling latest changes from remotes using rebase
 - **Status**: Checking Git status across all repositories
 - **ForAll**: Running commands in each repository
 

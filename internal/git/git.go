@@ -105,7 +105,7 @@ func (m *Manager) cloneRepo(repo Repository) error {
 	return nil
 }
 
-// Sync pulls latest changes for all repositories
+// Sync pulls latest changes for all repositories using rebase
 func (m *Manager) Sync() error {
 	fmt.Println("🔄 Syncing repositories...")
 	
@@ -149,8 +149,8 @@ func (m *Manager) syncRepo(repo Repository) error {
 		return m.cloneRepo(repo)
 	}
 
-	// Pull latest changes
-	cmd := exec.Command("git", "pull", "--ff-only")
+	// Pull latest changes with rebase
+	cmd := exec.Command("git", "pull", "--rebase")
 	cmd.Dir = repoPath
 	
 	output, err := cmd.CombinedOutput()

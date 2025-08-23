@@ -23,7 +23,7 @@ We decided to remove the Android Repo tool dependency and implement direct Git o
 
 The new implementation:
 - Uses a single configuration file (`repo-claude.yaml`)
-- Performs direct `git clone` and `git pull` operations
+- Performs direct `git clone` and `git pull --rebase` operations
 - Maintains the same user-facing commands
 - Provides parallel operations for performance
 - Keeps the multi-agent orchestration features intact

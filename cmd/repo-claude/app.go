@@ -293,7 +293,7 @@ func (a *App) newSyncCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "Sync all repositories",
-		Long:  `Clone missing repositories and pull updates for existing ones`,
+		Long:  `Clone missing repositories and pull updates for existing ones using rebase`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
