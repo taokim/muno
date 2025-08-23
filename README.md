@@ -114,6 +114,15 @@ sudo make install
    rc kill 1 2           # Stop by numbers from ps output
    ```
 
+5. **Manage pull requests** (requires GitHub CLI):
+   ```bash
+   rc pr list            # List PRs across all repos
+   rc pr create --repo backend --title "Fix auth bug"
+   rc pr status          # Show PR status with checks
+   rc pr checkout 42 --repo backend  # Review PR locally
+   rc pr merge 42 --repo backend     # Merge PR
+   ```
+
 ## Example: E-Commerce Platform
 
 Imagine you're building an e-commerce platform with:
