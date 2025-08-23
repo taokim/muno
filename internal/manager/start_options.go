@@ -322,6 +322,12 @@ func createNewTerminalCommand(executor CommandExecutor, agentName, repoPath, mod
 			envList = append(envList, fmt.Sprintf("%s=%s", k, v))
 		}
 		cmd.SetEnv(envList)
+		
+		// Attach to current terminal's stdin/stdout/stderr
+		if realCmd, ok := cmd.(*RealCmd); ok {
+			realCmd.AttachToTerminal()
+		}
+		
 		return cmd
 	}
 	

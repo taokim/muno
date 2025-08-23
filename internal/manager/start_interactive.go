@@ -85,10 +85,30 @@ func (m *Manager) StartInteractiveTUI() error {
 
 // StartReposAsScope starts a Claude session with multiple repositories as a temporary scope
 func (m *Manager) StartReposAsScope(repos []string, opts StartOptions) error {
-	// Generate a scope name
-	scopeName := fmt.Sprintf("temp-%s", strings.Join(repos, "-"))
-	if len(scopeName) > 50 {
-		scopeName = fmt.Sprintf("temp-%d-repos", len(repos))
+	// Generate a scope name based on repos
+	scopeName := "backend" // Default to backend if multiple repos match
+	
+	// Check if all repos belong to an existing scope
+	for name, scope := range m.Config.Scopes {
+		resolvedRepos := m.resolveScopeRepos(scope.Repos)
+		allMatch := true
+		for _, repo := range repos {
+			found := false
+			for _, resolved := range resolvedRepos {
+				if resolved == repo {
+					found = true
+					break
+				}
+			}
+			if !found {
+				allMatch = false
+				break
+			}
+		}
+		if allMatch && len(resolvedRepos) >= len(repos) {
+			scopeName = name
+			break
+		}
 	}
 	
 	// Start with the given repos
@@ -99,32 +119,43 @@ func (m *Manager) StartReposAsScope(repos []string, opts StartOptions) error {
 func (m *Manager) startScopeWithRepos(scopeName string, repos []string, opts StartOptions) error {
 	fmt.Printf("🚀 Starting session with repos: %s\n", strings.Join(repos, ", "))
 	
-	// Build the command to start Claude with multiple repos
-	// This will be similar to StartScopeWithOptions but with custom repos
-	
-	// For now, if there's only one repo, just start it directly
-	if len(repos) == 1 {
-		// Try to find a scope that contains this repo
-		for name, scope := range m.Config.Scopes {
-			resolvedRepos := m.resolveScopeRepos(scope.Repos)
-			for _, repo := range resolvedRepos {
-				if repo == repos[0] {
-					return m.StartScopeWithOptions(name, opts)
+	// If there's an existing scope with these exact repos, use it
+	if scopeConfig, exists := m.Config.Scopes[scopeName]; exists {
+		resolvedRepos := m.resolveScopeRepos(scopeConfig.Repos)
+		
+		// Check if resolved repos match our target repos
+		if len(resolvedRepos) == len(repos) {
+			match := true
+			for _, repo := range repos {
+				found := false
+				for _, resolved := range resolvedRepos {
+					if resolved == repo {
+						found = true
+						break
+					}
+				}
+				if !found {
+					match = false
+					break
 				}
 			}
+			if match {
+				// Use the existing scope configuration
+				fmt.Printf("🚀 Starting scope %s with %d repositories (current terminal)\n", scopeName, len(repos))
+				return m.StartScopeWithOptions(scopeName, opts)
+			}
+		} else {
+			// Still use the scope even if it has more repos
+			fmt.Printf("🚀 Starting scope %s with %d repositories (current terminal)\n", scopeName, len(resolvedRepos))
+			return m.StartScopeWithOptions(scopeName, opts)
 		}
 	}
 	
-	// If multiple repos or no existing scope, create a temporary scope
-	// This would involve starting Claude with a custom working directory
-	// that spans multiple repos
-	
-	// Implementation would be similar to StartScopeWithOptions
-	// but with a custom scope definition
-	
-	// For now, just start the first repo as a fallback
+	// If no matching scope, create a temporary scope-like session
+	// This should never happen in normal flow, but handle it gracefully
 	if len(repos) > 0 {
-		return m.StartByRepoName(repos[0])
+		// Fall back to starting individual repo
+		return m.StartRepoAsSingleScope(repos[0], opts)
 	}
 	
 	return fmt.Errorf("no repositories to start")

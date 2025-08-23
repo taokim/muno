@@ -70,13 +70,24 @@ func (m *Manager) StartScopeWithOptions(scopeName string, opts StartOptions) err
 	
 	cmd := createNewTerminalCommand(m.CmdExecutor, scopeName, workDir, scopeConfig.Model, systemPrompt, envVars, opts.NewWindow)
 
-	// Start the command
+	// For current terminal, run in foreground and wait
+	if !opts.NewWindow {
+		// Run the command in foreground (blocking)
+		err := cmd.Run()
+		if err != nil {
+			return fmt.Errorf("failed to run scope: %w", err)
+		}
+		// Command has completed when running in current terminal
+		return nil
+	}
+
+	// For new window, start in background
 	err := cmd.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start scope: %w", err)
 	}
 
-	// Track scope
+	// Track scope (only for new window mode)
 	m.scopes[scopeName] = &Scope{
 		Name:    scopeName,
 		Process: cmd.Process(),
@@ -84,7 +95,7 @@ func (m *Manager) StartScopeWithOptions(scopeName string, opts StartOptions) err
 		Repos:   repos,
 	}
 
-	// Update state
+	// Update state (only for new window mode)
 	if m.State == nil {
 		m.State = &config.State{
 			Scopes: make(map[string]config.ScopeStatus),

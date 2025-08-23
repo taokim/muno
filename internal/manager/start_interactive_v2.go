@@ -148,30 +148,23 @@ func (m *Manager) StartRepoAsSingleScope(repo string, opts StartOptions) error {
 	
 	// Create and start the command
 	var cmd Cmd
-	if m.CmdExecutor != nil {
-		if opts.NewWindow {
-			cmd = createNewTerminalCommand(m.CmdExecutor, repo, repoPath, model, systemPrompt, envVars, true)
-		} else {
-			// Run in current terminal
-			cmd = m.CmdExecutor.Command("claude", "--model", model, "--append-system-prompt", systemPrompt)
-			cmd.SetDir(repoPath)
-			
-			// Set environment variables
-			envList := os.Environ()
-			for k, v := range envVars {
-				envList = append(envList, fmt.Sprintf("%s=%s", k, v))
-			}
-			cmd.SetEnv(envList)
+	if m.CmdExecutor == nil {
+		m.CmdExecutor = &RealCommandExecutor{}
+	}
+	cmd = createNewTerminalCommand(m.CmdExecutor, repo, repoPath, model, systemPrompt, envVars, opts.NewWindow)
+	
+	// For current terminal, run in foreground and wait
+	if !opts.NewWindow {
+		// Run the command in foreground (blocking)
+		err := cmd.Run()
+		if err != nil {
+			return fmt.Errorf("failed to run Claude for %s: %w", repo, err)
 		}
-	} else {
-		// Fallback to real implementation
-		if m.CmdExecutor == nil {
-			m.CmdExecutor = &RealCommandExecutor{}
-		}
-		cmd = createNewTerminalCommand(m.CmdExecutor, repo, repoPath, model, systemPrompt, envVars, opts.NewWindow)
+		// Command has completed when running in current terminal
+		return nil
 	}
 	
-	// Start the command
+	// For new window, start in background
 	err := cmd.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start Claude for %s: %w", repo, err)
