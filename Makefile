@@ -81,10 +81,12 @@ install-local: build
 	@echo "Make sure ~/bin is in your PATH"
 
 install-dev: build
-	@echo "Installing development version as ${BINARY_NAME}-dev..."
-	@sudo ln -sf $(GOBIN)/$(BINARY_NAME) /usr/local/bin/$(BINARY_NAME)-dev
-	@echo "Installed to /usr/local/bin/$(BINARY_NAME}-dev"
+	@echo "Installing development version as $(BINARY_NAME)-dev..."
+	@mkdir -p ~/bin
+	@ln -sf $(GOBIN)/$(BINARY_NAME) ~/bin/$(BINARY_NAME)-dev
+	@echo "Installed to ~/bin/$(BINARY_NAME)-dev"
 	@echo "Use 'rc' for production, 'rc-dev' for development"
+	@echo "Make sure ~/bin is in your PATH"
 
 dev: build
 	@echo "Running development version..."
