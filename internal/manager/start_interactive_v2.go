@@ -56,9 +56,9 @@ func (m *Manager) StartInteractiveTUIV2() error {
 			return nil
 		}
 		
-		// Determine if we need new windows
+		// Always start in current window
 		opts := StartOptions{
-			NewWindow: len(repos) > 1, // Only use new window for multiple repos
+			NewWindow: false, // Always use current window
 		}
 		
 		if len(repos) == 1 {
@@ -78,7 +78,7 @@ func (m *Manager) StartInteractiveTUIV2() error {
 			return m.StartRepoAsSingleScope(repos[0], opts)
 		} else {
 			// Multiple repos - create a combined scope
-			fmt.Printf("🪟 Starting %d repositories in new windows...\n", len(repos))
+			fmt.Printf("🚀 Starting %d repositories in current terminal...\n", len(repos))
 			return m.StartReposAsScope(repos, opts)
 		}
 		
