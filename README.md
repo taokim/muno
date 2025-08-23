@@ -114,10 +114,19 @@ sudo make install
    rc kill 1 2           # Stop by numbers from ps output
    ```
 
-5. **Manage pull requests** (requires GitHub CLI):
+5. **Manage branches** across repositories:
+   ```bash
+   rc branch create feature/payment   # Create branch in all repos
+   rc branch list                     # Show branch status
+   rc branch checkout main            # Switch branches
+   rc branch delete feature/old       # Clean up branches
+   ```
+
+6. **Manage pull requests** (requires GitHub CLI):
    ```bash
    rc pr list            # List PRs across all repos
-   rc pr create --repo backend --title "Fix auth bug"
+   rc pr batch-create --title "Add feature"  # Create PRs for all feature branches
+   rc pr create --repo backend --title "Fix"  # Create PR for single repo
    rc pr status          # Show PR status with checks
    rc pr checkout 42 --repo backend  # Review PR locally
    rc pr merge 42 --repo backend     # Merge PR

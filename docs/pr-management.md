@@ -2,13 +2,101 @@
 
 Repo-Claude provides centralized pull request management across all repositories in your workspace using the GitHub CLI (`gh`).
 
+## Quick Start - Batch PR Workflow
+
+For coordinated changes across multiple repositories:
+
+```bash
+# 1. Create feature branches in all repos
+rc branch create feature/payment-integration
+
+# 2. Make your changes and commit
+rc forall -- git add -A
+rc forall -- git commit -m "Add payment integration"
+
+# 3. Push branches
+rc forall -- git push -u origin HEAD
+
+# 4. Create PRs for all repos at once
+rc pr batch-create --title "Add payment integration" --body "Implements payment processing across services"
+
+# 5. Check PR status
+rc pr list --author @me
+```
+
 ## Prerequisites
 
 - **GitHub CLI**: Install `gh` from [cli.github.com](https://cli.github.com)
 - **Authentication**: Run `gh auth login` to authenticate with GitHub
 - **GitHub Remotes**: Repositories must have GitHub remotes configured
 
-## Commands
+## Branch Management Commands
+
+### Create Branches
+
+Create feature branches across multiple repositories:
+
+```bash
+# Create branch in all repos
+rc branch create feature/payment
+
+# Create in specific repos
+rc branch create feature/auth --repos backend,frontend
+
+# Create from specific base branch
+rc branch create hotfix/security --from develop
+```
+
+### List Branches
+
+Check branch status across repositories:
+
+```bash
+# Show current branches with status
+rc branch list
+
+# Show all branches
+rc branch list --all
+
+# Show only current branch names
+rc branch list --current
+```
+
+Status indicators:
+- 🔵 On main/master branch
+- 🟢 On feature branch
+
+### Checkout Branches
+
+Switch branches across repositories:
+
+```bash
+# Checkout existing branch
+rc branch checkout main
+
+# Checkout in specific repos
+rc branch checkout develop --repos backend,frontend
+
+# Create branch if it doesn't exist
+rc branch checkout feature/new --create
+```
+
+### Delete Branches
+
+Clean up branches across repositories:
+
+```bash
+# Delete local branch
+rc branch delete feature/old
+
+# Force delete (even if not merged)
+rc branch delete feature/old --force
+
+# Delete remote branch too
+rc branch delete feature/old --remote
+```
+
+## Pull Request Commands
 
 ### List Pull Requests
 
@@ -63,6 +151,48 @@ rc pr create --repo backend \
   --reviewers alice,bob \
   --assignees charlie \
   --labels enhancement,backend
+```
+
+### Batch Create Pull Requests
+
+Create PRs in multiple repositories simultaneously with the same title and body:
+
+```bash
+# Create PRs for all repos on feature branches
+rc pr batch-create --title "Add payment integration"
+
+# With description
+rc pr batch-create \
+  --title "Fix security vulnerability" \
+  --body "Addresses CVE-2024-XXX by updating dependencies"
+
+# For specific repos only
+rc pr batch-create \
+  --title "Feature implementation" \
+  --repos backend,frontend,shared
+
+# Create draft PRs with reviewers
+rc pr batch-create \
+  --title "WIP: New feature" \
+  --draft \
+  --reviewers alice,bob \
+  --labels enhancement
+
+# Specify base branch
+rc pr batch-create \
+  --title "Hotfix" \
+  --base develop
+```
+
+**Safety Features:**
+- By default, skips repositories on main/master branch
+- Checks for uncommitted changes before creating PRs
+- Automatically pushes unpushed branches
+- Shows detailed results for each repository
+
+**Skip Main Check (use with caution):**
+```bash
+rc pr batch-create --title "Emergency fix" --skip-main-check
 ```
 
 ### Check PR Status
