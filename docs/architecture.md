@@ -61,7 +61,25 @@ Handles all Git operations:
 - **Status**: Checking Git status across all repositories
 - **ForAll**: Running commands in each repository
 
-### 3. Agent Manager (`internal/manager`)
+### 3. Branch Manager (`internal/manager/branch.go`)
+
+Manages branches across repositories:
+- **Create**: Create same branch in multiple repositories
+- **List**: Show branch status with visual indicators
+- **Checkout**: Switch branches with optional creation
+- **Delete**: Remove branches locally and remotely
+
+### 4. Pull Request Manager (`internal/manager/pr.go`)
+
+Centralized PR management using GitHub CLI:
+- **List**: Display PRs across all repositories
+- **Create**: Individual PR creation with full options
+- **BatchCreate**: Create PRs for multiple repos simultaneously
+- **Status**: Check PR status with CI/CD results
+- **Checkout**: Review PR branches locally
+- **Merge**: Merge PRs with various strategies
+
+### 5. Agent Manager (`internal/manager`)
 
 Manages Claude Code instances:
 - **Start/Stop**: Lifecycle management of AI agents
@@ -69,7 +87,7 @@ Manages Claude Code instances:
 - **Dependency Resolution**: Starting agents in the correct order
 - **Process Management**: Handling of Claude Code subprocesses
 
-### 4. Coordination
+### 6. Coordination
 
 Multi-agent coordination through:
 - **Shared Memory** (`shared-memory.md`): Central file for agent communication
@@ -90,7 +108,19 @@ repo-claude start → Load Config → Resolve Dependencies → Start Claude Code
 
 ### Sync Repositories
 ```
-repo-claude sync → Load Config → Parallel Git Pull → Update Status
+repo-claude sync → Load Config → Parallel Git Pull (Rebase) → Update Status
+```
+
+### Branch Operations
+```
+repo-claude branch create → Check Repos → Create Branches → Report Status
+repo-claude branch list → Check Current Branches → Display with Indicators
+```
+
+### Pull Request Workflow
+```
+repo-claude pr batch-create → Check Branches → Skip Main → Push → Create PRs → Report
+repo-claude pr list → Query GitHub API → Aggregate Results → Display
 ```
 
 ## Design Principles

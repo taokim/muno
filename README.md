@@ -42,10 +42,37 @@ Work with flexible scopes that span multiple repositories:
 - ⚡ **Fast**: Written in Go for optimal performance
 - 🎯 **Easy Configuration**: Single YAML file controls everything
 
+## Key Features
+
+### 🚀 Multi-Repository Orchestration
+- **Unified workspace** for multiple Git repositories
+- **Scope-based AI sessions** that see multiple repos as one project
+- **Parallel operations** across all repositories
+- **Shared memory** for cross-repository coordination
+
+### 🌿 Branch Management
+- **Create branches** across all repos with one command
+- **Synchronized checkouts** to keep repos in sync
+- **Batch operations** for branch lifecycle management
+- **Visual status** overview of all repository branches
+
+### 📋 Pull Request Automation
+- **Batch PR creation** for coordinated changes
+- **Safety checks** to prevent PRs from main branch
+- **Centralized PR management** across all repositories
+- **GitHub CLI integration** for full PR workflow
+
+### 🔄 Smart Git Operations
+- **Rebase by default** for cleaner commit history
+- **Parallel sync** for fast repository updates
+- **Automatic push** when creating PRs
+- **Conflict detection** before operations
+
 ## Prerequisites
 
 - Git
 - [Claude Code CLI](https://claude.ai/code)
+- [GitHub CLI](https://cli.github.com) (optional, for PR features)
 
 ## Installation
 
