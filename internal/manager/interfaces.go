@@ -63,6 +63,13 @@ func (c *RealCmd) SetDir(dir string)               { c.cmd.Dir = dir }
 func (c *RealCmd) SetEnv(env []string)             { c.cmd.Env = env }
 func (c *RealCmd) Process() *os.Process            { return c.cmd.Process }
 
+// AttachToTerminal attaches stdin/stdout/stderr to the current terminal
+func (c *RealCmd) AttachToTerminal() {
+	c.cmd.Stdin = os.Stdin
+	c.cmd.Stdout = os.Stdout
+	c.cmd.Stderr = os.Stderr
+}
+
 type RealFileSystem struct{}
 
 func (r RealFileSystem) ReadFile(name string) ([]byte, error) {
