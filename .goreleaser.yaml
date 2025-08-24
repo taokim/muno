@@ -1,5 +1,4 @@
 # .goreleaser.yaml
-version: 2
 project_name: repo-claude
 
 before:
