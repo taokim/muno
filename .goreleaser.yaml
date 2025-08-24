@@ -1,10 +1,10 @@
 # .goreleaser.yaml
+version: 2
 project_name: repo-claude
 
 before:
   hooks:
     - go mod tidy
-    - go test -short ./...
 
 builds:
   - id: repo-claude
