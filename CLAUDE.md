@@ -45,8 +45,15 @@ go build -o bin/rc ./cmd/repo-claude
 # Check status
 ./bin/rc status
 
-# Sync repositories
+# Sync repositories (uses rebase by default)
 ./bin/rc sync
+
+# Manage pull requests (requires GitHub CLI)
+./bin/rc pr list                    # List PRs across all repos
+./bin/rc pr create --repo <name>    # Create a PR
+./bin/rc pr status                  # Show PR status
+./bin/rc pr checkout <number> --repo <name>  # Checkout PR
+./bin/rc pr merge <number> --repo <name>     # Merge PR
 ```
 
 ### Development Commands

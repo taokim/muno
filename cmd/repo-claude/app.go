@@ -65,6 +65,8 @@ Git repositories using a scope-based approach for collaborative development.`,
 	a.rootCmd.AddCommand(a.newSyncCmd())
 	a.rootCmd.AddCommand(a.newForallCmd())
 	a.rootCmd.AddCommand(a.newPsCmd())
+	a.rootCmd.AddCommand(a.newBranchCmd())
+	a.rootCmd.AddCommand(a.newPRCmd())
 }
 
 // newInitCmd creates the init command
@@ -293,7 +295,7 @@ func (a *App) newSyncCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "Sync all repositories",
-		Long:  `Clone missing repositories and pull updates for existing ones`,
+		Long:  `Clone missing repositories and pull updates for existing ones using rebase`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
@@ -392,3 +394,493 @@ Example output:
 	return cmd
 }
 
+// newBranchCmd creates the branch command with subcommands
+func (a *App) newBranchCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "branch",
+		Short: "Manage branches across repositories",
+		Long: `Branch management for all repositories in the workspace.
+Useful for creating feature branches and checking branch status across repos.`,
+	}
+	
+	// Add subcommands
+	cmd.AddCommand(a.newBranchCreateCmd())
+	cmd.AddCommand(a.newBranchListCmd())
+	cmd.AddCommand(a.newBranchCheckoutCmd())
+	cmd.AddCommand(a.newBranchDeleteCmd())
+	
+	return cmd
+}
+
+// newBranchCreateCmd creates the branch create subcommand
+func (a *App) newBranchCreateCmd() *cobra.Command {
+	var repos []string
+	var fromBranch string
+	
+	cmd := &cobra.Command{
+		Use:   "create <branch-name>",
+		Short: "Create a branch in multiple repositories",
+		Long: `Create a new branch with the same name across multiple repositories.
+		
+Examples:
+  rc branch create feature/payment      # Create in all repos
+  rc branch create feature/auth --repos backend,frontend
+  rc branch create hotfix/security --from develop`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			branchName := args[0]
+			
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return err
+			}
+			
+			opts := manager.BranchCreateOptions{
+				BranchName: branchName,
+				FromBranch: fromBranch,
+				Repos:      repos,
+			}
+			
+			return mgr.CreateBranch(opts)
+		},
+	}
+	
+	cmd.Flags().StringSliceVar(&repos, "repos", nil, "Specific repositories (default: all)")
+	cmd.Flags().StringVar(&fromBranch, "from", "", "Base branch to create from (default: current branch)")
+	
+	return cmd
+}
+
+// newBranchListCmd creates the branch list subcommand
+func (a *App) newBranchListCmd() *cobra.Command {
+	var showAll bool
+	var showCurrent bool
+	
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List branches across repositories",
+		Long: `Show current branch status for all repositories.
+		
+Examples:
+  rc branch list             # Show current branches
+  rc branch list --all       # Show all branches
+  rc branch list --current   # Show only current branch names`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return err
+			}
+			
+			opts := manager.BranchListOptions{
+				ShowAll:     showAll,
+				ShowCurrent: showCurrent,
+			}
+			
+			return mgr.ListBranches(opts)
+		},
+	}
+	
+	cmd.Flags().BoolVarP(&showAll, "all", "a", false, "Show all branches")
+	cmd.Flags().BoolVarP(&showCurrent, "current", "c", false, "Show only current branch")
+	
+	return cmd
+}
+
+// newBranchCheckoutCmd creates the branch checkout subcommand
+func (a *App) newBranchCheckoutCmd() *cobra.Command {
+	var repos []string
+	var createIfMissing bool
+	
+	cmd := &cobra.Command{
+		Use:   "checkout <branch-name>",
+		Short: "Checkout a branch in multiple repositories",
+		Long: `Checkout an existing branch across multiple repositories.
+		
+Examples:
+  rc branch checkout main                  # Checkout main in all repos
+  rc branch checkout feature/auth --repos backend,frontend
+  rc branch checkout develop --create      # Create if doesn't exist`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			branchName := args[0]
+			
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return err
+			}
+			
+			opts := manager.BranchCheckoutOptions{
+				BranchName:      branchName,
+				Repos:           repos,
+				CreateIfMissing: createIfMissing,
+			}
+			
+			return mgr.CheckoutBranch(opts)
+		},
+	}
+	
+	cmd.Flags().StringSliceVar(&repos, "repos", nil, "Specific repositories (default: all)")
+	cmd.Flags().BoolVar(&createIfMissing, "create", false, "Create branch if it doesn't exist")
+	
+	return cmd
+}
+
+// newBranchDeleteCmd creates the branch delete subcommand
+func (a *App) newBranchDeleteCmd() *cobra.Command {
+	var repos []string
+	var force bool
+	var deleteRemote bool
+	
+	cmd := &cobra.Command{
+		Use:   "delete <branch-name>",
+		Short: "Delete a branch from multiple repositories",
+		Long: `Delete a branch from multiple repositories.
+		
+Examples:
+  rc branch delete feature/old          # Delete from all repos
+  rc branch delete feature/old --force  # Force delete
+  rc branch delete feature/old --remote # Also delete from remote`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			branchName := args[0]
+			
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return err
+			}
+			
+			opts := manager.BranchDeleteOptions{
+				BranchName:   branchName,
+				Repos:        repos,
+				Force:        force,
+				DeleteRemote: deleteRemote,
+			}
+			
+			return mgr.DeleteBranch(opts)
+		},
+	}
+	
+	cmd.Flags().StringSliceVar(&repos, "repos", nil, "Specific repositories (default: all)")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force delete even if not merged")
+	cmd.Flags().BoolVar(&deleteRemote, "remote", false, "Also delete from remote")
+	
+	return cmd
+}
+
+// newPRCmd creates the pr command with subcommands
+func (a *App) newPRCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "pr",
+		Short: "Manage pull requests across repositories",
+		Long: `Centralized pull request management for all repositories in the workspace.
+Uses GitHub CLI (gh) to interact with GitHub API.
+
+Requires:
+  - GitHub CLI (gh) to be installed and authenticated
+  - Repositories to have GitHub remotes configured`,
+	}
+	
+	// Add subcommands
+	cmd.AddCommand(a.newPRListCmd())
+	cmd.AddCommand(a.newPRCreateCmd())
+	cmd.AddCommand(a.newPRBatchCreateCmd())
+	cmd.AddCommand(a.newPRStatusCmd())
+	cmd.AddCommand(a.newPRCheckoutCmd())
+	cmd.AddCommand(a.newPRMergeCmd())
+	
+	return cmd
+}
+
+// newPRListCmd creates the pr list subcommand
+func (a *App) newPRListCmd() *cobra.Command {
+	var state string
+	var limit int
+	var author string
+	var assignee string
+	var label string
+	
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List PRs across all repositories",
+		Long: `List pull requests from all repositories in the workspace.
+		
+Examples:
+  rc pr list                    # List all open PRs
+  rc pr list --state all        # List all PRs (open, closed, merged)
+  rc pr list --author @me       # List your PRs
+  rc pr list --limit 10         # Limit results per repo`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return err
+			}
+			
+			opts := manager.PRListOptions{
+				State:    state,
+				Limit:    limit,
+				Author:   author,
+				Assignee: assignee,
+				Label:    label,
+			}
+			
+			return mgr.ListPRs(opts)
+		},
+	}
+	
+	cmd.Flags().StringVarP(&state, "state", "s", "open", "Filter by state: open, closed, merged, all")
+	cmd.Flags().IntVarP(&limit, "limit", "l", 10, "Maximum number of PRs per repository")
+	cmd.Flags().StringVarP(&author, "author", "a", "", "Filter by author (@me for current user)")
+	cmd.Flags().StringVar(&assignee, "assignee", "", "Filter by assignee")
+	cmd.Flags().StringVar(&label, "label", "", "Filter by label")
+	
+	return cmd
+}
+
+// newPRCreateCmd creates the pr create subcommand
+func (a *App) newPRCreateCmd() *cobra.Command {
+	var title string
+	var body string
+	var base string
+	var draft bool
+	var reviewers []string
+	var assignees []string
+	var labels []string
+	var repo string
+	
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "Create a pull request in a repository",
+		Long: `Create a new pull request in the specified repository.
+		
+Examples:
+  rc pr create --repo backend --title "Fix auth bug"
+  rc pr create --repo frontend --draft --title "WIP: New feature"
+  rc pr create --repo backend --base develop --title "Feature X"`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if repo == "" {
+				return fmt.Errorf("--repo flag is required")
+			}
+			
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return err
+			}
+			
+			opts := manager.PRCreateOptions{
+				Repository: repo,
+				Title:      title,
+				Body:       body,
+				Base:       base,
+				Draft:      draft,
+				Reviewers:  reviewers,
+				Assignees:  assignees,
+				Labels:     labels,
+			}
+			
+			return mgr.CreatePR(opts)
+		},
+	}
+	
+	cmd.Flags().StringVarP(&repo, "repo", "r", "", "Repository to create PR in (required)")
+	cmd.Flags().StringVarP(&title, "title", "t", "", "PR title")
+	cmd.Flags().StringVarP(&body, "body", "b", "", "PR body/description")
+	cmd.Flags().StringVar(&base, "base", "", "Base branch (default: repository default branch)")
+	cmd.Flags().BoolVarP(&draft, "draft", "d", false, "Create as draft PR")
+	cmd.Flags().StringSliceVar(&reviewers, "reviewers", nil, "Request reviews from users")
+	cmd.Flags().StringSliceVar(&assignees, "assignees", nil, "Assign PR to users")
+	cmd.Flags().StringSliceVar(&labels, "labels", nil, "Add labels to PR")
+	
+	cmd.MarkFlagRequired("repo")
+	
+	return cmd
+}
+
+// newPRBatchCreateCmd creates the pr batch-create subcommand
+func (a *App) newPRBatchCreateCmd() *cobra.Command {
+	var title string
+	var body string
+	var base string
+	var draft bool
+	var reviewers []string
+	var assignees []string
+	var labels []string
+	var repos []string
+	var skipMainCheck bool
+	
+	cmd := &cobra.Command{
+		Use:   "batch-create",
+		Short: "Create PRs in multiple repositories",
+		Long: `Create pull requests in multiple repositories with the same title and body.
+Only creates PRs for repositories that are on feature branches (not on main/master).
+		
+Examples:
+  rc pr batch-create --title "Add payment integration"
+  rc pr batch-create --title "Fix security issue" --base develop
+  rc pr batch-create --title "Feature X" --repos backend,frontend,shared
+  rc pr batch-create --title "Emergency fix" --skip-main-check`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if title == "" {
+				return fmt.Errorf("--title flag is required")
+			}
+			
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return err
+			}
+			
+			opts := manager.PRBatchCreateOptions{
+				Title:         title,
+				Body:          body,
+				Base:          base,
+				Draft:         draft,
+				Reviewers:     reviewers,
+				Assignees:     assignees,
+				Labels:        labels,
+				Repos:         repos,
+				SkipMainCheck: skipMainCheck,
+			}
+			
+			return mgr.BatchCreatePRs(opts)
+		},
+	}
+	
+	cmd.Flags().StringVarP(&title, "title", "t", "", "PR title (required)")
+	cmd.Flags().StringVarP(&body, "body", "b", "", "PR body/description")
+	cmd.Flags().StringVar(&base, "base", "", "Base branch (default: repository default branch)")
+	cmd.Flags().BoolVarP(&draft, "draft", "d", false, "Create as draft PRs")
+	cmd.Flags().StringSliceVar(&reviewers, "reviewers", nil, "Request reviews from users")
+	cmd.Flags().StringSliceVar(&assignees, "assignees", nil, "Assign PRs to users")
+	cmd.Flags().StringSliceVar(&labels, "labels", nil, "Add labels to PRs")
+	cmd.Flags().StringSliceVar(&repos, "repos", nil, "Specific repositories (default: all non-main branches)")
+	cmd.Flags().BoolVar(&skipMainCheck, "skip-main-check", false, "Skip check for main branch (use with caution)")
+	
+	cmd.MarkFlagRequired("title")
+	
+	return cmd
+}
+
+// newPRStatusCmd creates the pr status subcommand
+func (a *App) newPRStatusCmd() *cobra.Command {
+	var repo string
+	var number int
+	
+	cmd := &cobra.Command{
+		Use:   "status",
+		Short: "Show detailed status of PRs",
+		Long: `Show detailed status of pull requests including checks and reviews.
+		
+Examples:
+  rc pr status                         # Status of all open PRs
+  rc pr status --repo backend          # Status of PRs in backend repo
+  rc pr status --repo backend --pr 42  # Status of specific PR`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return err
+			}
+			
+			opts := manager.PRStatusOptions{
+				Repository: repo,
+				Number:     number,
+			}
+			
+			return mgr.ShowPRStatus(opts)
+		},
+	}
+	
+	cmd.Flags().StringVarP(&repo, "repo", "r", "", "Filter by repository")
+	cmd.Flags().IntVarP(&number, "pr", "n", 0, "PR number to show status for")
+	
+	return cmd
+}
+
+// newPRCheckoutCmd creates the pr checkout subcommand
+func (a *App) newPRCheckoutCmd() *cobra.Command {
+	var repo string
+	
+	cmd := &cobra.Command{
+		Use:   "checkout <pr-number>",
+		Short: "Checkout a PR branch locally",
+		Long: `Checkout a pull request branch locally for review or testing.
+		
+Examples:
+  rc pr checkout 42 --repo backend     # Checkout PR #42 from backend repo
+  rc pr checkout 123 --repo frontend   # Checkout PR #123 from frontend repo`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if repo == "" {
+				return fmt.Errorf("--repo flag is required")
+			}
+			
+			prNumber, err := strconv.Atoi(args[0])
+			if err != nil {
+				return fmt.Errorf("invalid PR number: %s", args[0])
+			}
+			
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return err
+			}
+			
+			return mgr.CheckoutPR(repo, prNumber)
+		},
+	}
+	
+	cmd.Flags().StringVarP(&repo, "repo", "r", "", "Repository containing the PR (required)")
+	cmd.MarkFlagRequired("repo")
+	
+	return cmd
+}
+
+// newPRMergeCmd creates the pr merge subcommand
+func (a *App) newPRMergeCmd() *cobra.Command {
+	var repo string
+	var method string
+	var deleteRemoteBranch bool
+	var deleteLocalBranch bool
+	
+	cmd := &cobra.Command{
+		Use:   "merge <pr-number>",
+		Short: "Merge a pull request",
+		Long: `Merge a pull request using the specified merge method.
+		
+Examples:
+  rc pr merge 42 --repo backend                    # Merge PR #42
+  rc pr merge 42 --repo backend --squash           # Squash and merge
+  rc pr merge 42 --repo backend --delete-branch    # Delete branch after merge`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if repo == "" {
+				return fmt.Errorf("--repo flag is required")
+			}
+			
+			prNumber, err := strconv.Atoi(args[0])
+			if err != nil {
+				return fmt.Errorf("invalid PR number: %s", args[0])
+			}
+			
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return err
+			}
+			
+			opts := manager.PRMergeOptions{
+				Repository:         repo,
+				Number:             prNumber,
+				Method:             method,
+				DeleteRemoteBranch: deleteRemoteBranch,
+				DeleteLocalBranch:  deleteLocalBranch,
+			}
+			
+			return mgr.MergePR(opts)
+		},
+	}
+	
+	cmd.Flags().StringVarP(&repo, "repo", "r", "", "Repository containing the PR (required)")
+	cmd.Flags().StringVarP(&method, "method", "m", "", "Merge method: merge, squash, rebase")
+	cmd.Flags().BoolVar(&deleteRemoteBranch, "delete-branch", false, "Delete the remote branch after merge")
+	cmd.Flags().BoolVar(&deleteLocalBranch, "delete-local", false, "Delete the local branch after merge")
+	cmd.MarkFlagRequired("repo")
+	
+	return cmd
+}

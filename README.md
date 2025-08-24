@@ -42,10 +42,37 @@ Work with flexible scopes that span multiple repositories:
 - ⚡ **Fast**: Written in Go for optimal performance
 - 🎯 **Easy Configuration**: Single YAML file controls everything
 
+## Key Features
+
+### 🚀 Multi-Repository Orchestration
+- **Unified workspace** for multiple Git repositories
+- **Scope-based AI sessions** that see multiple repos as one project
+- **Parallel operations** across all repositories
+- **Shared memory** for cross-repository coordination
+
+### 🌿 Branch Management
+- **Create branches** across all repos with one command
+- **Synchronized checkouts** to keep repos in sync
+- **Batch operations** for branch lifecycle management
+- **Visual status** overview of all repository branches
+
+### 📋 Pull Request Automation
+- **Batch PR creation** for coordinated changes
+- **Safety checks** to prevent PRs from main branch
+- **Centralized PR management** across all repositories
+- **GitHub CLI integration** for full PR workflow
+
+### 🔄 Smart Git Operations
+- **Rebase by default** for cleaner commit history
+- **Parallel sync** for fast repository updates
+- **Automatic push** when creating PRs
+- **Conflict detection** before operations
+
 ## Prerequisites
 
 - Git
 - [Claude Code CLI](https://claude.ai/code)
+- [GitHub CLI](https://cli.github.com) (optional, for PR features)
 
 ## Installation
 
@@ -112,6 +139,24 @@ sudo make install
    rc kill               # Stop all running scopes
    rc kill backend       # Stop by name
    rc kill 1 2           # Stop by numbers from ps output
+   ```
+
+5. **Manage branches** across repositories:
+   ```bash
+   rc branch create feature/payment   # Create branch in all repos
+   rc branch list                     # Show branch status
+   rc branch checkout main            # Switch branches
+   rc branch delete feature/old       # Clean up branches
+   ```
+
+6. **Manage pull requests** (requires GitHub CLI):
+   ```bash
+   rc pr list            # List PRs across all repos
+   rc pr batch-create --title "Add feature"  # Create PRs for all feature branches
+   rc pr create --repo backend --title "Fix"  # Create PR for single repo
+   rc pr status          # Show PR status with checks
+   rc pr checkout 42 --repo backend  # Review PR locally
+   rc pr merge 42 --repo backend     # Merge PR
    ```
 
 ## Example: E-Commerce Platform
