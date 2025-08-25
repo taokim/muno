@@ -17,7 +17,8 @@
       "Bash(gh release view:*)",
       "Bash(grep:*)",
       "Bash(./bin/rc:*)",
-      "Bash(git describe:*)"
+      "Bash(git describe:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

@@ -35,10 +35,6 @@ func TestManager_New(t *testing.T) {
 				t.Fatal("New() returned nil")
 			}
 			
-			if mgr.agents == nil {
-				t.Error("agents map not initialized")
-			}
-			
 			if !filepath.IsAbs(mgr.ProjectPath) {
 				t.Errorf("ProjectPath should be absolute, got %s", mgr.ProjectPath)
 			}
@@ -106,9 +102,6 @@ func TestManager_LoadFromCurrentDir(t *testing.T) {
 				if mgr.GitManager == nil {
 					t.Error("GitManager not initialized")
 				}
-				if mgr.agents == nil {
-					t.Error("agents map not initialized")
-				}
 			}
 		})
 	}
@@ -165,9 +158,7 @@ func TestConfigToRepos(t *testing.T) {
 }
 
 func TestManager_CloneMissing_NoGitManager(t *testing.T) {
-	mgr := &Manager{
-		agents: make(map[string]*Agent),
-	}
+	mgr := &Manager{}
 	
 	err := mgr.CloneMissing()
 	if err == nil {
@@ -180,96 +171,11 @@ func TestManager_ShowStatus_NoConfig(t *testing.T) {
 	t.Skip("ShowStatus panics on nil config - needs refactoring")
 }
 
-func TestManager_StartAgent_Validation(t *testing.T) {
-	mgr := &Manager{
-		Config: &config.Config{
-			Agents: map[string]config.Agent{
-				"test-agent": {
-					Model: "test",
-				},
-			},
-		},
-		agents: make(map[string]*Agent),
-	}
-	
-	// Should fail because no repositories assigned
-	err := mgr.StartAgent("test-agent")
-	if err == nil {
-		t.Error("Expected error when agent has no repositories")
-	}
-}
 
-func TestManager_StopAgent_NotRunning(t *testing.T) {
-	mgr := &Manager{
-		Config: &config.Config{
-			Agents: map[string]config.Agent{
-				"test-agent": {
-					Model: "test",
-				},
-			},
-		},
-		State: &config.State{
-			Agents: map[string]config.AgentStatus{},
-		},
-		agents: make(map[string]*Agent),
-	}
-	
-	err := mgr.StopAgent("test-agent")
-	if err == nil {
-		t.Error("Expected error when stopping non-running agent")
-	}
-}
 
-func TestManager_ForAll_NoGitManager(t *testing.T) {
-	mgr := &Manager{
-		agents: make(map[string]*Agent),
-	}
-	
-	err := mgr.ForAll("echo", []string{"test"})
-	if err == nil {
-		t.Error("Expected error when GitManager is nil")
-	}
-}
+// ForAll test removed - functionality moved to git package
 
-// Test agent struct creation
-func TestAgent_Structure(t *testing.T) {
-	agent := &Agent{
-		Name:    "test-agent",
-		Process: nil,
-		Status:  "stopped",
-	}
-	
-	if agent.Name != "test-agent" {
-		t.Errorf("Agent.Name = %s, want test-agent", agent.Name)
-	}
-	if agent.Status != "stopped" {
-		t.Errorf("Agent.Status = %s, want stopped", agent.Status)
-	}
-}
 
-// Test Manager with State
-func TestManager_WithState(t *testing.T) {
-	mgr := &Manager{
-		State: &config.State{
-			Agents: map[string]config.AgentStatus{
-				"test": {
-					Name:   "test",
-					Status: "running",
-					PID:    1234,
-				},
-			},
-		},
-		agents: make(map[string]*Agent),
-	}
-	
-	if mgr.State == nil {
-		t.Error("State should not be nil")
-	}
-	
-	if len(mgr.State.Agents) != 1 {
-		t.Errorf("Expected 1 agent in state, got %d", len(mgr.State.Agents))
-	}
-}
 
 // Test configToRepos with various configurations
 func TestConfigToRepos_EdgeCases(t *testing.T) {

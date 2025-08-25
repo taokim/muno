@@ -34,16 +34,11 @@ go build -o bin/rc ./cmd/repo-claude
 ./bin/rc start --new-window # Force open in new window
 ./bin/rc start scope1 scope2 # Multiple scopes auto-open in new windows
 
-# List running scopes
-./bin/rc ps                 # Shows numbered list for easy kill
-
-# Stop scopes
-./bin/rc kill               # Stop all scopes
-./bin/rc kill <scope-name>  # Stop specific scope
-./bin/rc kill 1 2           # Stop by numbers from ps output
+# List available scopes
+./bin/rc list               # Shows all configured scopes
 
 # Check status
-./bin/rc status
+./bin/rc status             # Shows workspace configuration and repository status
 
 # Synchronize repositories (clone missing and pull existing)
 ./bin/rc pull --clone-missing
@@ -80,13 +75,12 @@ go install ./cmd/repo-claude
 1. **RepoClaudeManager** (`pkg/manager/manager.go`)
    - Main orchestration class managing workspace, configuration, and scope lifecycle
    - Handles direct git operations (replacing Google's repo tool)
-   - Manages Claude Code session lifecycle and state persistence
+   - Manages Claude Code session lifecycle
 
 2. **Configuration System** (`pkg/config/`)
    - YAML-based configuration (`repo-claude.yaml`) with scope definitions
-   - JSON state file (`.repo-claude-state.json`) for runtime scope status
-   - Supports both new scope-based and legacy agent-based configs
    - Wildcard support in repository patterns
+   - Simplified focus on scope configuration
 
 3. **Git Management** (`pkg/git/`)
    - Direct git operations for cloning and syncing repositories
@@ -238,3 +232,4 @@ make clean
 ### Binary Location
 - Local builds: `./bin/rc` (in project root)
 - Installed: `$GOPATH/bin/rc` (via `make install`)
+- Release by tagging new version via GitHub Action, do not use goreeleaser directly or any release script locally to GitHub releases

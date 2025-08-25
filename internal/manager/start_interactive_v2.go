@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/taokim/repo-claude/internal/config"
@@ -14,7 +13,7 @@ import (
 // StartInteractiveTUIV2 launches the improved Bubbletea interactive UI for selecting what to start
 func (m *Manager) StartInteractiveTUIV2() error {
 	// Create the improved TUI model
-	model := tui.NewStartModelV2(m.Config, m.State)
+	model := tui.NewStartModelV2(m.Config, nil) // No state tracking anymore
 	
 	// Run the TUI
 	p := tea.NewProgram(model, tea.WithAltScreen())
@@ -172,20 +171,6 @@ func (m *Manager) StartRepoAsSingleScope(repo string, opts StartOptions) error {
 	
 	fmt.Printf("✅ Started Claude session for repository: %s (PID: %d)\n", repo, cmd.Process().Pid)
 	
-	// Update state
-	if m.State == nil {
-		m.State = &config.State{
-			Scopes: make(map[string]config.ScopeStatus),
-		}
-	}
-	
-	m.State.Scopes[fmt.Sprintf("repo-%s", repo)] = config.ScopeStatus{
-		Name:         repo,
-		Status:       "running",
-		PID:          cmd.Process().Pid,
-		Repos:        []string{repo},
-		LastActivity: time.Now().Format(time.RFC3339),
-	}
-	
-	return m.State.Save(filepath.Join(m.WorkspacePath, ".repo-claude-state.json"))
+	// No longer tracking state - Claude Code manages its own lifecycle
+	return nil
 }

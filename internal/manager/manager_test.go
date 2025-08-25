@@ -18,8 +18,6 @@ func TestNewManager(t *testing.T) {
 	assert.NotNil(t, mgr)
 	assert.Equal(t, tmpDir, mgr.ProjectPath)
 	assert.Equal(t, filepath.Join(tmpDir, "workspace"), mgr.WorkspacePath)
-	assert.NotNil(t, mgr.agents)
-	assert.Len(t, mgr.agents, 0)
 }
 
 func TestLoadFromCurrentDir(t *testing.T) {
@@ -69,7 +67,7 @@ func TestLoadFromCurrentDir(t *testing.T) {
 		assert.Equal(t, expectedWorkspace, actualWorkspace)
 		
 		assert.NotNil(t, mgr.Config)
-		assert.NotNil(t, mgr.State)
+		// State tracking removed - no longer checking State
 	})
 	
 	t.Run("InvalidConfig", func(t *testing.T) {

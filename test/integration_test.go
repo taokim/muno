@@ -60,18 +60,18 @@ func TestIntegrationWorkflow(t *testing.T) {
 		assert.Contains(t, string(output), "Repositories")
 	})
 	
-	// Test sync command
-	t.Run("Sync", func(t *testing.T) {
+	// Test pull command
+	t.Run("Pull", func(t *testing.T) {
 		// Create dummy repositories for testing
 		createDummyRepos(t, projectDir)
 		
-		cmd := exec.Command(binary, "sync")
+		cmd := exec.Command(binary, "pull", "--clone-missing")
 		cmd.Dir = projectDir
 		output, _ := cmd.CombinedOutput()
 		
-		// Sync might fail if repos don't exist, but command should run
-		// Even if sync fails, we should see the sync message
-		assert.Contains(t, string(output), "🔄 Syncing repositories")
+		// Pull might fail if repos don't exist, but command should run
+		// With --clone-missing, we should see cloning messages
+		assert.Contains(t, string(output), "Cloning")
 	})
 }
 
@@ -146,7 +146,7 @@ func TestConfigValidation(t *testing.T) {
 	assert.NoError(t, err, "init should succeed: %s", string(output))
 	
 	// Test commands without workspace
-	cmds := []string{"start", "kill", "status", "pull"}
+	cmds := []string{"start", "status", "pull"}
 	for _, cmdName := range cmds {
 		cmd := exec.Command(binary, cmdName)
 		cmd.Dir = tmpDir

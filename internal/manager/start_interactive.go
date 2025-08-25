@@ -11,7 +11,7 @@ import (
 // StartInteractiveTUI launches the Bubbletea interactive UI for selecting what to start
 func (m *Manager) StartInteractiveTUI() error {
 	// Create the TUI model
-	model := tui.NewStartModel(m.Config, m.State)
+	model := tui.NewStartModel(m.Config, nil) // No state tracking anymore
 	
 	// Run the TUI
 	p := tea.NewProgram(model, tea.WithAltScreen())
@@ -73,12 +73,7 @@ func (m *Manager) StartInteractiveTUI() error {
 		}
 	}
 	
-	// Start selected agents (legacy mode)
-	for _, agentName := range selectedAgents {
-		if err := m.StartAgentWithOptions(agentName, opts); err != nil {
-			fmt.Printf("❌ Failed to start agent %s: %v\n", agentName, err)
-		}
-	}
+	// Legacy agent support removed - only scopes are supported now
 	
 	return nil
 }

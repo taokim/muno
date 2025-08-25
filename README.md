@@ -140,18 +140,11 @@ sudo make install
 
 3. **Check status**:
    ```bash
-   rc ps                 # List running scopes with numbers
-   rc status             # Show detailed workspace status
+   rc status             # Show workspace configuration and repository status
+   rc list               # List available scopes
    ```
 
-4. **Stop scopes**:
-   ```bash
-   rc kill               # Stop all running scopes
-   rc kill backend       # Stop by name
-   rc kill 1 2           # Stop by numbers from ps output
-   ```
-
-5. **Manage branches** across repositories:
+4. **Manage branches** across repositories:
    ```bash
    rc branch create feature/payment   # Create branch in all repos
    rc branch list                     # Show branch status

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/taokim/repo-claude/internal/manager"
@@ -60,11 +61,10 @@ Git repositories using a scope-based approach for collaborative development.`,
 	// Add all commands
 	a.rootCmd.AddCommand(a.newInitCmd())
 	a.rootCmd.AddCommand(a.newStartCmd())
-	a.rootCmd.AddCommand(a.newKillCmd())
 	a.rootCmd.AddCommand(a.newStatusCmd())
+	a.rootCmd.AddCommand(a.newListCmd())
 	a.rootCmd.AddCommand(a.newPullCmd())
 	a.rootCmd.AddCommand(a.newForallCmd())
-	a.rootCmd.AddCommand(a.newPsCmd())
 	a.rootCmd.AddCommand(a.newBranchCmd())
 	a.rootCmd.AddCommand(a.newPRCmd())
 	a.rootCmd.AddCommand(a.newCommitCmd())
@@ -191,11 +191,7 @@ Examples:
 				opts := manager.StartOptions{
 					NewWindow: newWindow,
 				}
-				if len(mgr.Config.Scopes) > 0 {
-					return mgr.StartAllScopesWithOptions(opts)
-				} else {
-					return mgr.StartAllAgentsWithOptions(opts)
-				}
+				return mgr.StartAllScopesWithOptions(opts)
 			}
 			
 			// Handle preset filtering
@@ -224,24 +220,13 @@ Examples:
 				fmt.Println("🪟 Opening multiple sessions in new windows")
 			}
 			
-			// Use scopes if configured, otherwise fall back to legacy agents
-			if len(mgr.Config.Scopes) > 0 {
-				// Start specific scopes or by repo name
-				for _, name := range args {
-					// First try as scope name
-					if err := mgr.StartScopeWithOptions(name, opts); err != nil {
-						// If not a scope, try as repo name
-						if err2 := mgr.StartByRepoName(name); err2 != nil {
-							return fmt.Errorf("'%s' is neither a scope nor a repository: %v", name, err)
-						}
-					}
-				}
-			} else {
-				// Legacy agent support
-				// Start specific agents
-				for _, agentName := range args {
-					if err := mgr.StartAgentWithOptions(agentName, opts); err != nil {
-						return err
+			// Start specific scopes or by repo name
+			for _, name := range args {
+				// First try as scope name
+				if err := mgr.StartScopeWithOptions(name, opts); err != nil {
+					// If not a scope, try as repo name
+					if err2 := mgr.StartByRepoName(name); err2 != nil {
+						return fmt.Errorf("'%s' is neither a scope nor a repository: %v", name, err)
 					}
 				}
 			}
@@ -258,72 +243,53 @@ Examples:
 	return cmd
 }
 
-// newKillCmd creates the kill command
-func (a *App) newKillCmd() *cobra.Command {
+// newListCmd creates the list command
+func (a *App) newListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "kill [scope-names-or-numbers...]",
-		Short: "Kill scopes by name or number",
-		Long: `Kill one or more scopes. Without arguments, kills all running scopes.
-You can use scope names or numbers from 'rc ps' output.
-		
-Examples:
-  rc kill              # Kill all running scopes
-  rc kill backend      # Kill by name
-  rc kill 1 2          # Kill by numbers from ps output
-  rc kill backend 2    # Mix names and numbers`,
+		Use:   "list",
+		Short: "List available scopes",
+		Long: `Display all configured scopes and their repositories.
+
+This shows what scopes are available to start, not what's currently running.
+Use 'rc start' to launch a scope in your current terminal.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return err
 			}
 			
-			// Use scopes if configured, otherwise fall back to legacy agents
-			if len(mgr.Config.Scopes) > 0 {
-				if len(args) == 0 {
-					return mgr.StopAllScopes()
-				}
-				
-				// Kill specific scopes by name or number
-				for _, arg := range args {
-					// Try to parse as number first
-					if num, err := strconv.Atoi(arg); err == nil {
-						if err := mgr.KillScopeByNumber(num); err != nil {
-							return err
-						}
-					} else {
-						// Treat as scope name
-						if err := mgr.StopScope(arg); err != nil {
-							return err
-						}
-					}
-				}
-			} else {
-				// Legacy agent support
-				if len(args) == 0 {
-					return mgr.StopAllAgents()
-				}
-				
-				// Kill specific agents by name or number
-				for _, arg := range args {
-					// Try to parse as number first
-					if num, err := strconv.Atoi(arg); err == nil {
-						if err := mgr.KillByNumber(num); err != nil {
-							return err
-						}
-					} else {
-						// Treat as agent name
-						if err := mgr.StopAgent(arg); err != nil {
-							return err
-						}
-					}
-				}
+			// Display available scopes
+			if len(mgr.Config.Scopes) == 0 {
+				fmt.Println("No scopes configured.")
+				fmt.Println("\nAdd scopes to your repo-claude.yaml file.")
+				return nil
 			}
+			
+			fmt.Println("Available scopes:")
+			fmt.Println()
+			
+			for name, scope := range mgr.Config.Scopes {
+				fmt.Printf("  %s\n", name)
+				if scope.Description != "" {
+					fmt.Printf("    Description: %s\n", scope.Description)
+				}
+				if len(scope.Repos) > 0 {
+					fmt.Printf("    Repositories: %s\n", strings.Join(scope.Repos, ", "))
+				}
+				if scope.AutoStart {
+					fmt.Printf("    Auto-start: yes\n")
+				}
+				fmt.Println()
+			}
+			
+			fmt.Println("To start a scope, run: rc start <scope-name>")
 			return nil
 		},
 	}
 	
 	return cmd
 }
+
 
 // newStatusCmd creates the status command
 func (a *App) newStatusCmd() *cobra.Command {
@@ -334,11 +300,10 @@ func (a *App) newStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show comprehensive workspace and repository status",
-		Long: `Display detailed status of all scopes and repositories in the workspace.
+		Long: `Display workspace configuration and repository status.
 
 This command shows:
   • Workspace configuration and location
-  • Running scopes/agents and their status
   • Repository git status (branch, changes, ahead/behind)
   • Root repository status (included by default)
   • Summary statistics
@@ -355,7 +320,6 @@ Information Displayed:
   • Current branch for each repository
   • Number of modified files
   • Commits ahead/behind remote
-  • Running scope processes
   • Workspace configuration
 
 Examples:
@@ -464,60 +428,6 @@ Advanced Options:
 	return cmd
 }
 
-// newPsCmd creates the ps command
-func (a *App) newPsCmd() *cobra.Command {
-	var all bool
-	var extended bool
-	var full bool
-	var long bool
-	var user string
-	var sortBy string
-	
-	cmd := &cobra.Command{
-		Use:   "ps",
-		Short: "List scope processes with numbers",
-		Long: `Display running scopes with numbers for easy reference.
-		
-Example output:
-  #  SCOPE         STATUS  PID    REPOS
-  1  backend       🟢      12345  auth-service, order-service, payment-service
-  2  frontend      🟢      12346  web-app, mobile-app
-  3  order-flow    ⚫      -      (not running)`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			// Use scopes if configured, otherwise fall back to legacy agents
-			if len(mgr.Config.Scopes) > 0 {
-				return mgr.ListScopes(manager.AgentListOptions{
-					ShowAll:     all,
-					ShowDetails: extended || full || long,
-					Format:      "numbered",  // Changed to numbered format
-					SortBy:      sortBy,
-				})
-			} else {
-				// Legacy agent support
-				return mgr.ListAgents(manager.AgentListOptions{
-					ShowAll:     all,
-					ShowDetails: extended || full || long,
-					Format:      "numbered",  // Changed to numbered format
-					SortBy:      sortBy,
-				})
-			}
-		},
-	}
-	
-	cmd.Flags().BoolVarP(&all, "all", "a", false, "Show all processes including stopped scopes")
-	cmd.Flags().BoolVarP(&extended, "extended", "x", false, "Show extended information")
-	cmd.Flags().BoolVarP(&full, "full", "f", false, "Show full command lines")
-	cmd.Flags().BoolVarP(&long, "long", "l", false, "Long format with detailed info")
-	cmd.Flags().StringVarP(&user, "user", "u", "", "Filter by user")
-	cmd.Flags().StringVarP(&sortBy, "sort", "s", "name", "Sort by: name, cpu, memory, time")
-	
-	return cmd
-}
 
 // newBranchCmd creates the branch command with subcommands
 func (a *App) newBranchCmd() *cobra.Command {

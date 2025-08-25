@@ -49,13 +49,7 @@ func TestApp_Execute(t *testing.T) {
 			name:       "Status help",
 			args:       []string{"status", "--help"},
 			wantErr:    false,
-			wantOutput: "Display detailed status of all scopes and repositories",
-		},
-		{
-			name:       "Ps help",
-			args:       []string{"ps", "--help"},
-			wantErr:    false,
-			wantOutput: "Display running scopes with numbers",
+			wantOutput: "Display workspace configuration and repository status",
 		},
 		{
 			name:       "Forall without arguments",
@@ -159,25 +153,6 @@ func TestApp_FlagParsing(t *testing.T) {
 				}
 			},
 		},
-		{
-			name: "Ps flags",
-			args: []string{"ps", "--help"},
-			checkOutput: func(t *testing.T, output string) {
-				expectedFlags := []string{
-					"-a, --all",
-					"-x, --extended",
-					"-f, --full",
-					"-l, --long",
-					"-u, --user",
-					"-s, --sort",
-				}
-				for _, flag := range expectedFlags {
-					if !strings.Contains(output, flag) {
-						t.Errorf("Ps help missing %s flag", flag)
-					}
-				}
-			},
-		},
 	}
 	
 	for _, tt := range tests {
@@ -210,11 +185,10 @@ func TestApp_CommandStructure(t *testing.T) {
 	expectedCommands := []string{
 		"init",
 		"start",
-		"kill",
 		"status",
+		"list",
 		"pull",
 		"forall",
-		"ps",
 	}
 	
 	commands := app.rootCmd.Commands()

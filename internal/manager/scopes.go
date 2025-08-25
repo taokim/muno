@@ -3,12 +3,67 @@ package manager
 import (
 	"fmt"
 	"os"
-	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
-	
-	"github.com/taokim/repo-claude/internal/config"
 )
+
+// StartOptions defines how scopes should be started
+type StartOptions struct {
+	NewWindow  bool // Open in new window (default: false, run in current terminal)
+}
+
+// createNewTerminalCommand creates a command to run Claude Code
+func createNewTerminalCommand(executor CommandExecutor, scopeName, workDir, model, systemPrompt string, envVars map[string]string, newWindow bool) Cmd {
+	if newWindow {
+		// New window mode - platform specific
+		switch runtime.GOOS {
+		case "darwin":
+			// Build environment variables string
+			envStr := ""
+			for k, v := range envVars {
+				envStr += fmt.Sprintf("export %s='%s'; ", k, v)
+			}
+			
+			script := fmt.Sprintf(`
+				tell application "Terminal"
+					do script "cd %s && %s claude --model %s --append-system-prompt '%s'"
+					activate
+				end tell
+			`, workDir, envStr, model, systemPrompt)
+			return executor.Command("osascript", "-e", script)
+		default:
+			// For other platforms, use xterm or similar
+			envStr := ""
+			for k, v := range envVars {
+				envStr += fmt.Sprintf("export %s='%s'; ", k, v)
+			}
+			return executor.Command("xterm", "-e", "bash", "-c", 
+				fmt.Sprintf("cd %s && %s claude --model %s --append-system-prompt '%s'; exec bash", 
+					workDir, envStr, model, systemPrompt))
+		}
+	} else {
+		// Current terminal mode
+		cmd := executor.Command("claude", "--model", model, "--append-system-prompt", systemPrompt)
+		cmd.SetDir(workDir)
+		
+		// Set environment variables
+		var env []string
+		for k, v := range envVars {
+			env = append(env, fmt.Sprintf("%s=%s", k, v))
+		}
+		// Add parent environment
+		env = append(env, os.Environ()...)
+		cmd.SetEnv(env)
+		
+		// Attach to terminal for current window mode
+		if realCmd, ok := cmd.(*RealCmd); ok {
+			realCmd.AttachToTerminal()
+		}
+		
+		return cmd
+	}
+}
 
 // StartScope starts a specific scope
 func (m *Manager) StartScope(scopeName string) error {
@@ -17,18 +72,10 @@ func (m *Manager) StartScope(scopeName string) error {
 
 // StartScopeWithOptions starts a scope with specific options
 func (m *Manager) StartScopeWithOptions(scopeName string, opts StartOptions) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	// Check if scope exists in config
 	scopeConfig, exists := m.Config.Scopes[scopeName]
 	if !exists {
 		return fmt.Errorf("scope %s not found in configuration", scopeName)
-	}
-
-	// Check if already running
-	if scope, exists := m.scopes[scopeName]; exists && scope.Process != nil {
-		return fmt.Errorf("scope %s is already running", scopeName)
 	}
 
 	// Resolve repositories for this scope
@@ -87,74 +134,17 @@ func (m *Manager) StartScopeWithOptions(scopeName string, opts StartOptions) err
 		return fmt.Errorf("failed to start scope: %w", err)
 	}
 
-	// Track scope (only for new window mode)
-	m.scopes[scopeName] = &Scope{
-		Name:    scopeName,
-		Process: cmd.Process(),
-		Status:  "running",
-		Repos:   repos,
-	}
-
-	// Update state (only for new window mode)
-	if m.State == nil {
-		m.State = &config.State{
-			Scopes: make(map[string]config.ScopeStatus),
-		}
-	}
-	m.State.UpdateScope(config.ScopeStatus{
-		Name:         scopeName,
-		Status:       "running",
-		PID:          cmd.Process().Pid,
-		Repos:        repos,
-		LastActivity: time.Now().Format(time.RFC3339),
-	})
-	m.State.Save(filepath.Join(m.ProjectPath, ".repo-claude-state.json"))
-
-	fmt.Printf("✅ Scope %s started (PID: %d)\n", scopeName, cmd.Process().Pid)
+	// No longer tracking processes - Claude Code manages its own lifecycle
+	fmt.Printf("✅ Scope %s started in new window\n", scopeName)
 
 	return nil
 }
 
-// StopScope stops a specific scope
+// REMOVED: StopScope - users should use Ctrl+C or OS commands to stop processes
+
+// Dummy function to prevent compilation errors
 func (m *Manager) StopScope(scopeName string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	scope, exists := m.scopes[scopeName]
-	if !exists || scope.Process == nil {
-		return fmt.Errorf("scope %s is not running", scopeName)
-	}
-
-	// Ensure ProcessManager is initialized
-	if m.ProcessManager == nil {
-		m.ProcessManager = RealProcessManager{}
-	}
-
-	// Terminate the process
-	if err := m.ProcessManager.Signal(scope.Process, os.Interrupt); err != nil {
-		// If interrupt fails, try to kill the process
-		if err := scope.Process.Kill(); err != nil {
-			return fmt.Errorf("failed to stop scope: %w", err)
-		}
-	}
-
-	// Wait for process to exit
-	scope.Process.Wait()
-
-	// Update tracking
-	delete(m.scopes, scopeName)
-	
-	// Update state
-	if m.State != nil && m.State.Scopes != nil {
-		if status, exists := m.State.Scopes[scopeName]; exists {
-			status.Status = "stopped"
-			m.State.Scopes[scopeName] = status
-			m.State.Save(filepath.Join(m.ProjectPath, ".repo-claude-state.json"))
-		}
-	}
-
-	fmt.Printf("🛑 Scope %s stopped\n", scopeName)
-	return nil
+	return fmt.Errorf("process management has been removed - use Ctrl+C to stop Claude Code")
 }
 
 // StartAllScopes starts all auto-start scopes
@@ -222,30 +212,14 @@ func (m *Manager) StartAllScopesWithOptions(opts StartOptions) error {
 	return nil
 }
 
-// StopAllScopes stops all running scopes
+// REMOVED: StopAllScopes - process management has been removed
 func (m *Manager) StopAllScopes() error {
-	fmt.Println("🛑 Stopping all scopes...")
-
-	for name := range m.scopes {
-		if err := m.StopScope(name); err != nil {
-			fmt.Printf("❌ Failed to stop %s: %v\n", name, err)
-		}
-	}
-
-	return nil
+	return fmt.Errorf("process management has been removed - use Ctrl+C to stop Claude Code")
 }
 
-// KillScopeByNumber kills a scope by its number from ps output
+// REMOVED: KillScopeByNumber - process management has been removed
 func (m *Manager) KillScopeByNumber(num int) error {
-	m.mu.Lock()
-	scopeName, exists := m.numberToScope[num]
-	m.mu.Unlock()
-	
-	if !exists {
-		return fmt.Errorf("no scope with number %d", num)
-	}
-	
-	return m.StopScope(scopeName)
+	return fmt.Errorf("process management has been removed - use Ctrl+C to stop Claude Code")
 }
 
 // resolveScopeRepos resolves repository patterns to actual repository names
