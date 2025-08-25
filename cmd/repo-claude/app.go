@@ -62,14 +62,13 @@ Git repositories using a scope-based approach for collaborative development.`,
 	a.rootCmd.AddCommand(a.newStartCmd())
 	a.rootCmd.AddCommand(a.newKillCmd())
 	a.rootCmd.AddCommand(a.newStatusCmd())
-	a.rootCmd.AddCommand(a.newSyncCmd())
+	a.rootCmd.AddCommand(a.newPullCmd())
 	a.rootCmd.AddCommand(a.newForallCmd())
 	a.rootCmd.AddCommand(a.newPsCmd())
 	a.rootCmd.AddCommand(a.newBranchCmd())
 	a.rootCmd.AddCommand(a.newPRCmd())
 	a.rootCmd.AddCommand(a.newCommitCmd())
 	a.rootCmd.AddCommand(a.newPushCmd())
-	a.rootCmd.AddCommand(a.newPullCmd())
 	a.rootCmd.AddCommand(a.newFetchCmd())
 	a.rootCmd.AddCommand(a.newVersionCmd())
 }
@@ -382,64 +381,6 @@ Examples:
 	return cmd
 }
 
-// newSyncCmd creates the sync command
-func (a *App) newSyncCmd() *cobra.Command {
-	var excludeRoot bool
-	var sequential bool
-	var maxParallel int
-	var quiet bool
-	var verbose bool
-	
-	cmd := &cobra.Command{
-		Use:   "sync",
-		Short: "Sync all repositories (clone missing, pull existing)",
-		Long: `Synchronize all repositories by cloning missing ones and pulling updates for existing ones.
-
-This command:
-  • Clones repositories that don't exist locally
-  • Pulls updates for existing repositories (using rebase)
-  • Includes the root repository by default (use --exclude-root to skip)
-  • Executes in parallel for faster synchronization
-  • Handles both initial setup and ongoing updates
-
-Sync Strategy:
-  • Missing repos: Clone from configured remotes
-  • Existing repos: Pull with rebase to maintain linear history
-  • Failed repos: Report errors but continue with others
-  • Network efficiency: Parallel operations by default
-
-Perfect For:
-  • Initial workspace setup
-  • Daily synchronization routine
-  • CI/CD pipeline updates
-  • Team collaboration sync
-
-Examples:
-  rc sync                      # Sync all repos including root
-  rc sync --exclude-root       # Skip root repository
-  rc sync -v                   # Show detailed progress
-  rc sync --max-parallel 10    # Use 10 parallel operations
-  rc sync --sequential         # Process one repo at a time`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			// TODO: Update Sync to use the new unified options
-			// For now, use existing implementation
-			return mgr.Sync()
-		},
-	}
-	
-	cmd.Flags().BoolVarP(&excludeRoot, "exclude-root", "e", false, "Exclude root repository")
-	cmd.Flags().BoolVarP(&sequential, "sequential", "s", false, "Run sequentially instead of parallel")
-	cmd.Flags().IntVarP(&maxParallel, "max-parallel", "j", 4, "Maximum parallel operations")
-	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
-	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
-	
-	return cmd
-}
 
 // newForallCmd creates the forall command
 func (a *App) newForallCmd() *cobra.Command {
@@ -1213,14 +1154,16 @@ func (a *App) newPullCmd() *cobra.Command {
 	var quiet bool
 	var verbose bool
 	var rebase bool
+	var cloneMissing bool
 	
 	cmd := &cobra.Command{
 		Use:   "pull",
-		Short: "Pull changes from remote repositories in parallel",
-		Long: `Pull and merge changes from remote repositories using parallel execution.
+		Short: "Synchronize repositories (pull existing, optionally clone missing)",
+		Long: `Synchronize all repositories by pulling existing ones and optionally cloning missing ones.
 
 This command:
-  • Fetches and merges changes from configured remotes
+  • Clones missing repositories when --clone-missing is used
+  • Fetches and merges changes from configured remotes  
   • Includes the root repository by default (use --exclude-root to skip)
   • Executes in parallel for faster synchronization
   • Supports both merge and rebase strategies
@@ -1239,7 +1182,8 @@ Conflict Handling:
   • Provides clear status for manual resolution
 
 Examples:
-  rc pull                    # Pull all repos with merge
+  rc pull                    # Pull all existing repos
+  rc pull --clone-missing    # Clone missing repos, then pull all
   rc pull --rebase           # Pull with rebase (cleaner history)
   rc pull --exclude-root     # Skip root repository
   rc pull -v                 # Show detailed git output
@@ -1260,6 +1204,12 @@ Examples:
 			opts.Quiet = quiet
 			opts.Verbose = verbose
 			
+			if cloneMissing {
+				// First clone any missing repositories
+				if err := mgr.CloneMissing(); err != nil {
+					return fmt.Errorf("failed to clone missing repositories: %w", err)
+				}
+			}
 			return mgr.GitPull(rebase, opts)
 		},
 	}
@@ -1270,6 +1220,7 @@ Examples:
 	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
 	cmd.Flags().BoolVarP(&rebase, "rebase", "r", false, "Pull with rebase")
+	cmd.Flags().BoolVarP(&cloneMissing, "clone-missing", "c", false, "Clone missing repositories before pulling")
 	
 	return cmd
 }

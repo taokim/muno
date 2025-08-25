@@ -64,7 +64,7 @@ func TestRunFunction(t *testing.T) {
 // Test command initialization
 func TestCommandInitialization(t *testing.T) {
 	// Test that all commands are properly initialized
-	commands := []string{"init", "start", "kill", "status", "sync", "forall", "ps"}
+	commands := []string{"init", "start", "kill", "status", "pull", "forall", "ps"}
 	
 	app := NewApp()
 	
@@ -143,7 +143,7 @@ func TestCommandFlags(t *testing.T) {
 
 // Test help output
 func TestHelpOutput(t *testing.T) {
-	commands := []string{"", "init", "start", "kill", "status", "sync", "forall", "ps"}
+	commands := []string{"", "init", "start", "kill", "status", "pull", "forall", "ps"}
 	
 	for _, cmd := range commands {
 		t.Run("help_"+cmd, func(t *testing.T) {

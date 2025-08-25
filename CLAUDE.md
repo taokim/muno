@@ -45,8 +45,8 @@ go build -o bin/rc ./cmd/repo-claude
 # Check status
 ./bin/rc status
 
-# Sync repositories (uses rebase by default)
-./bin/rc sync
+# Synchronize repositories (clone missing and pull existing)
+./bin/rc pull --clone-missing
 
 # Manage pull requests (requires GitHub CLI)
 ./bin/rc pr list                    # List PRs across all repos

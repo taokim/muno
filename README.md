@@ -19,7 +19,7 @@ Repo-Claude brings Google's proven multi-repository management approach (used fo
 ### 1. **Monorepo-Like Organization**
 Transform multiple Git repositories into a unified workspace while keeping them separate:
 - Single configuration file defines all repositories and their relationships
-- Manage dozens of repos with simple commands (`rc sync`, `rc status`)
+- Manage dozens of repos with simple commands (`rc pull --clone-missing`, `rc status`)
 - Each repo maintains its independence while being part of a cohesive whole
 
 ### 2. **Scope-Based AI Development**
@@ -169,7 +169,7 @@ sudo make install
    rc pr merge 42 --repo backend     # Merge PR
    ```
 
-## 🚀 Git Commands (NEW!)
+## 🚀 Git Commands
 
 Repo-Claude now includes powerful Git commands with **parallel execution** and **root repository support** by default:
 
@@ -199,9 +199,10 @@ rc push -v                       # Show detailed git output
 rc push --max-parallel 10        # Use 10 parallel operations
 ```
 
-#### **Pull** - Pull and merge changes from remotes
+#### **Pull** - Synchronize repositories (pull existing, optionally clone missing)
 ```bash
-rc pull                    # Pull all repos with merge
+rc pull                    # Pull all existing repos
+rc pull --clone-missing    # Clone missing repos, then pull all (replaces 'rc sync')
 rc pull --rebase           # Pull with rebase (cleaner history)
 rc pull --exclude-root     # Skip root repository
 rc pull -v                 # Show detailed git output

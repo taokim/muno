@@ -247,7 +247,7 @@ func TestSetupCoordination(t *testing.T) {
 
 // TestGetRepoProjects removed - no longer using repo tool
 
-func TestManagerSync(t *testing.T) {
+func TestManagerCloneMissing(t *testing.T) {
 	tmpDir := t.TempDir()
 	mgr := &Manager{
 		ProjectPath:   tmpDir,
@@ -256,7 +256,7 @@ func TestManagerSync(t *testing.T) {
 	}
 	
 	// This will fail since GitManager is not initialized
-	err := mgr.Sync()
+	err := mgr.CloneMissing()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no git manager")
 }

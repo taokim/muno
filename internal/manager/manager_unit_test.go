@@ -164,12 +164,12 @@ func TestConfigToRepos(t *testing.T) {
 	}
 }
 
-func TestManager_Sync_NoGitManager(t *testing.T) {
+func TestManager_CloneMissing_NoGitManager(t *testing.T) {
 	mgr := &Manager{
 		agents: make(map[string]*Agent),
 	}
 	
-	err := mgr.Sync()
+	err := mgr.CloneMissing()
 	if err == nil {
 		t.Error("Expected error when GitManager is nil")
 	}

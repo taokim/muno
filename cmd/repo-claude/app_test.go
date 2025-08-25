@@ -212,7 +212,7 @@ func TestApp_CommandStructure(t *testing.T) {
 		"start",
 		"kill",
 		"status",
-		"sync",
+		"pull",
 		"forall",
 		"ps",
 	}

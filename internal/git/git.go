@@ -105,6 +105,7 @@ func (m *Manager) cloneRepo(repo Repository) error {
 	return nil
 }
 
+// DEPRECATED: Use CloneMissing() + Pull operations instead
 // Sync pulls latest changes for all repositories using rebase
 func (m *Manager) Sync() error {
 	fmt.Println("🔄 Syncing repositories...")
@@ -158,6 +159,56 @@ func (m *Manager) syncRepo(repo Repository) error {
 		return fmt.Errorf("git pull failed: %w\n%s", err, output)
 	}
 
+	return nil
+}
+
+// CloneMissing clones any missing repositories
+func (m *Manager) CloneMissing() error {
+	fmt.Println("🔍 Checking for missing repositories...")
+	
+	var wg sync.WaitGroup
+	errors := make(chan error, len(m.Repositories))
+	cloned := 0
+	var mu sync.Mutex
+
+	for _, repo := range m.Repositories {
+		wg.Add(1)
+		go func(r Repository) {
+			defer wg.Done()
+			repoPath := filepath.Join(m.WorkspacePath, r.Path)
+			
+			// Check if repository exists
+			if _, err := os.Stat(filepath.Join(repoPath, ".git")); os.IsNotExist(err) {
+				// Clone if doesn't exist
+				if err := m.cloneRepo(r); err != nil {
+					errors <- fmt.Errorf("%s: %w", r.Name, err)
+				} else {
+					mu.Lock()
+					cloned++
+					mu.Unlock()
+				}
+			}
+		}(repo)
+	}
+
+	wg.Wait()
+	close(errors)
+
+	// Collect any errors
+	var errs []string
+	for err := range errors {
+		errs = append(errs, err.Error())
+	}
+	
+	if len(errs) > 0 {
+		return fmt.Errorf("clone errors:\n%s", strings.Join(errs, "\n"))
+	}
+
+	if cloned > 0 {
+		fmt.Printf("✅ Cloned %d missing repositories\n", cloned)
+	} else {
+		fmt.Println("✅ All repositories already cloned")
+	}
 	return nil
 }
 

@@ -206,12 +206,12 @@ func (m *Manager) InitWorkspace(projectName string, interactive bool) error {
 	return nil
 }
 
-// Sync synchronizes all repositories
-func (m *Manager) Sync() error {
+// CloneMissing clones any missing repositories
+func (m *Manager) CloneMissing() error {
 	if m.GitManager == nil {
 		return fmt.Errorf("no git manager initialized")
 	}
-	return m.GitManager.Sync()
+	return m.GitManager.CloneMissing()
 }
 
 

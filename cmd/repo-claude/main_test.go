@@ -207,7 +207,7 @@ func TestCommandStructure(t *testing.T) {
 		"start", 
 		"kill",
 		"status",
-		"sync",
+		"pull",
 		"forall",
 		"ps",
 	}

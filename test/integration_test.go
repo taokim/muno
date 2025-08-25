@@ -146,7 +146,7 @@ func TestConfigValidation(t *testing.T) {
 	assert.NoError(t, err, "init should succeed: %s", string(output))
 	
 	// Test commands without workspace
-	cmds := []string{"start", "kill", "status", "sync"}
+	cmds := []string{"start", "kill", "status", "pull"}
 	for _, cmdName := range cmds {
 		cmd := exec.Command(binary, cmdName)
 		cmd.Dir = tmpDir
