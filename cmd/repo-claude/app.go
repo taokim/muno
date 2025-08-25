@@ -54,7 +54,7 @@ func (a *App) setupCommands() {
 		Short: "Multi-repository orchestration for Claude Code",
 		Long: `Repo-Claude orchestrates Claude Code sessions across multiple 
 Git repositories using a scope-based approach for collaborative development.`,
-		Version: version,
+		Version: formatVersion(),
 	}
 	
 	// Add all commands
@@ -71,6 +71,48 @@ Git repositories using a scope-based approach for collaborative development.`,
 	a.rootCmd.AddCommand(a.newPushCmd())
 	a.rootCmd.AddCommand(a.newPullCmd())
 	a.rootCmd.AddCommand(a.newFetchCmd())
+	a.rootCmd.AddCommand(a.newVersionCmd())
+}
+
+// formatVersion returns the formatted version string
+func formatVersion() string {
+	return version
+}
+
+// formatVersionDetails returns detailed version information
+func formatVersionDetails() string {
+	versionType := "release"
+	if len(version) >= 6 && version[len(version)-6:] == "-dirty" {
+		versionType = "dev (uncommitted changes)"
+	} else if version == "dev" {
+		versionType = "dev (not in git repo)"
+	} else if !isReleaseVersion(version) {
+		versionType = "dev"
+	}
+	
+	return fmt.Sprintf(`Version:     %s
+Type:        %s
+Git Commit:  %s
+Git Branch:  %s
+Build Time:  %s`, version, versionType, gitCommit, gitBranch, buildTime)
+}
+
+// isReleaseVersion checks if this is a release version (exact tag)
+func isReleaseVersion(v string) bool {
+	// Release versions start with 'v' and contain only version numbers
+	// e.g., v0.4.0, v1.0.0
+	// Dev versions contain additional info like v0.4.0-5-gabcd123
+	if len(v) == 0 || v[0] != 'v' {
+		return false
+	}
+	
+	// Check if it contains commit info (dash after version number)
+	for i := 1; i < len(v); i++ {
+		if v[i] == '-' {
+			return false
+		}
+	}
+	return true
 }
 
 // newInitCmd creates the init command
@@ -1300,6 +1342,41 @@ Examples:
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
 	cmd.Flags().BoolVarP(&all, "all", "a", false, "Fetch all remotes")
 	cmd.Flags().BoolVarP(&prune, "prune", "p", false, "Prune deleted remote branches")
+	
+	return cmd
+}
+
+// newVersionCmd creates the version command
+func (a *App) newVersionCmd() *cobra.Command {
+	var details bool
+	
+	cmd := &cobra.Command{
+		Use:   "version",
+		Short: "Show version information",
+		Long: `Display version information for repo-claude.
+
+Shows the version number, and with --details flag, shows additional
+build information including git commit, branch, and build time.
+
+Version Types:
+  • Release: Built from a tagged commit (e.g., v0.4.0)
+  • Dev: Built from an untagged commit (e.g., v0.4.0-5-gabcd123)
+  • Dev (dirty): Built with uncommitted changes (e.g., v0.4.0-5-gabcd123-dirty)
+
+Examples:
+  rc version           # Show version number
+  rc version --details # Show full build information`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if details {
+				fmt.Fprintln(a.stdout, formatVersionDetails())
+			} else {
+				fmt.Fprintf(a.stdout, "rc version %s\n", formatVersion())
+			}
+			return nil
+		},
+	}
+	
+	cmd.Flags().BoolVarP(&details, "details", "d", false, "Show detailed version information")
 	
 	return cmd
 }

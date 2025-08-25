@@ -2,10 +2,23 @@
 
 # Variables
 BINARY_NAME=rc
-# For local builds, use YYMMDDHHMM format. For tagged releases, use git tag
-VERSION=$(shell git describe --tags --exact-match 2>/dev/null || date '+%y%m%d%H%M')
+
+# Version determination:
+# 1. If on a tagged commit, use the tag (e.g., v0.4.0)
+# 2. Otherwise, use git describe with commit info (e.g., v0.4.0-5-gabcd123)
+# 3. Add -dirty suffix if there are uncommitted changes
+# 4. Fallback to "dev" if not a git repo
+GIT_TAG=$(shell git describe --tags --exact-match 2>/dev/null)
+GIT_DESCRIBE=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+VERSION=$(or $(GIT_TAG),$(GIT_DESCRIBE))
+
+# Additional build metadata
 BUILD_TIME=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
-LDFLAGS=-ldflags "-X main.version=${VERSION} -X main.buildTime=${BUILD_TIME}"
+GIT_COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+GIT_BRANCH=$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+
+# Build flags include version, commit, branch, and build time
+LDFLAGS=-ldflags "-X main.version=${VERSION} -X main.buildTime=${BUILD_TIME} -X main.gitCommit=${GIT_COMMIT} -X main.gitBranch=${GIT_BRANCH}"
 GOBASE=$(shell pwd)
 GOBIN=$(GOBASE)/bin
 GOFILES=$(shell find . -name "*.go" -type f -not -path "./vendor/*")
