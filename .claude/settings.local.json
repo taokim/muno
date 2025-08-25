@@ -7,7 +7,17 @@
       "Bash(rm:*)",
       "Bash(make:*)",
       "Bash(find:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git tag:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run watch:*)",
+      "Bash(gh release view:*)",
+      "Bash(grep:*)",
+      "Bash(./bin/rc:*)",
+      "Bash(git describe:*)"
     ],
     "deny": []
   }

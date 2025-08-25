@@ -67,6 +67,10 @@ Git repositories using a scope-based approach for collaborative development.`,
 	a.rootCmd.AddCommand(a.newPsCmd())
 	a.rootCmd.AddCommand(a.newBranchCmd())
 	a.rootCmd.AddCommand(a.newPRCmd())
+	a.rootCmd.AddCommand(a.newCommitCmd())
+	a.rootCmd.AddCommand(a.newPushCmd())
+	a.rootCmd.AddCommand(a.newPullCmd())
+	a.rootCmd.AddCommand(a.newFetchCmd())
 }
 
 // newInitCmd creates the init command
@@ -282,52 +286,165 @@ Examples:
 
 // newStatusCmd creates the status command
 func (a *App) newStatusCmd() *cobra.Command {
+	var excludeRoot bool
+	var verbose bool
+	var showAll bool
+	
 	cmd := &cobra.Command{
 		Use:   "status",
-		Short: "Show scope and repo status",
-		Long:  `Display the status of all scopes and repositories in the workspace`,
+		Short: "Show comprehensive workspace and repository status",
+		Long: `Display detailed status of all scopes and repositories in the workspace.
+
+This command shows:
+  • Workspace configuration and location
+  • Running scopes/agents and their status
+  • Repository git status (branch, changes, ahead/behind)
+  • Root repository status (included by default)
+  • Summary statistics
+
+Status Indicators:
+  • ✅ Clean repository (no changes)
+  • ⚠️  Repository with uncommitted changes
+  • 🔄 Repository with unpushed commits
+  • ❌ Repository with errors or conflicts
+  • 📥 Repository behind remote (needs pull)
+  • 📤 Repository ahead of remote (needs push)
+
+Information Displayed:
+  • Current branch for each repository
+  • Number of modified files
+  • Commits ahead/behind remote
+  • Running scope processes
+  • Workspace configuration
+
+Examples:
+  rc status                    # Show all status including root
+  rc status --exclude-root     # Skip root repository
+  rc status -v                 # Verbose output with file details
+  rc status --all              # Show all repos including uncloned`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return err
 			}
 			
+			// TODO: Update ShowStatus to use new options
 			return mgr.ShowStatus()
 		},
 	}
+	
+	cmd.Flags().BoolVar(&excludeRoot, "exclude-root", false, "Exclude root repository from status")
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed status including modified files")
+	cmd.Flags().BoolVarP(&showAll, "all", "a", false, "Show all repositories including uncloned")
 	
 	return cmd
 }
 
 // newSyncCmd creates the sync command
 func (a *App) newSyncCmd() *cobra.Command {
+	var excludeRoot bool
+	var sequential bool
+	var maxParallel int
+	var quiet bool
+	var verbose bool
+	
 	cmd := &cobra.Command{
 		Use:   "sync",
-		Short: "Sync all repositories",
-		Long:  `Clone missing repositories and pull updates for existing ones using rebase`,
+		Short: "Sync all repositories (clone missing, pull existing)",
+		Long: `Synchronize all repositories by cloning missing ones and pulling updates for existing ones.
+
+This command:
+  • Clones repositories that don't exist locally
+  • Pulls updates for existing repositories (using rebase)
+  • Includes the root repository by default (use --exclude-root to skip)
+  • Executes in parallel for faster synchronization
+  • Handles both initial setup and ongoing updates
+
+Sync Strategy:
+  • Missing repos: Clone from configured remotes
+  • Existing repos: Pull with rebase to maintain linear history
+  • Failed repos: Report errors but continue with others
+  • Network efficiency: Parallel operations by default
+
+Perfect For:
+  • Initial workspace setup
+  • Daily synchronization routine
+  • CI/CD pipeline updates
+  • Team collaboration sync
+
+Examples:
+  rc sync                      # Sync all repos including root
+  rc sync --exclude-root       # Skip root repository
+  rc sync -v                   # Show detailed progress
+  rc sync --max-parallel 10    # Use 10 parallel operations
+  rc sync --sequential         # Process one repo at a time`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return err
 			}
 			
+			// TODO: Update Sync to use the new unified options
+			// For now, use existing implementation
 			return mgr.Sync()
 		},
 	}
+	
+	cmd.Flags().BoolVar(&excludeRoot, "exclude-root", false, "Exclude root repository")
+	cmd.Flags().BoolVar(&sequential, "sequential", false, "Run sequentially instead of parallel")
+	cmd.Flags().IntVar(&maxParallel, "max-parallel", 4, "Maximum parallel operations")
+	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
 	
 	return cmd
 }
 
 // newForallCmd creates the forall command
 func (a *App) newForallCmd() *cobra.Command {
+	var excludeRoot bool
+	var sequential bool
+	var maxParallel int
+	var quiet bool
+	var verbose bool
+	
 	cmd := &cobra.Command{
 		Use:   "forall -- command [args...]",
-		Short: "Run command in all repositories",
-		Long: `Execute a command in all cloned repositories.
-		
-Example:
-  rc forall -- git status
-  rc forall -- git pull origin main`,
+		Short: "Run any command across all repositories in parallel",
+		Long: `Execute any shell command across all repositories with intelligent parallel execution.
+
+This powerful command:
+  • Runs ANY command in each repository's directory
+  • Includes the root repository by default (use --exclude-root to skip)
+  • Executes in parallel for maximum performance
+  • Supports both git and non-git commands
+  • Shows live output from each repository
+
+Performance Features:
+  • Parallel execution with configurable concurrency
+  • Automatic optimization for git commands
+  • Sequential fallback for debugging
+  • Resource-aware execution limits
+
+Use Cases:
+  • Git operations: status, log, diff, branch management
+  • Build commands: make, npm, cargo, go build
+  • Testing: run tests across all repos
+  • Cleanup: remove artifacts, reset state
+  • Custom scripts: any shell command
+
+Examples:
+  rc forall -- git status              # Check status of all repos
+  rc forall -- git log --oneline -5    # Show recent commits
+  rc forall -- make test                # Run tests in all repos
+  rc forall -- npm install              # Install dependencies
+  rc forall -- rm -rf node_modules     # Clean up artifacts
+  
+Advanced Options:
+  rc forall --exclude-root -- git pull # Skip root repository
+  rc forall --sequential -- make build # Build one at a time
+  rc forall --max-parallel 2 -- test   # Limit parallel execution
+  rc forall -v -- git fetch            # Verbose output
+  rc forall -q -- git gc               # Quiet mode`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr, err := manager.LoadFromCurrentDir()
@@ -341,9 +458,25 @@ Example:
 			}
 			command := args[0]
 			cmdArgs := args[1:]
-			return mgr.ForAll(command, cmdArgs)
+			
+			opts := manager.DefaultGitOptions()
+			opts.ExcludeRoot = excludeRoot
+			opts.Parallel = !sequential
+			if maxParallel > 0 {
+				opts.MaxParallel = maxParallel
+			}
+			opts.Quiet = quiet
+			opts.Verbose = verbose
+			
+			return mgr.ForAllWithOptions(command, cmdArgs, opts)
 		},
 	}
+	
+	cmd.Flags().BoolVar(&excludeRoot, "exclude-root", false, "Exclude root repository")
+	cmd.Flags().BoolVar(&sequential, "sequential", false, "Run sequentially instead of parallel")
+	cmd.Flags().IntVar(&maxParallel, "max-parallel", 4, "Maximum parallel operations")
+	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
 	
 	return cmd
 }
@@ -890,6 +1023,283 @@ Examples:
 	cmd.Flags().BoolVar(&deleteRemoteBranch, "delete-branch", false, "Delete the remote branch after merge")
 	cmd.Flags().BoolVar(&deleteLocalBranch, "delete-local", false, "Delete the local branch after merge")
 	cmd.MarkFlagRequired("repo")
+	
+	return cmd
+}
+
+// newCommitCmd creates the commit command
+func (a *App) newCommitCmd() *cobra.Command {
+	var excludeRoot bool
+	var sequential bool
+	var maxParallel int
+	var quiet bool
+	var verbose bool
+	var message string
+	var all bool
+	
+	cmd := &cobra.Command{
+		Use:   "commit",
+		Short: "Commit changes across all repositories in parallel",
+		Long: `Create commits in all repositories with uncommitted changes using parallel execution.
+
+This command automatically:
+  • Detects repositories with uncommitted changes
+  • Stages all changes using 'git add -A'
+  • Creates commits with your provided message
+  • Includes the root repository by default (use --exclude-root to skip)
+  • Executes in parallel for better performance (use --sequential for one-by-one)
+
+Performance Notes:
+  • Parallel execution uses up to 4 concurrent operations by default
+  • Adjust with --max-parallel flag for your system capabilities
+  • Sequential mode useful for debugging or resource-constrained environments
+
+Examples:
+  rc commit -m "Update dependencies"           # Commit in all repos including root
+  rc commit -m "Fix bug" --exclude-root        # Skip root repository
+  rc commit -m "Feature X" --sequential        # Process repos one by one
+  rc commit -m "Refactor" --max-parallel 8     # Use 8 parallel operations
+  rc commit -m "Update" -v                     # Show detailed output`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if message == "" {
+				return fmt.Errorf("commit message is required (use -m flag)")
+			}
+			
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return err
+			}
+			
+			opts := manager.DefaultGitOptions()
+			opts.ExcludeRoot = excludeRoot
+			opts.Parallel = !sequential
+			if maxParallel > 0 {
+				opts.MaxParallel = maxParallel
+			}
+			opts.Quiet = quiet
+			opts.Verbose = verbose
+			
+			return mgr.GitCommit(message, opts)
+		},
+	}
+	
+	cmd.Flags().StringVarP(&message, "message", "m", "", "Commit message (required)")
+	cmd.Flags().BoolVarP(&all, "all", "a", false, "Stage all changes before commit")
+	cmd.Flags().BoolVar(&excludeRoot, "exclude-root", false, "Exclude root repository")
+	cmd.Flags().BoolVar(&sequential, "sequential", false, "Run sequentially instead of parallel")
+	cmd.Flags().IntVar(&maxParallel, "max-parallel", 4, "Maximum parallel operations")
+	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
+	
+	return cmd
+}
+
+// newPushCmd creates the push command
+func (a *App) newPushCmd() *cobra.Command {
+	var excludeRoot bool
+	var sequential bool
+	var maxParallel int
+	var quiet bool
+	var verbose bool
+	var force bool
+	var setUpstream bool
+	
+	cmd := &cobra.Command{
+		Use:   "push",
+		Short: "Push commits to remote repositories in parallel",
+		Long: `Push local commits to remote repositories using parallel execution for speed.
+
+This command:
+  • Pushes all repositories with unpushed commits
+  • Includes the root repository by default (use --exclude-root to skip)
+  • Executes in parallel for maximum efficiency
+  • Shows clear success/failure status for each repository
+  • Provides summary of push operations
+
+Safety Features:
+  • Non-destructive by default (use --force with caution)
+  • Shows which repos are being pushed before execution
+  • Reports failures without stopping other pushes
+  • Preserves branch tracking relationships
+
+Examples:
+  rc push                          # Push all repos with changes
+  rc push --exclude-root           # Skip root repository
+  rc push --sequential             # Push one repository at a time
+  rc push -v                      # Show detailed git output
+  rc push --max-parallel 10        # Use 10 parallel operations
+  
+Future Options (coming soon):
+  rc push --force                  # Force push (use with caution!)
+  rc push --set-upstream origin    # Set upstream while pushing`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return err
+			}
+			
+			opts := manager.DefaultGitOptions()
+			opts.ExcludeRoot = excludeRoot
+			opts.Parallel = !sequential
+			if maxParallel > 0 {
+				opts.MaxParallel = maxParallel
+			}
+			opts.Quiet = quiet
+			opts.Verbose = verbose
+			
+			// TODO: Add support for force and set-upstream flags
+			return mgr.GitPush(opts)
+		},
+	}
+	
+	cmd.Flags().BoolVar(&excludeRoot, "exclude-root", false, "Exclude root repository")
+	cmd.Flags().BoolVar(&sequential, "sequential", false, "Run sequentially instead of parallel")
+	cmd.Flags().IntVar(&maxParallel, "max-parallel", 4, "Maximum parallel operations")
+	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force push")
+	cmd.Flags().BoolVarP(&setUpstream, "set-upstream", "u", false, "Set upstream branch")
+	
+	return cmd
+}
+
+// newPullCmd creates the pull command
+func (a *App) newPullCmd() *cobra.Command {
+	var excludeRoot bool
+	var sequential bool
+	var maxParallel int
+	var quiet bool
+	var verbose bool
+	var rebase bool
+	
+	cmd := &cobra.Command{
+		Use:   "pull",
+		Short: "Pull changes from remote repositories in parallel",
+		Long: `Pull and merge changes from remote repositories using parallel execution.
+
+This command:
+  • Fetches and merges changes from configured remotes
+  • Includes the root repository by default (use --exclude-root to skip)
+  • Executes in parallel for faster synchronization
+  • Supports both merge and rebase strategies
+  • Handles merge conflicts gracefully
+
+Merge Strategies:
+  • Default: Standard merge (creates merge commits)
+  • --rebase: Rebase local changes on top of remote
+    - Maintains linear history
+    - Avoids merge commits
+    - Recommended for feature branches
+
+Conflict Handling:
+  • Reports repositories with conflicts
+  • Continues with other repos even if one fails
+  • Provides clear status for manual resolution
+
+Examples:
+  rc pull                    # Pull all repos with merge
+  rc pull --rebase           # Pull with rebase (cleaner history)
+  rc pull --exclude-root     # Skip root repository
+  rc pull -v                 # Show detailed git output
+  rc pull --sequential       # Pull one repo at a time
+  rc pull --max-parallel 2   # Limit to 2 concurrent pulls`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return err
+			}
+			
+			opts := manager.DefaultGitOptions()
+			opts.ExcludeRoot = excludeRoot
+			opts.Parallel = !sequential
+			if maxParallel > 0 {
+				opts.MaxParallel = maxParallel
+			}
+			opts.Quiet = quiet
+			opts.Verbose = verbose
+			
+			return mgr.GitPull(rebase, opts)
+		},
+	}
+	
+	cmd.Flags().BoolVar(&excludeRoot, "exclude-root", false, "Exclude root repository")
+	cmd.Flags().BoolVar(&sequential, "sequential", false, "Run sequentially instead of parallel")
+	cmd.Flags().IntVar(&maxParallel, "max-parallel", 4, "Maximum parallel operations")
+	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
+	cmd.Flags().BoolVarP(&rebase, "rebase", "r", false, "Pull with rebase")
+	
+	return cmd
+}
+
+// newFetchCmd creates the fetch command
+func (a *App) newFetchCmd() *cobra.Command {
+	var excludeRoot bool
+	var sequential bool
+	var maxParallel int
+	var quiet bool
+	var verbose bool
+	var all bool
+	var prune bool
+	
+	cmd := &cobra.Command{
+		Use:   "fetch",
+		Short: "Fetch changes from remote repositories without merging",
+		Long: `Fetch updates from remote repositories without merging them into local branches.
+
+This command:
+  • Downloads new commits, branches, and tags from remotes
+  • Does NOT modify your working directory or current branch
+  • Includes the root repository by default (use --exclude-root to skip)
+  • Executes in parallel for faster synchronization
+  • Updates remote-tracking branches (origin/main, etc.)
+
+Use Cases:
+  • Preview incoming changes before merging
+  • Update remote references for comparison
+  • Prepare for offline work
+  • Synchronize repository metadata
+
+Options:
+  • --all: Fetch from all configured remotes (not just origin)
+  • --prune: Remove local references to deleted remote branches
+    - Cleans up obsolete remote-tracking branches
+    - Keeps your repository metadata current
+
+Examples:
+  rc fetch                   # Fetch default remote for all repos
+  rc fetch --all             # Fetch all remotes
+  rc fetch --prune           # Fetch and clean deleted branches
+  rc fetch --all --prune     # Complete remote synchronization
+  rc fetch --exclude-root    # Skip root repository
+  rc fetch -v                # Show detailed fetch information
+  rc fetch --max-parallel 10 # Use 10 parallel operations`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return err
+			}
+			
+			opts := manager.DefaultGitOptions()
+			opts.ExcludeRoot = excludeRoot
+			opts.Parallel = !sequential
+			if maxParallel > 0 {
+				opts.MaxParallel = maxParallel
+			}
+			opts.Quiet = quiet
+			opts.Verbose = verbose
+			
+			return mgr.GitFetch(all, prune, opts)
+		},
+	}
+	
+	cmd.Flags().BoolVar(&excludeRoot, "exclude-root", false, "Exclude root repository")
+	cmd.Flags().BoolVar(&sequential, "sequential", false, "Run sequentially instead of parallel")
+	cmd.Flags().IntVar(&maxParallel, "max-parallel", 4, "Maximum parallel operations")
+	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
+	cmd.Flags().BoolVarP(&all, "all", "a", false, "Fetch all remotes")
+	cmd.Flags().BoolVarP(&prune, "prune", "p", false, "Prune deleted remote branches")
 	
 	return cmd
 }

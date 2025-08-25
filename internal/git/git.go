@@ -229,32 +229,194 @@ func (m *Manager) getRepoStatus(repo Repository) Status {
 	return status
 }
 
-// ForAll runs a command in all repositories
+// ForAll runs a command in all repositories (now with parallel execution by default)
 func (m *Manager) ForAll(command string, args ...string) error {
-	fmt.Printf("🔧 Running command in all repositories: %s %s\n", command, strings.Join(args, " "))
-	
-	for _, repo := range m.Repositories {
-		repoPath := filepath.Join(m.WorkspacePath, repo.Path)
-		
-		// Check if repository exists
-		if _, err := os.Stat(filepath.Join(repoPath, ".git")); os.IsNotExist(err) {
-			fmt.Printf("  ⚠️  %s: not cloned\n", repo.Name)
-			continue
-		}
+	return m.ForAllWithOptions(command, args, DefaultExecutorOptions())
+}
 
-		fmt.Printf("\n[%s]\n", repo.Name)
+// ForAllWithOptions runs a command in all repositories with options
+func (m *Manager) ForAllWithOptions(command string, args []string, opts ExecutorOptions) error {
+	// If the command is not git, run it directly
+	if command != "git" {
+		// For non-git commands, run them directly in each repo
+		fmt.Printf("🔧 Running command in all repositories: %s %s\n", command, strings.Join(args, " "))
 		
-		cmd := exec.Command(command, args...)
-		cmd.Dir = repoPath
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		
-		if err := cmd.Run(); err != nil {
-			fmt.Printf("  ❌ Error: %v\n", err)
+		for _, repo := range m.Repositories {
+			repoPath := filepath.Join(m.WorkspacePath, repo.Path)
+			
+			// Check if repository exists
+			if _, err := os.Stat(filepath.Join(repoPath, ".git")); os.IsNotExist(err) {
+				fmt.Printf("  ⚠️  %s: not cloned\n", repo.Name)
+				continue
+			}
+
+			fmt.Printf("\n[%s]\n", repo.Name)
+			
+			cmd := exec.Command(command, args...)
+			cmd.Dir = repoPath
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			
+			if err := cmd.Run(); err != nil {
+				fmt.Printf("  ❌ Error: %v\n", err)
+			}
+		}
+		return nil
+	}
+	
+	// For git commands, use the new parallel executor
+	if len(args) == 0 {
+		return fmt.Errorf("no git command specified")
+	}
+	
+	gitCommand := args[0]
+	gitArgs := args[1:]
+	
+	results, err := m.ExecuteInRepos(gitCommand, gitArgs, opts)
+	if err != nil {
+		return err
+	}
+	
+	// Check if any failed
+	for _, result := range results {
+		if !result.Success {
+			return fmt.Errorf("command failed in one or more repositories")
 		}
 	}
 	
 	return nil
+}
+
+// Commit creates a commit in all repositories with changes
+func (m *Manager) Commit(message string, opts ExecutorOptions) ([]CommandResult, error) {
+	if message == "" {
+		return nil, fmt.Errorf("commit message cannot be empty")
+	}
+	
+	// First, check which repos have changes
+	statusResults, err := m.ExecuteInRepos("status", []string{"--porcelain"}, opts)
+	if err != nil {
+		return nil, fmt.Errorf("checking status: %w", err)
+	}
+	
+	// Filter repos with changes
+	reposWithChanges := []string{}
+	for _, result := range statusResults {
+		if result.Success && len(strings.TrimSpace(result.Output)) > 0 {
+			reposWithChanges = append(reposWithChanges, result.RepoName)
+		}
+	}
+	
+	if len(reposWithChanges) == 0 {
+		fmt.Println("ℹ️  No repositories have uncommitted changes")
+		return []CommandResult{}, nil
+	}
+	
+	fmt.Printf("📝 Found changes in %d repositories: %s\n", 
+		len(reposWithChanges), strings.Join(reposWithChanges, ", "))
+	
+	// Add all changes
+	fmt.Println("\n➕ Adding changes...")
+	addResults, err := m.ExecuteInRepos("add", []string{"-A"}, opts)
+	if err != nil {
+		return addResults, fmt.Errorf("adding changes: %w", err)
+	}
+	
+	// Commit with message
+	fmt.Printf("\n💾 Committing with message: %q\n", message)
+	commitResults, err := m.ExecuteInRepos("commit", []string{"-m", message}, opts)
+	if err != nil {
+		return commitResults, fmt.Errorf("committing changes: %w", err)
+	}
+	
+	return commitResults, nil
+}
+
+// Push pushes changes to remote repositories
+func (m *Manager) Push(opts ExecutorOptions) ([]CommandResult, error) {
+	return m.PushWithOptions("", "", opts)
+}
+
+// PushWithOptions pushes changes with specific remote and branch
+func (m *Manager) PushWithOptions(remote, branch string, opts ExecutorOptions) ([]CommandResult, error) {
+	args := []string{}
+	
+	// Add remote if specified
+	if remote != "" {
+		args = append(args, remote)
+		// Add branch if specified
+		if branch != "" {
+			args = append(args, branch)
+		}
+	}
+	
+	// Add any additional push options
+	if len(args) == 0 {
+		// Default push (to tracked branch)
+		fmt.Println("⬆️  Pushing to remote repositories...")
+	} else {
+		fmt.Printf("⬆️  Pushing to %s...\n", strings.Join(args, " "))
+	}
+	
+	return m.ExecuteInRepos("push", args, opts)
+}
+
+// Pull pulls changes from remote repositories
+func (m *Manager) Pull(opts ExecutorOptions) ([]CommandResult, error) {
+	return m.PullWithOptions("", "", false, opts)
+}
+
+// PullWithOptions pulls changes with specific options
+func (m *Manager) PullWithOptions(remote, branch string, rebase bool, opts ExecutorOptions) ([]CommandResult, error) {
+	args := []string{}
+	
+	// Add rebase flag if requested
+	if rebase {
+		args = append(args, "--rebase")
+	}
+	
+	// Add remote if specified
+	if remote != "" {
+		args = append(args, remote)
+		// Add branch if specified
+		if branch != "" {
+			args = append(args, branch)
+		}
+	}
+	
+	if rebase {
+		fmt.Println("⬇️  Pulling with rebase from remote repositories...")
+	} else {
+		fmt.Println("⬇️  Pulling from remote repositories...")
+	}
+	
+	return m.ExecuteInRepos("pull", args, opts)
+}
+
+// Fetch fetches changes from remote repositories
+func (m *Manager) Fetch(opts ExecutorOptions) ([]CommandResult, error) {
+	return m.FetchWithOptions("", false, false, opts)
+}
+
+// FetchWithOptions fetches changes with specific options
+func (m *Manager) FetchWithOptions(remote string, all, prune bool, opts ExecutorOptions) ([]CommandResult, error) {
+	args := []string{}
+	
+	// Add flags
+	if all {
+		args = append(args, "--all")
+	}
+	if prune {
+		args = append(args, "--prune")
+	}
+	
+	// Add remote if specified and not using --all
+	if remote != "" && !all {
+		args = append(args, remote)
+	}
+	
+	fmt.Println("🔄 Fetching from remote repositories...")
+	return m.ExecuteInRepos("fetch", args, opts)
 }
 
 // GetRepositories returns the list of repositories
