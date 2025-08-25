@@ -49,7 +49,7 @@ func TestApp_Execute(t *testing.T) {
 			name:       "Status help",
 			args:       []string{"status", "--help"},
 			wantErr:    false,
-			wantOutput: "Display the status of all scopes and repositories",
+			wantOutput: "Display detailed status of all scopes and repositories",
 		},
 		{
 			name:       "Ps help",

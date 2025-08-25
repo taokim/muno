@@ -154,7 +154,7 @@ func (a *App) newInitCmd() *cobra.Command {
 		},
 	}
 	
-	cmd.Flags().BoolVar(&nonInteractive, "non-interactive", false, "Skip interactive prompts and use defaults")
+	cmd.Flags().BoolVarP(&nonInteractive, "non-interactive", "n", false, "Skip interactive prompts and use defaults")
 	
 	return cmd
 }
@@ -253,7 +253,7 @@ Examples:
 	cmd.Flags().StringSliceVarP(&repos, "repos", "r", nil, "Start scopes for specific repositories")
 	cmd.Flags().StringVarP(&preset, "preset", "p", "", "Start scopes matching a preset tag")
 	cmd.Flags().BoolVarP(&interactive, "interactive", "i", false, "Force interactive selection mode")
-	cmd.Flags().BoolVar(&newWindow, "new-window", false, "Open in new window instead of current terminal")
+	cmd.Flags().BoolVarP(&newWindow, "new-window", "w", false, "Open in new window instead of current terminal")
 	cmd.Flags().BoolVar(&all, "all", false, "Start all auto-start scopes (non-interactive)")
 	
 	return cmd
@@ -375,7 +375,7 @@ Examples:
 		},
 	}
 	
-	cmd.Flags().BoolVar(&excludeRoot, "exclude-root", false, "Exclude root repository from status")
+	cmd.Flags().BoolVarP(&excludeRoot, "exclude-root", "e", false, "Exclude root repository from status")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed status including modified files")
 	cmd.Flags().BoolVarP(&showAll, "all", "a", false, "Show all repositories including uncloned")
 	
@@ -432,9 +432,9 @@ Examples:
 		},
 	}
 	
-	cmd.Flags().BoolVar(&excludeRoot, "exclude-root", false, "Exclude root repository")
-	cmd.Flags().BoolVar(&sequential, "sequential", false, "Run sequentially instead of parallel")
-	cmd.Flags().IntVar(&maxParallel, "max-parallel", 4, "Maximum parallel operations")
+	cmd.Flags().BoolVarP(&excludeRoot, "exclude-root", "e", false, "Exclude root repository")
+	cmd.Flags().BoolVarP(&sequential, "sequential", "s", false, "Run sequentially instead of parallel")
+	cmd.Flags().IntVarP(&maxParallel, "max-parallel", "j", 4, "Maximum parallel operations")
 	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
 	
@@ -514,9 +514,9 @@ Advanced Options:
 		},
 	}
 	
-	cmd.Flags().BoolVar(&excludeRoot, "exclude-root", false, "Exclude root repository")
-	cmd.Flags().BoolVar(&sequential, "sequential", false, "Run sequentially instead of parallel")
-	cmd.Flags().IntVar(&maxParallel, "max-parallel", 4, "Maximum parallel operations")
+	cmd.Flags().BoolVarP(&excludeRoot, "exclude-root", "e", false, "Exclude root repository")
+	cmd.Flags().BoolVarP(&sequential, "sequential", "s", false, "Run sequentially instead of parallel")
+	cmd.Flags().IntVarP(&maxParallel, "max-parallel", "j", 4, "Maximum parallel operations")
 	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
 	
@@ -629,8 +629,8 @@ Examples:
 		},
 	}
 	
-	cmd.Flags().StringSliceVar(&repos, "repos", nil, "Specific repositories (default: all)")
-	cmd.Flags().StringVar(&fromBranch, "from", "", "Base branch to create from (default: current branch)")
+	cmd.Flags().StringSliceVarP(&repos, "repos", "r", nil, "Specific repositories (default: all)")
+	cmd.Flags().StringVarP(&fromBranch, "from", "f", "", "Base branch to create from (default: current branch)")
 	
 	return cmd
 }
@@ -703,8 +703,8 @@ Examples:
 		},
 	}
 	
-	cmd.Flags().StringSliceVar(&repos, "repos", nil, "Specific repositories (default: all)")
-	cmd.Flags().BoolVar(&createIfMissing, "create", false, "Create branch if it doesn't exist")
+	cmd.Flags().StringSliceVarP(&repos, "repos", "r", nil, "Specific repositories (default: all)")
+	cmd.Flags().BoolVarP(&createIfMissing, "create", "c", false, "Create branch if it doesn't exist")
 	
 	return cmd
 }
@@ -744,9 +744,9 @@ Examples:
 		},
 	}
 	
-	cmd.Flags().StringSliceVar(&repos, "repos", nil, "Specific repositories (default: all)")
+	cmd.Flags().StringSliceVarP(&repos, "repos", "r", nil, "Specific repositories (default: all)")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force delete even if not merged")
-	cmd.Flags().BoolVar(&deleteRemote, "remote", false, "Also delete from remote")
+	cmd.Flags().BoolVarP(&deleteRemote, "remote", "R", false, "Also delete from remote")
 	
 	return cmd
 }
@@ -814,8 +814,8 @@ Examples:
 	cmd.Flags().StringVarP(&state, "state", "s", "open", "Filter by state: open, closed, merged, all")
 	cmd.Flags().IntVarP(&limit, "limit", "l", 10, "Maximum number of PRs per repository")
 	cmd.Flags().StringVarP(&author, "author", "a", "", "Filter by author (@me for current user)")
-	cmd.Flags().StringVar(&assignee, "assignee", "", "Filter by assignee")
-	cmd.Flags().StringVar(&label, "label", "", "Filter by label")
+	cmd.Flags().StringVarP(&assignee, "assignee", "e", "", "Filter by assignee")
+	cmd.Flags().StringVarP(&label, "label", "L", "", "Filter by label")
 	
 	return cmd
 }
@@ -868,11 +868,11 @@ Examples:
 	cmd.Flags().StringVarP(&repo, "repo", "r", "", "Repository to create PR in (required)")
 	cmd.Flags().StringVarP(&title, "title", "t", "", "PR title")
 	cmd.Flags().StringVarP(&body, "body", "b", "", "PR body/description")
-	cmd.Flags().StringVar(&base, "base", "", "Base branch (default: repository default branch)")
+	cmd.Flags().StringVarP(&base, "base", "B", "", "Base branch (default: repository default branch)")
 	cmd.Flags().BoolVarP(&draft, "draft", "d", false, "Create as draft PR")
-	cmd.Flags().StringSliceVar(&reviewers, "reviewers", nil, "Request reviews from users")
-	cmd.Flags().StringSliceVar(&assignees, "assignees", nil, "Assign PR to users")
-	cmd.Flags().StringSliceVar(&labels, "labels", nil, "Add labels to PR")
+	cmd.Flags().StringSliceVarP(&reviewers, "reviewers", "R", nil, "Request reviews from users")
+	cmd.Flags().StringSliceVarP(&assignees, "assignees", "A", nil, "Assign PR to users")
+	cmd.Flags().StringSliceVarP(&labels, "labels", "L", nil, "Add labels to PR")
 	
 	cmd.MarkFlagRequired("repo")
 	
@@ -930,13 +930,13 @@ Examples:
 	
 	cmd.Flags().StringVarP(&title, "title", "t", "", "PR title (required)")
 	cmd.Flags().StringVarP(&body, "body", "b", "", "PR body/description")
-	cmd.Flags().StringVar(&base, "base", "", "Base branch (default: repository default branch)")
+	cmd.Flags().StringVarP(&base, "base", "B", "", "Base branch (default: repository default branch)")
 	cmd.Flags().BoolVarP(&draft, "draft", "d", false, "Create as draft PRs")
-	cmd.Flags().StringSliceVar(&reviewers, "reviewers", nil, "Request reviews from users")
-	cmd.Flags().StringSliceVar(&assignees, "assignees", nil, "Assign PRs to users")
-	cmd.Flags().StringSliceVar(&labels, "labels", nil, "Add labels to PRs")
+	cmd.Flags().StringSliceVarP(&reviewers, "reviewers", "R", nil, "Request reviews from users")
+	cmd.Flags().StringSliceVarP(&assignees, "assignees", "A", nil, "Assign PRs to users")
+	cmd.Flags().StringSliceVarP(&labels, "labels", "L", nil, "Add labels to PRs")
 	cmd.Flags().StringSliceVar(&repos, "repos", nil, "Specific repositories (default: all non-main branches)")
-	cmd.Flags().BoolVar(&skipMainCheck, "skip-main-check", false, "Skip check for main branch (use with caution)")
+	cmd.Flags().BoolVarP(&skipMainCheck, "skip-main-check", "S", false, "Skip check for main branch (use with caution)")
 	
 	cmd.MarkFlagRequired("title")
 	
@@ -1062,8 +1062,8 @@ Examples:
 	
 	cmd.Flags().StringVarP(&repo, "repo", "r", "", "Repository containing the PR (required)")
 	cmd.Flags().StringVarP(&method, "method", "m", "", "Merge method: merge, squash, rebase")
-	cmd.Flags().BoolVar(&deleteRemoteBranch, "delete-branch", false, "Delete the remote branch after merge")
-	cmd.Flags().BoolVar(&deleteLocalBranch, "delete-local", false, "Delete the local branch after merge")
+	cmd.Flags().BoolVarP(&deleteRemoteBranch, "delete-branch", "D", false, "Delete the remote branch after merge")
+	cmd.Flags().BoolVarP(&deleteLocalBranch, "delete-local", "d", false, "Delete the local branch after merge")
 	cmd.MarkFlagRequired("repo")
 	
 	return cmd
@@ -1127,9 +1127,9 @@ Examples:
 	
 	cmd.Flags().StringVarP(&message, "message", "m", "", "Commit message (required)")
 	cmd.Flags().BoolVarP(&all, "all", "a", false, "Stage all changes before commit")
-	cmd.Flags().BoolVar(&excludeRoot, "exclude-root", false, "Exclude root repository")
-	cmd.Flags().BoolVar(&sequential, "sequential", false, "Run sequentially instead of parallel")
-	cmd.Flags().IntVar(&maxParallel, "max-parallel", 4, "Maximum parallel operations")
+	cmd.Flags().BoolVarP(&excludeRoot, "exclude-root", "e", false, "Exclude root repository")
+	cmd.Flags().BoolVarP(&sequential, "sequential", "s", false, "Run sequentially instead of parallel")
+	cmd.Flags().IntVarP(&maxParallel, "max-parallel", "j", 4, "Maximum parallel operations")
 	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
 	
@@ -1194,9 +1194,9 @@ Future Options (coming soon):
 		},
 	}
 	
-	cmd.Flags().BoolVar(&excludeRoot, "exclude-root", false, "Exclude root repository")
-	cmd.Flags().BoolVar(&sequential, "sequential", false, "Run sequentially instead of parallel")
-	cmd.Flags().IntVar(&maxParallel, "max-parallel", 4, "Maximum parallel operations")
+	cmd.Flags().BoolVarP(&excludeRoot, "exclude-root", "e", false, "Exclude root repository")
+	cmd.Flags().BoolVarP(&sequential, "sequential", "s", false, "Run sequentially instead of parallel")
+	cmd.Flags().IntVarP(&maxParallel, "max-parallel", "j", 4, "Maximum parallel operations")
 	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force push")
@@ -1264,9 +1264,9 @@ Examples:
 		},
 	}
 	
-	cmd.Flags().BoolVar(&excludeRoot, "exclude-root", false, "Exclude root repository")
-	cmd.Flags().BoolVar(&sequential, "sequential", false, "Run sequentially instead of parallel")
-	cmd.Flags().IntVar(&maxParallel, "max-parallel", 4, "Maximum parallel operations")
+	cmd.Flags().BoolVarP(&excludeRoot, "exclude-root", "e", false, "Exclude root repository")
+	cmd.Flags().BoolVarP(&sequential, "sequential", "s", false, "Run sequentially instead of parallel")
+	cmd.Flags().IntVarP(&maxParallel, "max-parallel", "j", 4, "Maximum parallel operations")
 	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
 	cmd.Flags().BoolVarP(&rebase, "rebase", "r", false, "Pull with rebase")
@@ -1335,9 +1335,9 @@ Examples:
 		},
 	}
 	
-	cmd.Flags().BoolVar(&excludeRoot, "exclude-root", false, "Exclude root repository")
-	cmd.Flags().BoolVar(&sequential, "sequential", false, "Run sequentially instead of parallel")
-	cmd.Flags().IntVar(&maxParallel, "max-parallel", 4, "Maximum parallel operations")
+	cmd.Flags().BoolVarP(&excludeRoot, "exclude-root", "e", false, "Exclude root repository")
+	cmd.Flags().BoolVarP(&sequential, "sequential", "s", false, "Run sequentially instead of parallel")
+	cmd.Flags().IntVarP(&maxParallel, "max-parallel", "j", 4, "Maximum parallel operations")
 	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
 	cmd.Flags().BoolVarP(&all, "all", "a", false, "Fetch all remotes")
