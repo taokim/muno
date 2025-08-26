@@ -5,21 +5,20 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/taokim/repo-claude/internal/manager"
 )
 
-// App encapsulates the application for testability
+// App is the scope-based application
 type App struct {
 	rootCmd *cobra.Command
 	stdout  io.Writer
 	stderr  io.Writer
 }
 
-// NewApp creates a new application instance
+// NewApp creates a new scope-based application
 func NewApp() *App {
 	app := &App{
 		stdout: os.Stdout,
@@ -29,7 +28,7 @@ func NewApp() *App {
 	return app
 }
 
-// SetOutput sets the output writers for testing
+// SetOutput sets the output writers
 func (a *App) SetOutput(stdout, stderr io.Writer) {
 	a.stdout = stdout
 	a.stderr = stderr
@@ -42,7 +41,7 @@ func (a *App) Execute() error {
 	return a.rootCmd.Execute()
 }
 
-// ExecuteWithArgs runs the application with specific arguments (for testing)
+// ExecuteWithArgs runs with specific arguments
 func (a *App) ExecuteWithArgs(args []string) error {
 	a.rootCmd.SetArgs(args)
 	return a.Execute()
@@ -52,25 +51,451 @@ func (a *App) ExecuteWithArgs(args []string) error {
 func (a *App) setupCommands() {
 	a.rootCmd = &cobra.Command{
 		Use:   "rc",
-		Short: "Multi-repository orchestration for Claude Code",
-		Long: `Repo-Claude orchestrates Claude Code sessions across multiple 
-Git repositories using a scope-based approach for collaborative development.`,
+		Short: "Scope-based multi-repository orchestration for Claude Code",
+		Long: `Repo-Claude v2 orchestrates Claude Code sessions across multiple 
+repositories using isolated scopes for parallel development.
+
+Each scope provides:
+- Isolated workspace with independent repository clones
+- Separate branch management
+- Cross-repository documentation
+- Inter-scope coordination via shared memory`,
 		Version: formatVersion(),
 	}
 	
-	// Add all commands
+	// Core commands
 	a.rootCmd.AddCommand(a.newInitCmd())
+	a.rootCmd.AddCommand(a.newListCmd())
 	a.rootCmd.AddCommand(a.newStartCmd())
 	a.rootCmd.AddCommand(a.newStatusCmd())
-	a.rootCmd.AddCommand(a.newListCmd())
+	
+	// Scope commands
+	a.rootCmd.AddCommand(a.newScopeCmd())
+	
+	// Git operations (all scope-aware)
 	a.rootCmd.AddCommand(a.newPullCmd())
-	a.rootCmd.AddCommand(a.newForallCmd())
-	a.rootCmd.AddCommand(a.newBranchCmd())
-	a.rootCmd.AddCommand(a.newPRCmd())
 	a.rootCmd.AddCommand(a.newCommitCmd())
 	a.rootCmd.AddCommand(a.newPushCmd())
-	a.rootCmd.AddCommand(a.newFetchCmd())
+	a.rootCmd.AddCommand(a.newBranchCmd())
+	a.rootCmd.AddCommand(a.newPRCmd())
+	
+	// Documentation
+	a.rootCmd.AddCommand(a.newDocsCmd())
+	
+	// Version
 	a.rootCmd.AddCommand(a.newVersionCmd())
+}
+
+// newInitCmd creates the init command
+func (a *App) newInitCmd() *cobra.Command {
+	var interactive bool
+	
+	cmd := &cobra.Command{
+		Use:   "init [project-name]",
+		Short: "Initialize a new repo-claude project",
+		Long: `Initialize a new repo-claude project with scope-based architecture.
+		
+Creates:
+- repo-claude.yaml configuration
+- workspaces/ directory for isolated scopes  
+- docs/ directory for documentation
+- Root CLAUDE.md with instructions`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			projectName := ""
+			projectPath := "."
+			
+			if len(args) > 0 {
+				projectName = args[0]
+				projectPath = projectName
+			} else {
+				// Use current directory name
+				cwd, err := os.Getwd()
+				if err != nil {
+					return err
+				}
+				projectName = filepath.Base(cwd)
+			}
+			
+			mgr, err := manager.New(projectPath)
+			if err != nil {
+				return fmt.Errorf("creating manager: %w", err)
+			}
+			
+			if err := mgr.InitWorkspace(projectName, interactive); err != nil {
+				return fmt.Errorf("initializing workspace: %w", err)
+			}
+			
+			return nil
+		},
+	}
+	
+	cmd.Flags().BoolVarP(&interactive, "interactive", "i", false, "Interactive configuration")
+	
+	return cmd
+}
+
+// newListCmd creates the list command
+func (a *App) newListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List available scopes",
+		Long: `List all configured scopes with their repositories and status.
+		
+Shows:
+- Scope number (for easy selection)
+- Scope name and type
+- Repositories in each scope
+- Initialization status`,
+		Aliases: []string{"ls"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			return mgr.ListScopes()
+		},
+	}
+}
+
+// newStartCmd creates the start command
+func (a *App) newStartCmd() *cobra.Command {
+	var newWindow bool
+	
+	cmd := &cobra.Command{
+		Use:   "start <scope>",
+		Short: "Start a Claude session for a scope",
+		Long: `Start a Claude Code session for a specific scope.
+		
+The scope can be specified by:
+- Name: rc start backend
+- Number: rc start 1 (from 'rc list')
+		
+On first start, repositories will be cloned.
+The working directory will be set to the scope directory.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			return mgr.StartScope(args[0], newWindow)
+		},
+	}
+	
+	cmd.Flags().BoolVarP(&newWindow, "new-window", "n", false, "Open in new terminal window")
+	
+	return cmd
+}
+
+// newStatusCmd creates the status command
+func (a *App) newStatusCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "status <scope>",
+		Short: "Show scope status",
+		Long: `Show detailed status of a scope including:
+- Repository states (clean/dirty)
+- Branch information
+- Uncommitted changes
+- Ahead/behind status`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			return mgr.StatusScope(args[0])
+		},
+	}
+}
+
+// newScopeCmd creates the scope management command
+func (a *App) newScopeCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "scope",
+		Short: "Manage scopes",
+		Long:  `Create, delete, and manage isolated scopes`,
+	}
+	
+	// Subcommands
+	cmd.AddCommand(a.newScopeCreateCmd())
+	cmd.AddCommand(a.newScopeDeleteCmd())
+	cmd.AddCommand(a.newScopeArchiveCmd())
+	
+	return cmd
+}
+
+// newScopeCreateCmd creates the scope create command
+func (a *App) newScopeCreateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "create <name>",
+		Short: "Create a new scope",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			return mgr.ScopeManager.CreateFromConfig(args[0])
+		},
+	}
+}
+
+// newScopeDeleteCmd creates the scope delete command
+func (a *App) newScopeDeleteCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete <name>",
+		Short: "Delete a scope",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			return mgr.ScopeManager.Delete(args[0])
+		},
+	}
+}
+
+// newScopeArchiveCmd creates the scope archive command
+func (a *App) newScopeArchiveCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "archive <name>",
+		Short: "Archive a scope",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			return mgr.ScopeManager.Archive(args[0])
+		},
+	}
+}
+
+// newPullCmd creates the pull command
+func (a *App) newPullCmd() *cobra.Command {
+	var cloneMissing bool
+	
+	cmd := &cobra.Command{
+		Use:   "pull <scope>",
+		Short: "Pull repositories in a scope",
+		Long: `Pull latest changes for all repositories in a scope.
+		
+Use --clone-missing to clone repositories that haven't been cloned yet.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			return mgr.PullScope(args[0], cloneMissing)
+		},
+	}
+	
+	cmd.Flags().BoolVarP(&cloneMissing, "clone-missing", "c", false, "Clone missing repositories")
+	
+	return cmd
+}
+
+// newCommitCmd creates the commit command
+func (a *App) newCommitCmd() *cobra.Command {
+	var message string
+	
+	cmd := &cobra.Command{
+		Use:   "commit <scope>",
+		Short: "Commit changes in a scope",
+		Long:  `Commit all changes across repositories in a scope with the same message.`,
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if message == "" {
+				return fmt.Errorf("commit message is required")
+			}
+			
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			return mgr.CommitScope(args[0], message)
+		},
+	}
+	
+	cmd.Flags().StringVarP(&message, "message", "m", "", "Commit message (required)")
+	cmd.MarkFlagRequired("message")
+	
+	return cmd
+}
+
+// newPushCmd creates the push command
+func (a *App) newPushCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "push <scope>",
+		Short: "Push changes from a scope",
+		Long:  `Push all committed changes from repositories in a scope to their remotes.`,
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			return mgr.PushScope(args[0])
+		},
+	}
+}
+
+// newBranchCmd creates the branch command
+func (a *App) newBranchCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "branch <scope> <branch-name>",
+		Short: "Switch branches in a scope",
+		Long: `Switch all repositories in a scope to a specific branch.
+		
+Creates the branch if it doesn't exist.`,
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			return mgr.BranchScope(args[0], args[1])
+		},
+	}
+}
+
+// newPRCmd creates the PR command
+func (a *App) newPRCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "pr",
+		Short: "Manage pull requests",
+		Long:  `Create and manage pull requests for scope repositories`,
+	}
+	
+	// Add PR subcommands here
+	// TODO: Implement PR functionality
+	
+	return cmd
+}
+
+// newDocsCmd creates the documentation command
+func (a *App) newDocsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "docs",
+		Short: "Manage documentation",
+		Long: `Manage cross-repository documentation.
+		
+Documentation is stored in:
+- docs/global/ for project-wide docs
+- docs/scopes/<scope>/ for scope-specific docs`,
+	}
+	
+	cmd.AddCommand(a.newDocsCreateCmd())
+	cmd.AddCommand(a.newDocsListCmd())
+	cmd.AddCommand(a.newDocsSyncCmd())
+	
+	return cmd
+}
+
+// newDocsCreateCmd creates the docs create command
+func (a *App) newDocsCreateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "create <scope|global> <filename>",
+		Short: "Create documentation",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			scope := args[0]
+			filename := args[1]
+			
+			content := fmt.Sprintf("# %s\n\nCreated: %s\n\n## Overview\n\n",
+				filename, time.Now().Format("2006-01-02"))
+			
+			if scope == "global" {
+				return mgr.DocsManager.CreateGlobal(filename, content)
+			} else {
+				return mgr.DocsManager.CreateScope(scope, filename, content)
+			}
+		},
+	}
+}
+
+// newDocsListCmd creates the docs list command
+func (a *App) newDocsListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list [scope]",
+		Short: "List documentation",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			scope := ""
+			if len(args) > 0 {
+				scope = args[0]
+			}
+			
+			docs, err := mgr.DocsManager.List(scope)
+			if err != nil {
+				return err
+			}
+			
+			if len(docs) == 0 {
+				fmt.Fprintln(a.stdout, "No documentation found")
+				return nil
+			}
+			
+			fmt.Fprintln(a.stdout, "\n📚 Documentation:")
+			for _, doc := range docs {
+				fmt.Fprintf(a.stdout, "  %s (%.1f KB)\n", 
+					doc.Path, float64(doc.Size)/1024)
+			}
+			
+			return nil
+		},
+	}
+}
+
+// newDocsSyncCmd creates the docs sync command
+func (a *App) newDocsSyncCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "sync",
+		Short: "Sync documentation to git",
+		Long:  `Commit and optionally push documentation changes to git.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			return mgr.DocsManager.Sync(false)
+		},
+	}
+}
+
+// newVersionCmd creates the version command
+func (a *App) newVersionCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Show version information",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Fprintln(a.stdout, formatVersionDetails())
+		},
+	}
 }
 
 // formatVersion returns the formatted version string
@@ -112,1132 +537,4 @@ func isReleaseVersion(v string) bool {
 		}
 	}
 	return true
-}
-
-// newInitCmd creates the init command
-func (a *App) newInitCmd() *cobra.Command {
-	var nonInteractive bool
-	
-	cmd := &cobra.Command{
-		Use:   "init [workspace-name]",
-		Short: "Initialize a new workspace",
-		Long:  `Initialize a new repo-claude workspace with configuration and directories`,
-		Args:  cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			workspaceName := ""
-			if len(args) > 0 {
-				workspaceName = args[0]
-			}
-			
-			mgr, err := manager.LoadFromCurrentDir()
-			if err == nil {
-				// Already initialized
-				fmt.Fprintln(a.stdout, "Workspace already initialized")
-				return nil
-			}
-			
-			// Get current directory if no name provided
-			if workspaceName == "" {
-				cwd, err := os.Getwd()
-				if err != nil {
-					return fmt.Errorf("getting current directory: %w", err)
-				}
-				workspaceName = filepath.Base(cwd)
-				mgr = manager.New(".")
-			} else {
-				// Create new project directory
-				mgr = manager.New(workspaceName)
-			}
-			
-			return mgr.InitWorkspace(workspaceName, nonInteractive)
-		},
-	}
-	
-	cmd.Flags().BoolVarP(&nonInteractive, "non-interactive", "n", false, "Skip interactive prompts and use defaults")
-	
-	return cmd
-}
-
-// newStartCmd creates the start command
-func (a *App) newStartCmd() *cobra.Command {
-	var repos []string
-	var preset string
-	var interactive bool
-	var newWindow bool
-	var all bool
-	
-	cmd := &cobra.Command{
-		Use:   "start [scope-or-repo-names...]",
-		Short: "Start scopes interactively or by name",
-		Long: `Start one or more scopes. Without arguments, launches interactive selection UI.
-With arguments, starts the specified scopes directly.
-		
-Examples:
-  rc start                    # Interactive selection UI (default)
-  rc start backend frontend   # Start specific scopes
-  rc start order-service      # Start scope containing order-service repo
-  rc start --all              # Start all auto-start scopes (non-interactive)
-  rc start --repos backend    # Start scopes for specific repos
-  rc start --preset dev       # Start scopes matching a preset
-  rc start -i backend         # Force interactive mode even with args`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			// --all flag overrides everything and starts all auto-start scopes
-			if all {
-				opts := manager.StartOptions{
-					NewWindow: newWindow,
-				}
-				return mgr.StartAllScopesWithOptions(opts)
-			}
-			
-			// Handle preset filtering
-			if preset != "" {
-				return fmt.Errorf("--preset filtering not yet implemented")
-			}
-			
-			// Handle repo filtering  
-			if len(repos) > 0 {
-				return fmt.Errorf("--repos filtering not yet implemented")
-			}
-			
-			// Interactive mode: either explicitly requested or no args provided
-			if interactive || len(args) == 0 {
-				return mgr.StartInteractiveTUIV2()
-			}
-			
-			// Direct start mode with arguments
-			opts := manager.StartOptions{
-				NewWindow: newWindow,
-			}
-			
-			// Auto-enable new window when starting multiple items
-			if !newWindow && len(args) > 1 {
-				opts.NewWindow = true
-				fmt.Println("🪟 Opening multiple sessions in new windows")
-			}
-			
-			// Start specific scopes or by repo name
-			for _, name := range args {
-				// First try as scope name
-				if err := mgr.StartScopeWithOptions(name, opts); err != nil {
-					// If not a scope, try as repo name
-					if err2 := mgr.StartByRepoName(name); err2 != nil {
-						return fmt.Errorf("'%s' is neither a scope nor a repository: %v", name, err)
-					}
-				}
-			}
-			return nil
-		},
-	}
-	
-	cmd.Flags().StringSliceVarP(&repos, "repos", "r", nil, "Start scopes for specific repositories")
-	cmd.Flags().StringVarP(&preset, "preset", "p", "", "Start scopes matching a preset tag")
-	cmd.Flags().BoolVarP(&interactive, "interactive", "i", false, "Force interactive selection mode")
-	cmd.Flags().BoolVarP(&newWindow, "new-window", "w", false, "Open in new window instead of current terminal")
-	cmd.Flags().BoolVar(&all, "all", false, "Start all auto-start scopes (non-interactive)")
-	
-	return cmd
-}
-
-// newListCmd creates the list command
-func (a *App) newListCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List available scopes",
-		Long: `Display all configured scopes and their repositories.
-
-This shows what scopes are available to start, not what's currently running.
-Use 'rc start' to launch a scope in your current terminal.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			// Display available scopes
-			if len(mgr.Config.Scopes) == 0 {
-				fmt.Println("No scopes configured.")
-				fmt.Println("\nAdd scopes to your repo-claude.yaml file.")
-				return nil
-			}
-			
-			fmt.Println("Available scopes:")
-			fmt.Println()
-			
-			for name, scope := range mgr.Config.Scopes {
-				fmt.Printf("  %s\n", name)
-				if scope.Description != "" {
-					fmt.Printf("    Description: %s\n", scope.Description)
-				}
-				if len(scope.Repos) > 0 {
-					fmt.Printf("    Repositories: %s\n", strings.Join(scope.Repos, ", "))
-				}
-				if scope.AutoStart {
-					fmt.Printf("    Auto-start: yes\n")
-				}
-				fmt.Println()
-			}
-			
-			fmt.Println("To start a scope, run: rc start <scope-name>")
-			return nil
-		},
-	}
-	
-	return cmd
-}
-
-
-// newStatusCmd creates the status command
-func (a *App) newStatusCmd() *cobra.Command {
-	var excludeRoot bool
-	var verbose bool
-	var showAll bool
-	
-	cmd := &cobra.Command{
-		Use:   "status",
-		Short: "Show comprehensive workspace and repository status",
-		Long: `Display workspace configuration and repository status.
-
-This command shows:
-  • Workspace configuration and location
-  • Repository git status (branch, changes, ahead/behind)
-  • Root repository status (included by default)
-  • Summary statistics
-
-Status Indicators:
-  • ✅ Clean repository (no changes)
-  • ⚠️  Repository with uncommitted changes
-  • 🔄 Repository with unpushed commits
-  • ❌ Repository with errors or conflicts
-  • 📥 Repository behind remote (needs pull)
-  • 📤 Repository ahead of remote (needs push)
-
-Information Displayed:
-  • Current branch for each repository
-  • Number of modified files
-  • Commits ahead/behind remote
-  • Workspace configuration
-
-Examples:
-  rc status                    # Show all status including root
-  rc status --exclude-root     # Skip root repository
-  rc status -v                 # Verbose output with file details
-  rc status --all              # Show all repos including uncloned`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			// TODO: Update ShowStatus to use new options
-			return mgr.ShowStatus()
-		},
-	}
-	
-	cmd.Flags().BoolVarP(&excludeRoot, "exclude-root", "e", false, "Exclude root repository from status")
-	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed status including modified files")
-	cmd.Flags().BoolVarP(&showAll, "all", "a", false, "Show all repositories including uncloned")
-	
-	return cmd
-}
-
-
-// newForallCmd creates the forall command
-func (a *App) newForallCmd() *cobra.Command {
-	var excludeRoot bool
-	var sequential bool
-	var maxParallel int
-	var quiet bool
-	var verbose bool
-	
-	cmd := &cobra.Command{
-		Use:   "forall -- command [args...]",
-		Short: "Run any command across all repositories in parallel",
-		Long: `Execute any shell command across all repositories with intelligent parallel execution.
-
-This powerful command:
-  • Runs ANY command in each repository's directory
-  • Includes the root repository by default (use --exclude-root to skip)
-  • Executes in parallel for maximum performance
-  • Supports both git and non-git commands
-  • Shows live output from each repository
-
-Performance Features:
-  • Parallel execution with configurable concurrency
-  • Automatic optimization for git commands
-  • Sequential fallback for debugging
-  • Resource-aware execution limits
-
-Use Cases:
-  • Git operations: status, log, diff, branch management
-  • Build commands: make, npm, cargo, go build
-  • Testing: run tests across all repos
-  • Cleanup: remove artifacts, reset state
-  • Custom scripts: any shell command
-
-Examples:
-  rc forall -- git status              # Check status of all repos
-  rc forall -- git log --oneline -5    # Show recent commits
-  rc forall -- make test                # Run tests in all repos
-  rc forall -- npm install              # Install dependencies
-  rc forall -- rm -rf node_modules     # Clean up artifacts
-  
-Advanced Options:
-  rc forall --exclude-root -- git pull # Skip root repository
-  rc forall --sequential -- make build # Build one at a time
-  rc forall --max-parallel 2 -- test   # Limit parallel execution
-  rc forall -v -- git fetch            # Verbose output
-  rc forall -q -- git gc               # Quiet mode`,
-		Args: cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			// First arg is command, rest are arguments
-			if len(args) == 0 {
-				return fmt.Errorf("no command specified")
-			}
-			command := args[0]
-			cmdArgs := args[1:]
-			
-			opts := manager.DefaultGitOptions()
-			opts.ExcludeRoot = excludeRoot
-			opts.Parallel = !sequential
-			if maxParallel > 0 {
-				opts.MaxParallel = maxParallel
-			}
-			opts.Quiet = quiet
-			opts.Verbose = verbose
-			
-			return mgr.ForAllWithOptions(command, cmdArgs, opts)
-		},
-	}
-	
-	cmd.Flags().BoolVarP(&excludeRoot, "exclude-root", "e", false, "Exclude root repository")
-	cmd.Flags().BoolVarP(&sequential, "sequential", "s", false, "Run sequentially instead of parallel")
-	cmd.Flags().IntVarP(&maxParallel, "max-parallel", "j", 4, "Maximum parallel operations")
-	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
-	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
-	
-	return cmd
-}
-
-
-// newBranchCmd creates the branch command with subcommands
-func (a *App) newBranchCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "branch",
-		Short: "Manage branches across repositories",
-		Long: `Branch management for all repositories in the workspace.
-Useful for creating feature branches and checking branch status across repos.`,
-	}
-	
-	// Add subcommands
-	cmd.AddCommand(a.newBranchCreateCmd())
-	cmd.AddCommand(a.newBranchListCmd())
-	cmd.AddCommand(a.newBranchCheckoutCmd())
-	cmd.AddCommand(a.newBranchDeleteCmd())
-	
-	return cmd
-}
-
-// newBranchCreateCmd creates the branch create subcommand
-func (a *App) newBranchCreateCmd() *cobra.Command {
-	var repos []string
-	var fromBranch string
-	
-	cmd := &cobra.Command{
-		Use:   "create <branch-name>",
-		Short: "Create a branch in multiple repositories",
-		Long: `Create a new branch with the same name across multiple repositories.
-		
-Examples:
-  rc branch create feature/payment      # Create in all repos
-  rc branch create feature/auth --repos backend,frontend
-  rc branch create hotfix/security --from develop`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			branchName := args[0]
-			
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			opts := manager.BranchCreateOptions{
-				BranchName: branchName,
-				FromBranch: fromBranch,
-				Repos:      repos,
-			}
-			
-			return mgr.CreateBranch(opts)
-		},
-	}
-	
-	cmd.Flags().StringSliceVarP(&repos, "repos", "r", nil, "Specific repositories (default: all)")
-	cmd.Flags().StringVarP(&fromBranch, "from", "f", "", "Base branch to create from (default: current branch)")
-	
-	return cmd
-}
-
-// newBranchListCmd creates the branch list subcommand
-func (a *App) newBranchListCmd() *cobra.Command {
-	var showAll bool
-	var showCurrent bool
-	
-	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List branches across repositories",
-		Long: `Show current branch status for all repositories.
-		
-Examples:
-  rc branch list             # Show current branches
-  rc branch list --all       # Show all branches
-  rc branch list --current   # Show only current branch names`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			opts := manager.BranchListOptions{
-				ShowAll:     showAll,
-				ShowCurrent: showCurrent,
-			}
-			
-			return mgr.ListBranches(opts)
-		},
-	}
-	
-	cmd.Flags().BoolVarP(&showAll, "all", "a", false, "Show all branches")
-	cmd.Flags().BoolVarP(&showCurrent, "current", "c", false, "Show only current branch")
-	
-	return cmd
-}
-
-// newBranchCheckoutCmd creates the branch checkout subcommand
-func (a *App) newBranchCheckoutCmd() *cobra.Command {
-	var repos []string
-	var createIfMissing bool
-	
-	cmd := &cobra.Command{
-		Use:   "checkout <branch-name>",
-		Short: "Checkout a branch in multiple repositories",
-		Long: `Checkout an existing branch across multiple repositories.
-		
-Examples:
-  rc branch checkout main                  # Checkout main in all repos
-  rc branch checkout feature/auth --repos backend,frontend
-  rc branch checkout develop --create      # Create if doesn't exist`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			branchName := args[0]
-			
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			opts := manager.BranchCheckoutOptions{
-				BranchName:      branchName,
-				Repos:           repos,
-				CreateIfMissing: createIfMissing,
-			}
-			
-			return mgr.CheckoutBranch(opts)
-		},
-	}
-	
-	cmd.Flags().StringSliceVarP(&repos, "repos", "r", nil, "Specific repositories (default: all)")
-	cmd.Flags().BoolVarP(&createIfMissing, "create", "c", false, "Create branch if it doesn't exist")
-	
-	return cmd
-}
-
-// newBranchDeleteCmd creates the branch delete subcommand
-func (a *App) newBranchDeleteCmd() *cobra.Command {
-	var repos []string
-	var force bool
-	var deleteRemote bool
-	
-	cmd := &cobra.Command{
-		Use:   "delete <branch-name>",
-		Short: "Delete a branch from multiple repositories",
-		Long: `Delete a branch from multiple repositories.
-		
-Examples:
-  rc branch delete feature/old          # Delete from all repos
-  rc branch delete feature/old --force  # Force delete
-  rc branch delete feature/old --remote # Also delete from remote`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			branchName := args[0]
-			
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			opts := manager.BranchDeleteOptions{
-				BranchName:   branchName,
-				Repos:        repos,
-				Force:        force,
-				DeleteRemote: deleteRemote,
-			}
-			
-			return mgr.DeleteBranch(opts)
-		},
-	}
-	
-	cmd.Flags().StringSliceVarP(&repos, "repos", "r", nil, "Specific repositories (default: all)")
-	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force delete even if not merged")
-	cmd.Flags().BoolVarP(&deleteRemote, "remote", "R", false, "Also delete from remote")
-	
-	return cmd
-}
-
-// newPRCmd creates the pr command with subcommands
-func (a *App) newPRCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "pr",
-		Short: "Manage pull requests across repositories",
-		Long: `Centralized pull request management for all repositories in the workspace.
-Uses GitHub CLI (gh) to interact with GitHub API.
-
-Requires:
-  - GitHub CLI (gh) to be installed and authenticated
-  - Repositories to have GitHub remotes configured`,
-	}
-	
-	// Add subcommands
-	cmd.AddCommand(a.newPRListCmd())
-	cmd.AddCommand(a.newPRCreateCmd())
-	cmd.AddCommand(a.newPRBatchCreateCmd())
-	cmd.AddCommand(a.newPRStatusCmd())
-	cmd.AddCommand(a.newPRCheckoutCmd())
-	cmd.AddCommand(a.newPRMergeCmd())
-	
-	return cmd
-}
-
-// newPRListCmd creates the pr list subcommand
-func (a *App) newPRListCmd() *cobra.Command {
-	var state string
-	var limit int
-	var author string
-	var assignee string
-	var label string
-	
-	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List PRs across all repositories",
-		Long: `List pull requests from all repositories in the workspace.
-		
-Examples:
-  rc pr list                    # List all open PRs
-  rc pr list --state all        # List all PRs (open, closed, merged)
-  rc pr list --author @me       # List your PRs
-  rc pr list --limit 10         # Limit results per repo`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			opts := manager.PRListOptions{
-				State:    state,
-				Limit:    limit,
-				Author:   author,
-				Assignee: assignee,
-				Label:    label,
-			}
-			
-			return mgr.ListPRs(opts)
-		},
-	}
-	
-	cmd.Flags().StringVarP(&state, "state", "s", "open", "Filter by state: open, closed, merged, all")
-	cmd.Flags().IntVarP(&limit, "limit", "l", 10, "Maximum number of PRs per repository")
-	cmd.Flags().StringVarP(&author, "author", "a", "", "Filter by author (@me for current user)")
-	cmd.Flags().StringVarP(&assignee, "assignee", "e", "", "Filter by assignee")
-	cmd.Flags().StringVarP(&label, "label", "L", "", "Filter by label")
-	
-	return cmd
-}
-
-// newPRCreateCmd creates the pr create subcommand
-func (a *App) newPRCreateCmd() *cobra.Command {
-	var title string
-	var body string
-	var base string
-	var draft bool
-	var reviewers []string
-	var assignees []string
-	var labels []string
-	var repo string
-	
-	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a pull request in a repository",
-		Long: `Create a new pull request in the specified repository.
-		
-Examples:
-  rc pr create --repo backend --title "Fix auth bug"
-  rc pr create --repo frontend --draft --title "WIP: New feature"
-  rc pr create --repo backend --base develop --title "Feature X"`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if repo == "" {
-				return fmt.Errorf("--repo flag is required")
-			}
-			
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			opts := manager.PRCreateOptions{
-				Repository: repo,
-				Title:      title,
-				Body:       body,
-				Base:       base,
-				Draft:      draft,
-				Reviewers:  reviewers,
-				Assignees:  assignees,
-				Labels:     labels,
-			}
-			
-			return mgr.CreatePR(opts)
-		},
-	}
-	
-	cmd.Flags().StringVarP(&repo, "repo", "r", "", "Repository to create PR in (required)")
-	cmd.Flags().StringVarP(&title, "title", "t", "", "PR title")
-	cmd.Flags().StringVarP(&body, "body", "b", "", "PR body/description")
-	cmd.Flags().StringVarP(&base, "base", "B", "", "Base branch (default: repository default branch)")
-	cmd.Flags().BoolVarP(&draft, "draft", "d", false, "Create as draft PR")
-	cmd.Flags().StringSliceVarP(&reviewers, "reviewers", "R", nil, "Request reviews from users")
-	cmd.Flags().StringSliceVarP(&assignees, "assignees", "A", nil, "Assign PR to users")
-	cmd.Flags().StringSliceVarP(&labels, "labels", "L", nil, "Add labels to PR")
-	
-	cmd.MarkFlagRequired("repo")
-	
-	return cmd
-}
-
-// newPRBatchCreateCmd creates the pr batch-create subcommand
-func (a *App) newPRBatchCreateCmd() *cobra.Command {
-	var title string
-	var body string
-	var base string
-	var draft bool
-	var reviewers []string
-	var assignees []string
-	var labels []string
-	var repos []string
-	var skipMainCheck bool
-	
-	cmd := &cobra.Command{
-		Use:   "batch-create",
-		Short: "Create PRs in multiple repositories",
-		Long: `Create pull requests in multiple repositories with the same title and body.
-Only creates PRs for repositories that are on feature branches (not on main/master).
-		
-Examples:
-  rc pr batch-create --title "Add payment integration"
-  rc pr batch-create --title "Fix security issue" --base develop
-  rc pr batch-create --title "Feature X" --repos backend,frontend,shared
-  rc pr batch-create --title "Emergency fix" --skip-main-check`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if title == "" {
-				return fmt.Errorf("--title flag is required")
-			}
-			
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			opts := manager.PRBatchCreateOptions{
-				Title:         title,
-				Body:          body,
-				Base:          base,
-				Draft:         draft,
-				Reviewers:     reviewers,
-				Assignees:     assignees,
-				Labels:        labels,
-				Repos:         repos,
-				SkipMainCheck: skipMainCheck,
-			}
-			
-			return mgr.BatchCreatePRs(opts)
-		},
-	}
-	
-	cmd.Flags().StringVarP(&title, "title", "t", "", "PR title (required)")
-	cmd.Flags().StringVarP(&body, "body", "b", "", "PR body/description")
-	cmd.Flags().StringVarP(&base, "base", "B", "", "Base branch (default: repository default branch)")
-	cmd.Flags().BoolVarP(&draft, "draft", "d", false, "Create as draft PRs")
-	cmd.Flags().StringSliceVarP(&reviewers, "reviewers", "R", nil, "Request reviews from users")
-	cmd.Flags().StringSliceVarP(&assignees, "assignees", "A", nil, "Assign PRs to users")
-	cmd.Flags().StringSliceVarP(&labels, "labels", "L", nil, "Add labels to PRs")
-	cmd.Flags().StringSliceVar(&repos, "repos", nil, "Specific repositories (default: all non-main branches)")
-	cmd.Flags().BoolVarP(&skipMainCheck, "skip-main-check", "S", false, "Skip check for main branch (use with caution)")
-	
-	cmd.MarkFlagRequired("title")
-	
-	return cmd
-}
-
-// newPRStatusCmd creates the pr status subcommand
-func (a *App) newPRStatusCmd() *cobra.Command {
-	var repo string
-	var number int
-	
-	cmd := &cobra.Command{
-		Use:   "status",
-		Short: "Show detailed status of PRs",
-		Long: `Show detailed status of pull requests including checks and reviews.
-		
-Examples:
-  rc pr status                         # Status of all open PRs
-  rc pr status --repo backend          # Status of PRs in backend repo
-  rc pr status --repo backend --pr 42  # Status of specific PR`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			opts := manager.PRStatusOptions{
-				Repository: repo,
-				Number:     number,
-			}
-			
-			return mgr.ShowPRStatus(opts)
-		},
-	}
-	
-	cmd.Flags().StringVarP(&repo, "repo", "r", "", "Filter by repository")
-	cmd.Flags().IntVarP(&number, "pr", "n", 0, "PR number to show status for")
-	
-	return cmd
-}
-
-// newPRCheckoutCmd creates the pr checkout subcommand
-func (a *App) newPRCheckoutCmd() *cobra.Command {
-	var repo string
-	
-	cmd := &cobra.Command{
-		Use:   "checkout <pr-number>",
-		Short: "Checkout a PR branch locally",
-		Long: `Checkout a pull request branch locally for review or testing.
-		
-Examples:
-  rc pr checkout 42 --repo backend     # Checkout PR #42 from backend repo
-  rc pr checkout 123 --repo frontend   # Checkout PR #123 from frontend repo`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if repo == "" {
-				return fmt.Errorf("--repo flag is required")
-			}
-			
-			prNumber, err := strconv.Atoi(args[0])
-			if err != nil {
-				return fmt.Errorf("invalid PR number: %s", args[0])
-			}
-			
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			return mgr.CheckoutPR(repo, prNumber)
-		},
-	}
-	
-	cmd.Flags().StringVarP(&repo, "repo", "r", "", "Repository containing the PR (required)")
-	cmd.MarkFlagRequired("repo")
-	
-	return cmd
-}
-
-// newPRMergeCmd creates the pr merge subcommand
-func (a *App) newPRMergeCmd() *cobra.Command {
-	var repo string
-	var method string
-	var deleteRemoteBranch bool
-	var deleteLocalBranch bool
-	
-	cmd := &cobra.Command{
-		Use:   "merge <pr-number>",
-		Short: "Merge a pull request",
-		Long: `Merge a pull request using the specified merge method.
-		
-Examples:
-  rc pr merge 42 --repo backend                    # Merge PR #42
-  rc pr merge 42 --repo backend --squash           # Squash and merge
-  rc pr merge 42 --repo backend --delete-branch    # Delete branch after merge`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if repo == "" {
-				return fmt.Errorf("--repo flag is required")
-			}
-			
-			prNumber, err := strconv.Atoi(args[0])
-			if err != nil {
-				return fmt.Errorf("invalid PR number: %s", args[0])
-			}
-			
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			opts := manager.PRMergeOptions{
-				Repository:         repo,
-				Number:             prNumber,
-				Method:             method,
-				DeleteRemoteBranch: deleteRemoteBranch,
-				DeleteLocalBranch:  deleteLocalBranch,
-			}
-			
-			return mgr.MergePR(opts)
-		},
-	}
-	
-	cmd.Flags().StringVarP(&repo, "repo", "r", "", "Repository containing the PR (required)")
-	cmd.Flags().StringVarP(&method, "method", "m", "", "Merge method: merge, squash, rebase")
-	cmd.Flags().BoolVarP(&deleteRemoteBranch, "delete-branch", "D", false, "Delete the remote branch after merge")
-	cmd.Flags().BoolVarP(&deleteLocalBranch, "delete-local", "d", false, "Delete the local branch after merge")
-	cmd.MarkFlagRequired("repo")
-	
-	return cmd
-}
-
-// newCommitCmd creates the commit command
-func (a *App) newCommitCmd() *cobra.Command {
-	var excludeRoot bool
-	var sequential bool
-	var maxParallel int
-	var quiet bool
-	var verbose bool
-	var message string
-	var all bool
-	
-	cmd := &cobra.Command{
-		Use:   "commit",
-		Short: "Commit changes across all repositories in parallel",
-		Long: `Create commits in all repositories with uncommitted changes using parallel execution.
-
-This command automatically:
-  • Detects repositories with uncommitted changes
-  • Stages all changes using 'git add -A'
-  • Creates commits with your provided message
-  • Includes the root repository by default (use --exclude-root to skip)
-  • Executes in parallel for better performance (use --sequential for one-by-one)
-
-Performance Notes:
-  • Parallel execution uses up to 4 concurrent operations by default
-  • Adjust with --max-parallel flag for your system capabilities
-  • Sequential mode useful for debugging or resource-constrained environments
-
-Examples:
-  rc commit -m "Update dependencies"           # Commit in all repos including root
-  rc commit -m "Fix bug" --exclude-root        # Skip root repository
-  rc commit -m "Feature X" --sequential        # Process repos one by one
-  rc commit -m "Refactor" --max-parallel 8     # Use 8 parallel operations
-  rc commit -m "Update" -v                     # Show detailed output`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if message == "" {
-				return fmt.Errorf("commit message is required (use -m flag)")
-			}
-			
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			opts := manager.DefaultGitOptions()
-			opts.ExcludeRoot = excludeRoot
-			opts.Parallel = !sequential
-			if maxParallel > 0 {
-				opts.MaxParallel = maxParallel
-			}
-			opts.Quiet = quiet
-			opts.Verbose = verbose
-			
-			return mgr.GitCommit(message, opts)
-		},
-	}
-	
-	cmd.Flags().StringVarP(&message, "message", "m", "", "Commit message (required)")
-	cmd.Flags().BoolVarP(&all, "all", "a", false, "Stage all changes before commit")
-	cmd.Flags().BoolVarP(&excludeRoot, "exclude-root", "e", false, "Exclude root repository")
-	cmd.Flags().BoolVarP(&sequential, "sequential", "s", false, "Run sequentially instead of parallel")
-	cmd.Flags().IntVarP(&maxParallel, "max-parallel", "j", 4, "Maximum parallel operations")
-	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
-	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
-	
-	return cmd
-}
-
-// newPushCmd creates the push command
-func (a *App) newPushCmd() *cobra.Command {
-	var excludeRoot bool
-	var sequential bool
-	var maxParallel int
-	var quiet bool
-	var verbose bool
-	var force bool
-	var setUpstream bool
-	
-	cmd := &cobra.Command{
-		Use:   "push",
-		Short: "Push commits to remote repositories in parallel",
-		Long: `Push local commits to remote repositories using parallel execution for speed.
-
-This command:
-  • Pushes all repositories with unpushed commits
-  • Includes the root repository by default (use --exclude-root to skip)
-  • Executes in parallel for maximum efficiency
-  • Shows clear success/failure status for each repository
-  • Provides summary of push operations
-
-Safety Features:
-  • Non-destructive by default (use --force with caution)
-  • Shows which repos are being pushed before execution
-  • Reports failures without stopping other pushes
-  • Preserves branch tracking relationships
-
-Examples:
-  rc push                          # Push all repos with changes
-  rc push --exclude-root           # Skip root repository
-  rc push --sequential             # Push one repository at a time
-  rc push -v                      # Show detailed git output
-  rc push --max-parallel 10        # Use 10 parallel operations
-  
-Future Options (coming soon):
-  rc push --force                  # Force push (use with caution!)
-  rc push --set-upstream origin    # Set upstream while pushing`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			opts := manager.DefaultGitOptions()
-			opts.ExcludeRoot = excludeRoot
-			opts.Parallel = !sequential
-			if maxParallel > 0 {
-				opts.MaxParallel = maxParallel
-			}
-			opts.Quiet = quiet
-			opts.Verbose = verbose
-			
-			// TODO: Add support for force and set-upstream flags
-			return mgr.GitPush(opts)
-		},
-	}
-	
-	cmd.Flags().BoolVarP(&excludeRoot, "exclude-root", "e", false, "Exclude root repository")
-	cmd.Flags().BoolVarP(&sequential, "sequential", "s", false, "Run sequentially instead of parallel")
-	cmd.Flags().IntVarP(&maxParallel, "max-parallel", "j", 4, "Maximum parallel operations")
-	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
-	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
-	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force push")
-	cmd.Flags().BoolVarP(&setUpstream, "set-upstream", "u", false, "Set upstream branch")
-	
-	return cmd
-}
-
-// newPullCmd creates the pull command
-func (a *App) newPullCmd() *cobra.Command {
-	var excludeRoot bool
-	var sequential bool
-	var maxParallel int
-	var quiet bool
-	var verbose bool
-	var rebase bool
-	var cloneMissing bool
-	
-	cmd := &cobra.Command{
-		Use:   "pull",
-		Short: "Synchronize repositories (pull existing, optionally clone missing)",
-		Long: `Synchronize all repositories by pulling existing ones and optionally cloning missing ones.
-
-This command:
-  • Clones missing repositories when --clone-missing is used
-  • Fetches and merges changes from configured remotes  
-  • Includes the root repository by default (use --exclude-root to skip)
-  • Executes in parallel for faster synchronization
-  • Supports both merge and rebase strategies
-  • Handles merge conflicts gracefully
-
-Merge Strategies:
-  • Default: Standard merge (creates merge commits)
-  • --rebase: Rebase local changes on top of remote
-    - Maintains linear history
-    - Avoids merge commits
-    - Recommended for feature branches
-
-Conflict Handling:
-  • Reports repositories with conflicts
-  • Continues with other repos even if one fails
-  • Provides clear status for manual resolution
-
-Examples:
-  rc pull                    # Pull all existing repos
-  rc pull --clone-missing    # Clone missing repos, then pull all
-  rc pull --rebase           # Pull with rebase (cleaner history)
-  rc pull --exclude-root     # Skip root repository
-  rc pull -v                 # Show detailed git output
-  rc pull --sequential       # Pull one repo at a time
-  rc pull --max-parallel 2   # Limit to 2 concurrent pulls`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			opts := manager.DefaultGitOptions()
-			opts.ExcludeRoot = excludeRoot
-			opts.Parallel = !sequential
-			if maxParallel > 0 {
-				opts.MaxParallel = maxParallel
-			}
-			opts.Quiet = quiet
-			opts.Verbose = verbose
-			
-			if cloneMissing {
-				// First clone any missing repositories
-				if err := mgr.CloneMissing(); err != nil {
-					return fmt.Errorf("failed to clone missing repositories: %w", err)
-				}
-			}
-			return mgr.GitPull(rebase, opts)
-		},
-	}
-	
-	cmd.Flags().BoolVarP(&excludeRoot, "exclude-root", "e", false, "Exclude root repository")
-	cmd.Flags().BoolVarP(&sequential, "sequential", "s", false, "Run sequentially instead of parallel")
-	cmd.Flags().IntVarP(&maxParallel, "max-parallel", "j", 4, "Maximum parallel operations")
-	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
-	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
-	cmd.Flags().BoolVarP(&rebase, "rebase", "r", false, "Pull with rebase")
-	cmd.Flags().BoolVarP(&cloneMissing, "clone-missing", "c", false, "Clone missing repositories before pulling")
-	
-	return cmd
-}
-
-// newFetchCmd creates the fetch command
-func (a *App) newFetchCmd() *cobra.Command {
-	var excludeRoot bool
-	var sequential bool
-	var maxParallel int
-	var quiet bool
-	var verbose bool
-	var all bool
-	var prune bool
-	
-	cmd := &cobra.Command{
-		Use:   "fetch",
-		Short: "Fetch changes from remote repositories without merging",
-		Long: `Fetch updates from remote repositories without merging them into local branches.
-
-This command:
-  • Downloads new commits, branches, and tags from remotes
-  • Does NOT modify your working directory or current branch
-  • Includes the root repository by default (use --exclude-root to skip)
-  • Executes in parallel for faster synchronization
-  • Updates remote-tracking branches (origin/main, etc.)
-
-Use Cases:
-  • Preview incoming changes before merging
-  • Update remote references for comparison
-  • Prepare for offline work
-  • Synchronize repository metadata
-
-Options:
-  • --all: Fetch from all configured remotes (not just origin)
-  • --prune: Remove local references to deleted remote branches
-    - Cleans up obsolete remote-tracking branches
-    - Keeps your repository metadata current
-
-Examples:
-  rc fetch                   # Fetch default remote for all repos
-  rc fetch --all             # Fetch all remotes
-  rc fetch --prune           # Fetch and clean deleted branches
-  rc fetch --all --prune     # Complete remote synchronization
-  rc fetch --exclude-root    # Skip root repository
-  rc fetch -v                # Show detailed fetch information
-  rc fetch --max-parallel 10 # Use 10 parallel operations`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return err
-			}
-			
-			opts := manager.DefaultGitOptions()
-			opts.ExcludeRoot = excludeRoot
-			opts.Parallel = !sequential
-			if maxParallel > 0 {
-				opts.MaxParallel = maxParallel
-			}
-			opts.Quiet = quiet
-			opts.Verbose = verbose
-			
-			return mgr.GitFetch(all, prune, opts)
-		},
-	}
-	
-	cmd.Flags().BoolVarP(&excludeRoot, "exclude-root", "e", false, "Exclude root repository")
-	cmd.Flags().BoolVarP(&sequential, "sequential", "s", false, "Run sequentially instead of parallel")
-	cmd.Flags().IntVarP(&maxParallel, "max-parallel", "j", 4, "Maximum parallel operations")
-	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output")
-	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed output")
-	cmd.Flags().BoolVarP(&all, "all", "a", false, "Fetch all remotes")
-	cmd.Flags().BoolVarP(&prune, "prune", "p", false, "Prune deleted remote branches")
-	
-	return cmd
-}
-
-// newVersionCmd creates the version command
-func (a *App) newVersionCmd() *cobra.Command {
-	var details bool
-	
-	cmd := &cobra.Command{
-		Use:   "version",
-		Short: "Show version information",
-		Long: `Display version information for repo-claude.
-
-Shows the version number, and with --details flag, shows additional
-build information including git commit, branch, and build time.
-
-Version Types:
-  • Release: Built from a tagged commit (e.g., v0.4.0)
-  • Dev: Built from an untagged commit (e.g., v0.4.0-5-gabcd123)
-  • Dev (dirty): Built with uncommitted changes (e.g., v0.4.0-5-gabcd123-dirty)
-
-Examples:
-  rc version           # Show version number
-  rc version --details # Show full build information`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if details {
-				fmt.Fprintln(a.stdout, formatVersionDetails())
-			} else {
-				fmt.Fprintf(a.stdout, "rc version %s\n", formatVersion())
-			}
-			return nil
-		},
-	}
-	
-	cmd.Flags().BoolVarP(&details, "details", "d", false, "Show detailed version information")
-	
-	return cmd
 }

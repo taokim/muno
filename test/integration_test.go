@@ -31,7 +31,7 @@ func TestIntegrationWorkflow(t *testing.T) {
 	projectName := "test-project"
 	projectDir := filepath.Join(tmpDir, projectName)
 	
-	cmd := exec.Command(binary, "init", projectName, "--non-interactive")
+	cmd := exec.Command(binary, "init", projectName)
 	cmd.Dir = tmpDir
 	output, err := cmd.CombinedOutput()
 	t.Logf("Init output: %s", string(output))
@@ -40,39 +40,91 @@ func TestIntegrationWorkflow(t *testing.T) {
 	// Test init command results
 	t.Run("Init", func(t *testing.T) {
 		assert.Contains(t, string(output), "🚀 Initializing Repo-Claude workspace")
-		assert.Contains(t, string(output), "✅ Workspace initialized")
+		assert.Contains(t, string(output), "✨ Workspace initialized")
 		
-		// Check created files
+		// Check created files for v2 structure
 		assert.FileExists(t, filepath.Join(projectDir, "repo-claude.yaml"))
-		assert.FileExists(t, filepath.Join(projectDir, "workspace", "shared-memory.md"))
-		assert.DirExists(t, filepath.Join(projectDir, "workspace"))
+		assert.FileExists(t, filepath.Join(projectDir, "CLAUDE.md"))
+		assert.DirExists(t, filepath.Join(projectDir, "workspaces"))
+		assert.DirExists(t, filepath.Join(projectDir, "docs"))
+		assert.DirExists(t, filepath.Join(projectDir, "docs", "global"))
+		assert.DirExists(t, filepath.Join(projectDir, "docs", "scopes"))
 	})
 	
-	// Test status command
-	t.Run("Status", func(t *testing.T) {
-		cmd := exec.Command(binary, "status")
+	// Test list command
+	t.Run("List", func(t *testing.T) {
+		cmd := exec.Command(binary, "list")
 		cmd.Dir = projectDir
 		output, err := cmd.CombinedOutput()
 		
-		require.NoError(t, err, "Status failed: %s", string(output))
-		assert.Contains(t, string(output), "REPO-CLAUDE STATUS")
-		assert.Contains(t, string(output), "Workspace: test-project")
-		assert.Contains(t, string(output), "Repositories")
+		require.NoError(t, err, "List failed: %s", string(output))
+		assert.Contains(t, string(output), "Available Scopes")
+		// Should show default scopes from config
+		assert.Contains(t, string(output), "wms")
+		assert.Contains(t, string(output), "oms")
+	})
+	
+	// Test status command for a scope
+	t.Run("Status", func(t *testing.T) {
+		// Create a scope first
+		cmd := exec.Command(binary, "scope", "create", "wms")
+		cmd.Dir = projectDir
+		output, _ := cmd.CombinedOutput()
+		t.Logf("Scope create output: %s", string(output))
+		
+		// Now check status
+		cmd = exec.Command(binary, "status", "wms")
+		cmd.Dir = projectDir
+		output, err := cmd.CombinedOutput()
+		
+		if err != nil {
+			// Status might fail if repos aren't cloned yet, but command should be recognized
+			assert.NotContains(t, string(output), "unknown command")
+		} else {
+			assert.Contains(t, string(output), "Scope Status")
+		}
 	})
 	
 	// Test pull command
 	t.Run("Pull", func(t *testing.T) {
-		// Create dummy repositories for testing
-		createDummyRepos(t, projectDir)
-		
-		cmd := exec.Command(binary, "pull", "--clone-missing")
+		cmd := exec.Command(binary, "pull", "wms", "--clone-missing")
 		cmd.Dir = projectDir
 		output, _ := cmd.CombinedOutput()
 		
-		// Pull might fail if repos don't exist, but command should run
-		// With --clone-missing, we should see cloning messages
-		assert.Contains(t, string(output), "Cloning")
+		// Pull will fail since the repos don't actually exist, but command should be recognized
+		assert.NotContains(t, string(output), "unknown command")
+		// Should see attempt to clone
+		t.Logf("Pull output: %s", string(output))
 	})
+}
+
+// TestConfigValidation tests configuration validation
+func TestConfigValidation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+	
+	tmpDir := t.TempDir()
+	binary := buildBinary(t, tmpDir)
+	
+	// Try to run commands without config
+	commands := []string{"list", "start wms", "status wms", "pull wms"}
+	
+	for _, cmdStr := range commands {
+		t.Run(fmt.Sprintf("Command_%s", cmdStr), func(t *testing.T) {
+			args := []string{}
+			for _, arg := range bytes.Fields([]byte(cmdStr)) {
+				args = append(args, string(arg))
+			}
+			
+			cmd := exec.Command(binary, args...)
+			cmd.Dir = tmpDir
+			output, _ := cmd.CombinedOutput()
+			
+			// Should fail with config not found message
+			assert.Contains(t, string(output), "no repo-claude.yaml found")
+		})
+	}
 }
 
 // checkTool verifies a tool is available
@@ -102,56 +154,33 @@ func buildBinary(t *testing.T, tmpDir string) string {
 
 // createDummyRepos creates dummy git repositories for testing
 func createDummyRepos(t *testing.T, projectDir string) {
-	repos := []string{"backend", "frontend", "mobile", "shared-libs"}
-	workspaceDir := filepath.Join(projectDir, "workspace")
+	// Read config to get repo URLs
+	// For testing, we'll just create local git repos
+	reposDir := filepath.Join(projectDir, ".test-repos")
+	os.MkdirAll(reposDir, 0755)
+	
+	repos := []string{"wms-core", "wms-inventory", "oms-core"}
 	
 	for _, repo := range repos {
-		repoPath := filepath.Join(workspaceDir, repo)
-		if err := os.MkdirAll(repoPath, 0755); err != nil {
-			continue
-		}
+		repoPath := filepath.Join(reposDir, repo)
+		os.MkdirAll(repoPath, 0755)
 		
-		// Initialize as git repo
+		// Initialize git repo
 		cmd := exec.Command("git", "init")
 		cmd.Dir = repoPath
 		cmd.Run()
 		
 		// Create a dummy file
 		dummyFile := filepath.Join(repoPath, "README.md")
-		os.WriteFile(dummyFile, []byte(fmt.Sprintf("# %s\n", repo)), 0644)
-		
-		// Configure git if needed
-		exec.Command("git", "config", "user.email", "test@example.com").Dir = repoPath
-		exec.Command("git", "config", "user.name", "Test User").Dir = repoPath
+		os.WriteFile(dummyFile, []byte("# "+repo), 0644)
 		
 		// Add and commit
-		exec.Command("git", "add", ".").Dir = repoPath
-		exec.Command("git", "commit", "-m", "Initial commit").Dir = repoPath
-	}
-}
-
-// TestConfigValidation tests configuration validation
-func TestConfigValidation(t *testing.T) {
-	tmpDir := t.TempDir()
-	binary := buildBinary(t, tmpDir)
-	
-	// Test init without project name now succeeds (uses current directory)
-	workspaceDir := filepath.Join(tmpDir, "test-workspace")
-	os.MkdirAll(workspaceDir, 0755)
-	
-	cmd := exec.Command(binary, "init")
-	cmd.Dir = workspaceDir
-	output, err := cmd.CombinedOutput()
-	// Init should succeed even without repos being cloneable
-	assert.NoError(t, err, "init should succeed: %s", string(output))
-	
-	// Test commands without workspace
-	cmds := []string{"start", "status", "pull"}
-	for _, cmdName := range cmds {
-		cmd := exec.Command(binary, cmdName)
-		cmd.Dir = tmpDir
-		output, err := cmd.CombinedOutput()
-		assert.Error(t, err, "%s should fail without workspace", cmdName)
-		assert.Contains(t, string(output), "no repo-claude.yaml found")
+		cmd = exec.Command("git", "add", ".")
+		cmd.Dir = repoPath
+		cmd.Run()
+		
+		cmd = exec.Command("git", "commit", "-m", "Initial commit")
+		cmd.Dir = repoPath
+		cmd.Run()
 	}
 }

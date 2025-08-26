@@ -1,0 +1,283 @@
+# Scope Isolation Configuration Example - E-Commerce Platform
+# This shows the v2 configuration format for isolated scopes with e-commerce focus
+
+version: 2  # Configuration version for scope isolation
+
+workspace:
+  name: ecommerce-platform
+  isolation_mode: true        # Enable scope isolation (default in v2)
+  base_path: workspaces       # Base directory for isolated scopes
+  
+# Global repository definitions
+# These define all available repositories that scopes can use
+repositories:
+  # WMS (Warehouse Management System) components
+  wms-core:
+    url: https://github.com/yourorg/wms-core.git
+    default_branch: main
+    groups: [wms, backend, core]
+    
+  wms-inventory:
+    url: https://github.com/yourorg/wms-inventory.git
+    default_branch: main
+    groups: [wms, backend, inventory]
+    
+  wms-shipping:
+    url: https://github.com/yourorg/wms-shipping.git
+    default_branch: main
+    groups: [wms, backend, logistics]
+    
+  wms-ui:
+    url: https://github.com/yourorg/wms-ui.git
+    default_branch: main
+    groups: [wms, frontend, ui]
+    
+  # OMS (Order Management System) components
+  oms-core:
+    url: https://github.com/yourorg/oms-core.git
+    default_branch: main
+    groups: [oms, backend, core]
+    
+  oms-payment:
+    url: https://github.com/yourorg/oms-payment.git
+    default_branch: main
+    groups: [oms, backend, payment]
+    
+  oms-fulfillment:
+    url: https://github.com/yourorg/oms-fulfillment.git
+    default_branch: main
+    groups: [oms, backend, fulfillment]
+    
+  oms-ui:
+    url: https://github.com/yourorg/oms-ui.git
+    default_branch: main
+    groups: [oms, frontend, ui]
+    
+  # Search components
+  search-engine:
+    url: https://github.com/yourorg/search-engine.git
+    default_branch: main
+    groups: [search, backend, core]
+    
+  search-indexer:
+    url: https://github.com/yourorg/search-indexer.git
+    default_branch: main
+    groups: [search, backend, data]
+    
+  search-ui:
+    url: https://github.com/yourorg/search-ui.git
+    default_branch: main
+    groups: [search, frontend, ui]
+    
+  # Catalog components
+  catalog-service:
+    url: https://github.com/yourorg/catalog-service.git
+    default_branch: main
+    groups: [catalog, backend, core]
+    
+  catalog-admin:
+    url: https://github.com/yourorg/catalog-admin.git
+    default_branch: main
+    groups: [catalog, frontend, admin]
+    
+  catalog-api:
+    url: https://github.com/yourorg/catalog-api.git
+    default_branch: main
+    groups: [catalog, backend, api]
+    
+  # Shared components
+  shared-libs:
+    url: https://github.com/yourorg/shared-libs.git
+    default_branch: main
+    groups: [shared, core, library]
+    
+  api-gateway:
+    url: https://github.com/yourorg/api-gateway.git
+    default_branch: main
+    groups: [shared, backend, gateway]
+    
+  web-storefront:
+    url: https://github.com/yourorg/web-storefront.git
+    default_branch: main
+    groups: [storefront, frontend, web]
+    
+  mobile-app:
+    url: https://github.com/yourorg/mobile-app.git
+    default_branch: main
+    groups: [storefront, mobile, ui]
+
+# Scope definitions
+# Each scope gets its own isolated workspace
+scopes:
+  # Persistent scopes - for ongoing development
+  wms:
+    type: persistent
+    repos: 
+      - wms-core
+      - wms-inventory
+      - wms-shipping
+      - wms-ui
+      - shared-libs
+    description: "Warehouse Management System - inventory, shipping, and logistics"
+    model: claude-3-5-sonnet-20241022
+    auto_start: false
+    
+  oms:
+    type: persistent
+    repos:
+      - oms-core
+      - oms-payment
+      - oms-fulfillment
+      - oms-ui
+      - shared-libs
+      - api-gateway
+    description: "Order Management System - order processing, payments, and fulfillment"
+    model: claude-3-5-sonnet-20241022
+    auto_start: false
+    
+  search:
+    type: persistent
+    repos:
+      - search-engine
+      - search-indexer
+      - search-ui
+      - catalog-api
+      - shared-libs
+    description: "Search and Discovery - search engine, indexing, and relevance"
+    model: claude-3-5-sonnet-20241022
+    auto_start: false
+    
+  catalog:
+    type: persistent
+    repos:
+      - catalog-service
+      - catalog-admin
+      - catalog-api
+      - search-indexer
+      - shared-libs
+    description: "Product Catalog Management - products, categories, and attributes"
+    model: claude-3-5-sonnet-20241022
+    auto_start: false
+    
+  storefront:
+    type: persistent
+    repos:
+      - web-storefront
+      - mobile-app
+      - api-gateway
+      - catalog-api
+      - search-ui
+      - shared-libs
+    description: "Customer-facing storefront applications and APIs"
+    model: claude-3-5-sonnet-20241022
+    auto_start: false
+    
+  fullstack:
+    type: persistent
+    repos:
+      - web-storefront
+      - oms-core
+      - catalog-api
+      - search-engine
+      - api-gateway
+      - shared-libs
+    description: "Full-stack e-commerce development - frontend to backend"
+    model: claude-3-5-sonnet-20241022
+    auto_start: false
+    
+  integration:
+    type: persistent
+    repos:
+      - api-gateway
+      - oms-core
+      - wms-core
+      - catalog-service
+      - shared-libs
+    description: "System integration - APIs, events, and data flow between services"
+    model: claude-3-5-sonnet-20241022
+    auto_start: false
+    
+  # Ephemeral scope templates
+  # Note: NO TTL FIELD - manual lifecycle management only
+  hotfix:
+    type: ephemeral
+    repos: []  # Selected interactively at creation
+    description: "Emergency hotfix template - select affected repositories at creation"
+    model: claude-3-5-sonnet-20241022
+    template_prompts:
+      - "Which repositories need the hotfix?"
+      - "What is the issue being fixed?"
+    
+  feature:
+    type: ephemeral
+    repos: []  # Selected interactively at creation
+    description: "Feature development template - cross-service feature implementation"
+    model: claude-3-5-sonnet-20241022
+    template_prompts:
+      - "Which repositories will this feature touch?"
+      - "What is the feature name?"
+      - "Which branch should be used as base?"
+    
+  experiment:
+    type: ephemeral
+    repos: []  # Selected interactively at creation
+    description: "Quick experimentation template - POC and testing"
+    model: claude-3-5-sonnet-20241022
+    
+  performance:
+    type: ephemeral
+    repos: []  # Selected based on performance bottlenecks
+    description: "Performance optimization template"
+    model: claude-3-5-sonnet-20241022
+
+# Documentation configuration
+documentation:
+  path: docs              # Documentation root path
+  sync_to_git: true      # Auto-commit documentation changes
+  structure:
+    global:
+      - architecture: "E-commerce platform architecture and design"
+      - api-standards: "API design standards and contracts"
+      - deployment: "Deployment procedures and infrastructure"
+      - security: "Security policies and compliance"
+    scopes:
+      - implementation: "Scope-specific implementation details"
+      - decisions: "Technical decisions and rationale"
+      - testing: "Test plans and results"
+
+# Advanced options
+advanced:
+  parallel_clone: true         # Clone repositories in parallel
+  max_parallel: 4              # Maximum parallel operations
+  
+# Scope presets (for quick creation)
+presets:
+  wms-inventory-fix:
+    template: hotfix
+    repos: [wms-core, wms-inventory, shared-libs]
+    branch_prefix: "hotfix/wms-"
+    
+  oms-payment-fix:
+    template: hotfix
+    repos: [oms-core, oms-payment, shared-libs]
+    branch_prefix: "hotfix/oms-"
+    
+  new-search-feature:
+    template: feature
+    repos: [search-engine, search-indexer, search-ui, catalog-api]
+    branch_prefix: "feature/search-"
+    
+  catalog-update:
+    template: feature
+    repos: [catalog-service, catalog-admin, catalog-api, search-indexer]
+    branch_prefix: "feature/catalog-"
+    
+  storefront-enhancement:
+    template: feature
+    repos: [web-storefront, mobile-app, api-gateway]
+    branch_prefix: "feature/storefront-"
+    
+  api-optimization:
+    template: performance
+    repos: [api-gateway, "*-core", "*-service"]  # Wildcard for all core services
+    branch_prefix: "perf/api-"
