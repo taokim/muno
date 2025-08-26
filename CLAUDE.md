@@ -4,16 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Repo-Claude Go is a multi-repository orchestration tool that launches Claude Code sessions with flexible scopes spanning multiple repositories. This Go implementation is the active version that replaces the deprecated Python implementation.
+Repo-Claude v2 is a multi-repository orchestration tool that provides isolated, scope-based development environments. This Go implementation features workspace isolation where each scope operates in its own directory under `workspaces/`, preventing conflicts and enabling parallel development.
 
 **Key Features:**
-- Scope-based development across multiple repositories
-- Flexible repository grouping with wildcard support
-- Runs in current terminal by default, with automatic new windows for multiple sessions
-- Shared memory for cross-scope communication
-- Trunk-based development workflow
-- Direct git management (no Google repo tool dependency)
-- Environment variables passed to Claude sessions for context
+- **Isolated workspace architecture** - each scope in its own `workspaces/` subdirectory
+- **Scope-based development** across multiple repositories with complete isolation
+- **Persistent and ephemeral scopes** for different workflow needs
+- **E-commerce focused examples** (WMS, OMS, Search, Catalog)
+- **Direct git management** with per-scope repository state
+- **Shared memory** for cross-scope coordination
+- **Documentation system** with global and scope-specific docs
+- **No TTL implementation** - scopes are manually managed
 
 ## Commands
 
@@ -27,28 +28,35 @@ go build -o bin/rc ./cmd/repo-claude
 # Initialize a new workspace
 ./bin/rc init <workspace-name>
 
-# Start scopes
-./bin/rc start              # Start all auto-start scopes
-./bin/rc start <scope-name> # Start specific scope
-./bin/rc start <repo-name>  # Start scope containing this repo
-./bin/rc start --new-window # Force open in new window
-./bin/rc start scope1 scope2 # Multiple scopes auto-open in new windows
+# Scope Management (v2)
+./bin/rc scope create <name> --type persistent --repos "wms-*,shared-libs"  # Create scope
+./bin/rc scope delete <name>       # Delete scope
+./bin/rc scope archive <name>      # Archive scope
+./bin/rc list                      # List all scopes (configured and created)
 
-# List available scopes
-./bin/rc list               # Shows all configured scopes
+# Start scopes
+./bin/rc start              # Interactive scope selection
+./bin/rc start <scope-name> # Start specific scope
 
 # Check status
-./bin/rc status             # Shows workspace configuration and repository status
+./bin/rc status             # Shows workspace configuration and scope status
 
-# Synchronize repositories (clone missing and pull existing)
-./bin/rc pull --clone-missing
+# Git operations within scopes
+./bin/rc pull --scope <name>              # Pull repos in scope
+./bin/rc commit --scope <name> -m "msg"   # Commit in scope
+./bin/rc push --scope <name>              # Push scope changes
+./bin/rc branch --scope <name> <branch>   # Switch branch in scope
 
-# Manage pull requests (requires GitHub CLI)
-./bin/rc pr list                    # List PRs across all repos
-./bin/rc pr create --repo <name>    # Create a PR
-./bin/rc pr status                  # Show PR status
-./bin/rc pr checkout <number> --repo <name>  # Checkout PR
-./bin/rc pr merge <number> --repo <name>     # Merge PR
+# Documentation management
+./bin/rc docs create --global <name>      # Create global doc
+./bin/rc docs create --scope <scope>      # Create scope doc
+./bin/rc docs list                        # List all docs
+./bin/rc docs sync                        # Sync to Git
+
+# Pull request management
+./bin/rc pr list --scope <name>           # List PRs for scope repos
+./bin/rc pr create --scope <name>         # Create PR for scope
+./bin/rc pr status --scope <name>         # Show PR status
 ```
 
 ### Development Commands
@@ -70,61 +78,105 @@ go install ./cmd/repo-claude
 
 ## Architecture
 
-### Core Components
+### Core Components (v2 Architecture)
 
-1. **RepoClaudeManager** (`pkg/manager/manager.go`)
-   - Main orchestration class managing workspace, configuration, and scope lifecycle
-   - Handles direct git operations (replacing Google's repo tool)
-   - Manages Claude Code session lifecycle
+1. **Manager** (`internal/manager/manager.go`)
+   - Main orchestration handling workspace initialization and coordination
+   - Delegates to specialized managers (ScopeManager, DocsManager)
+   - Manages v2 configuration with isolation mode
 
-2. **Configuration System** (`pkg/config/`)
-   - YAML-based configuration (`repo-claude.yaml`) with scope definitions
-   - Wildcard support in repository patterns
-   - Simplified focus on scope configuration
+2. **ScopeManager** (`internal/scope/manager.go`)
+   - Creates and manages isolated scope directories in `workspaces/`
+   - Handles scope lifecycle (create, delete, archive)
+   - Manages `.scope-meta.json` files for scope metadata
 
-3. **Git Management** (`pkg/git/`)
-   - Direct git operations for cloning and syncing repositories
-   - Branch management and status checking
-   - Replaces Google's repo tool functionality
+3. **Scope** (`internal/scope/scope.go`)
+   - Represents an individual isolated workspace
+   - Handles git operations within scope context
+   - Creates CLAUDE.md files for AI context
+   - Manages repository state per scope
 
-4. **Scope Management** (`pkg/manager/scopes.go`)
-   - Launches Claude Code instances with multi-repository context
-   - Sets environment variables (RC_SCOPE_ID, RC_SCOPE_NAME, RC_SCOPE_REPOS, RC_WORKSPACE_ROOT, RC_PROJECT_ROOT)
-   - Supports scope dependencies and auto-start configuration
-   - Creates CLAUDE.md files in each repository for workspace context
-   - Terminal tab management with fallback to windows
-   - Working directory set to project root for consistency
+4. **Configuration System** (`internal/config/config.go`)
+   - v2 configuration schema with `version: 2`
+   - `isolation_mode: true` by default
+   - `base_path: "workspaces"` for isolated scopes
+   - E-commerce themed default repositories and scopes
 
-### Workspace Structure
+5. **Documentation System** (`internal/docs/manager.go`)
+   - Manages global docs in `docs/global/`
+   - Manages scope-specific docs in `docs/scopes/`
+   - Supports Git synchronization
 
-See [docs/workspace-structure.md](docs/workspace-structure.md) for detailed workspace layout and configuration options.
+6. **Types** (`internal/scope/types.go`)
+   - `Meta`: Scope metadata (id, name, type, state, repos)
+   - `RepoState`: Repository status within scope
+   - `Type`: persistent or ephemeral
+   - `State`: active, inactive, or archived
+   - No TTL field per requirements
 
-### Key Design Patterns
+### Workspace Structure (v2)
 
-1. **Trunk-Based Development**: All scopes work directly on main branch
-2. **Shared Memory Pattern**: `shared-memory.md` file for cross-scope coordination
-3. **Flexible Scope Mapping**: Scopes can include multiple repositories with wildcards
-4. **Direct Git Management**: Uses native git commands instead of Google's repo tool
-5. **State Persistence**: JSON-based state tracking for scope lifecycle
-6. **Terminal Integration**: Smart tab/window management for better workflow
+```
+my-ecommerce-platform/
+├── repo-claude.yaml         # v2 configuration
+├── .repo-claude-state.json  # State tracking
+├── shared-memory.md         # Cross-scope coordination
+├── docs/                    # Documentation system
+│   ├── global/             # Project-wide docs
+│   └── scopes/             # Scope-specific docs
+└── workspaces/             # Isolated scope directories
+    ├── wms-dev/            # WMS development scope
+    │   ├── .scope-meta.json
+    │   ├── wms-core/
+    │   ├── wms-inventory/
+    │   ├── wms-shipping/
+    │   └── shared-libs/
+    └── oms-hotfix/         # OMS hotfix scope
+        ├── .scope-meta.json
+        ├── oms-core/
+        ├── oms-payment/
+        └── shared-libs/
+```
 
-### Data Flow
+See [docs/workspace-structure.md](docs/workspace-structure.md) for details.
+
+### Key Design Patterns (v2)
+
+1. **Workspace Isolation**: Each scope operates in its own `workspaces/<scope-name>/` directory
+2. **Scope Metadata**: `.scope-meta.json` tracks scope state and repository information
+3. **Three-Level Architecture**: Project → Scope → Repository hierarchy
+4. **Persistent vs Ephemeral**: Long-lived vs temporary scope lifecycle management
+5. **Direct Git Management**: Native git operations with per-scope state
+6. **Shared Memory Pattern**: `shared-memory.md` for cross-scope coordination
+7. **Documentation System**: Structured docs with global and scope-specific content
+8. **No TTL**: Manual scope lifecycle management without automatic expiration
+
+### Data Flow (v2)
 
 1. **Initialization**: 
-   - Creates workspace directory
-   - Generates configuration from template or interactive input
-   - Clones repositories using direct git commands
-   - Creates CLAUDE.md files in each repository
-   - Initializes shared memory file
+   - Creates project directory with v2 structure
+   - Generates `repo-claude.yaml` with `version: 2`, `isolation_mode: true`
+   - Creates `workspaces/` base directory for isolated scopes
+   - Initializes `docs/` structure (global and scopes subdirectories)
+   - Creates shared memory file
 
-2. **Scope Lifecycle**: 
-   - Load config → resolve repos → check dependencies → start in order → track state → handle termination
-   - Environment variables provide scope context to Claude sessions
+2. **Scope Creation**:
+   - Create isolated directory in `workspaces/<scope-name>/`
+   - Generate `.scope-meta.json` with scope metadata
+   - Clone repositories into scope directory
+   - Create CLAUDE.md in each repository
+   - Initialize scope documentation
 
-3. **Coordination**: 
-   - Scopes read/write to shared memory
-   - Cross-repository awareness through environment variables
-   - Working directory is user's current directory (not locked to single repo)
+3. **Scope Lifecycle**: 
+   - Load scope metadata → verify repos → start Claude session
+   - Track state (active/inactive/archived)
+   - Manage repository state per scope
+   - Handle cleanup and archival
+
+4. **Coordination**: 
+   - Scopes communicate via shared memory
+   - Each scope has isolated git state
+   - Documentation system provides cross-scope knowledge
 
 ## Dependencies
 
@@ -169,14 +221,14 @@ Go dependencies (see `go.mod`):
 
 ## Testing
 
-**Coverage Requirement**: Maintain test coverage above 80% for all packages.
+**Coverage Target**: 70-80% for all packages (current: ~57% overall)
 
 ```bash
 # Unit tests
-go test ./pkg/...
+go test ./internal/...
 
 # Integration tests
-go test ./test/integration/...
+go test ./test/...
 
 # Coverage report
 go test -coverprofile=coverage.out ./...
@@ -185,6 +237,13 @@ go tool cover -html=coverage.out
 # Check coverage percentage
 go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out | tail -1
 ```
+
+### Current Coverage Status
+- `internal/config`: 91.2% ✓
+- `internal/git`: 65.0%
+- `internal/docs`: 66.9%
+- `internal/scope`: 46.5%
+- `internal/manager`: 43.4%
 
 ### Testing Guidelines
 - Write unit tests for all new functionality

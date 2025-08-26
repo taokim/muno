@@ -1,17 +1,22 @@
+//go:build legacy
+// +build legacy
+
 package manager
 
 import (
 	"fmt"
-	"strings"
+	"os"
+	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/taokim/repo-claude/internal/config"
 	"github.com/taokim/repo-claude/internal/tui"
 )
 
-// StartInteractiveTUI launches the Bubbletea interactive UI for selecting what to start
-func (m *Manager) StartInteractiveTUI() error {
-	// Create the TUI model
-	model := tui.NewStartModel(m.Config, nil) // No state tracking anymore
+// StartInteractiveTUIV2 launches the improved Bubbletea interactive UI for selecting what to start
+func (m *Manager) StartInteractiveTUIV2() error {
+	// Create the improved TUI model
+	model := tui.NewStartModelV2(m.Config, nil) // No state tracking anymore
 	
 	// Run the TUI
 	p := tea.NewProgram(model, tea.WithAltScreen())
@@ -21,137 +26,154 @@ func (m *Manager) StartInteractiveTUI() error {
 	}
 	
 	// Check if user cancelled
-	startModel, ok := finalModel.(*tui.StartModel)
+	startModel, ok := finalModel.(*tui.StartModelV2)
 	if !ok || !startModel.IsLaunching() {
 		return nil // User cancelled, not an error
 	}
 	
-	// Get selected items
-	selected := startModel.GetSelected()
-	if len(selected) == 0 {
-		return nil // Nothing selected
-	}
+	// Get selection mode and items
+	selectionMode := startModel.GetSelectionMode()
 	
-	// Group by type for efficient starting
-	var selectedScopes []string
-	var selectedRepos []string
-	var selectedAgents []string // For legacy mode
-	
-	for _, item := range selected {
-		switch item.Type {
-		case "scope":
-			selectedScopes = append(selectedScopes, item.Name)
-		case "repo":
-			selectedRepos = append(selectedRepos, item.Name)
-		case "agent":
-			selectedAgents = append(selectedAgents, item.Name)
+	// Handle based on selection mode
+	switch selectionMode {
+	case tui.ModeScope:
+		// Single scope selected (radio button behavior)
+		scopeName := startModel.GetSelectedScope()
+		if scopeName == "" {
+			return nil
 		}
-	}
-	
-	// Determine if we need new windows (multiple selections)
-	totalSelections := len(selectedScopes) + len(selectedRepos) + len(selectedAgents)
-	opts := StartOptions{
-		NewWindow: totalSelections > 1,
-	}
-	
-	if opts.NewWindow && totalSelections > 1 {
-		fmt.Printf("🪟 Opening %d sessions in new windows\n", totalSelections)
-	}
-	
-	// Start selected scopes
-	for _, scopeName := range selectedScopes {
-		if err := m.StartScopeWithOptions(scopeName, opts); err != nil {
-			fmt.Printf("❌ Failed to start scope %s: %v\n", scopeName, err)
+		
+		// For single scope, run in current terminal (no new window)
+		opts := StartOptions{
+			NewWindow: false,
 		}
-	}
-	
-	// Start scopes for selected individual repos
-	if len(selectedRepos) > 0 {
-		// Create a temporary scope for the selected repos
-		if err := m.StartReposAsScope(selectedRepos, opts); err != nil {
-			fmt.Printf("❌ Failed to start repos: %v\n", err)
+		
+		fmt.Printf("🚀 Starting scope '%s' in current terminal...\n", scopeName)
+		return m.StartScopeWithOptions(scopeName, opts)
+		
+	case tui.ModeRepo:
+		// One or more repos selected (checkbox behavior)
+		repos := startModel.GetSelectedRepos()
+		if len(repos) == 0 {
+			return nil
 		}
-	}
-	
-	// Legacy agent support removed - only scopes are supported now
-	
-	return nil
-}
-
-// StartReposAsScope starts a Claude session with multiple repositories as a temporary scope
-func (m *Manager) StartReposAsScope(repos []string, opts StartOptions) error {
-	// Generate a scope name based on repos
-	scopeName := "backend" // Default to backend if multiple repos match
-	
-	// Check if all repos belong to an existing scope
-	for name, scope := range m.Config.Scopes {
-		resolvedRepos := m.resolveScopeRepos(scope.Repos)
-		allMatch := true
-		for _, repo := range repos {
-			found := false
-			for _, resolved := range resolvedRepos {
-				if resolved == repo {
-					found = true
-					break
+		
+		// Always start in current window
+		opts := StartOptions{
+			NewWindow: false, // Always use current window
+		}
+		
+		if len(repos) == 1 {
+			// Single repo - run in current terminal
+			fmt.Printf("🚀 Starting repository '%s' in current terminal...\n", repos[0])
+			
+			// Try to find a scope that contains only this repo
+			for name, scope := range m.Config.Scopes {
+				resolvedRepos := m.resolveScopeRepos(scope.Repos)
+				if len(resolvedRepos) == 1 && resolvedRepos[0] == repos[0] {
+					// Found a scope with just this repo
+					return m.StartScopeWithOptions(name, opts)
 				}
 			}
-			if !found {
-				allMatch = false
-				break
-			}
+			
+			// No single-repo scope found, create a temporary one
+			return m.StartRepoAsSingleScope(repos[0], opts)
+		} else {
+			// Multiple repos - create a combined scope
+			fmt.Printf("🚀 Starting %d repositories in current terminal...\n", len(repos))
+			return m.StartReposAsScope(repos, opts)
 		}
-		if allMatch && len(resolvedRepos) >= len(repos) {
-			scopeName = name
+		
+	default:
+		return fmt.Errorf("no selection made")
+	}
+}
+
+// StartRepoAsSingleScope starts a Claude session with a single repository
+func (m *Manager) StartRepoAsSingleScope(repo string, opts StartOptions) error {
+	// Find the project configuration
+	var project *config.Project
+	for _, p := range m.Config.Workspace.Manifest.Projects {
+		if p.Name == repo {
+			proj := p
+			project = &proj
 			break
 		}
 	}
 	
-	// Start with the given repos
-	return m.startScopeWithRepos(scopeName, repos, opts)
-}
-
-// Helper method to start a scope with specific repos
-func (m *Manager) startScopeWithRepos(scopeName string, repos []string, opts StartOptions) error {
-	fmt.Printf("🚀 Starting session with repos: %s\n", strings.Join(repos, ", "))
+	if project == nil {
+		return fmt.Errorf("repository %s not found in configuration", repo)
+	}
 	
-	// If there's an existing scope with these exact repos, use it
-	if scopeConfig, exists := m.Config.Scopes[scopeName]; exists {
-		resolvedRepos := m.resolveScopeRepos(scopeConfig.Repos)
-		
-		// Check if resolved repos match our target repos
-		if len(resolvedRepos) == len(repos) {
-			match := true
-			for _, repo := range repos {
-				found := false
-				for _, resolved := range resolvedRepos {
-					if resolved == repo {
-						found = true
-						break
-					}
+	// Build the repository path
+	repoPath := filepath.Join(m.WorkspacePath, project.Path)
+	if project.Path == "" {
+		repoPath = filepath.Join(m.WorkspacePath, project.Name)
+	}
+	
+	// Check if repository exists
+	if _, err := os.Stat(filepath.Join(repoPath, ".git")); os.IsNotExist(err) {
+		return fmt.Errorf("repository %s not found at %s, run 'rc sync' first", repo, repoPath)
+	}
+	
+	// Build command for single repo
+	systemPrompt := fmt.Sprintf(
+		"You are working on the %s repository. "+
+		"This is part of the %s workspace. "+
+		"The shared memory file is at: %s/shared-memory.md",
+		repo, m.Config.Workspace.Name, m.WorkspacePath)
+	
+	// Set environment variables
+	envVars := map[string]string{
+		"RC_SCOPE_ID":       fmt.Sprintf("repo-%s", repo),
+		"RC_SCOPE_NAME":     repo,
+		"RC_SCOPE_REPOS":    repo,
+		"RC_WORKSPACE_ROOT": m.WorkspacePath,
+		"RC_PROJECT_ROOT":   m.WorkspacePath,
+	}
+	
+	// Determine model to use
+	model := "claude-sonnet-4" // default
+	
+	// Check if any scope contains this repo and use its model
+	for _, scope := range m.Config.Scopes {
+		repos := m.resolveScopeRepos(scope.Repos)
+		for _, r := range repos {
+			if r == repo {
+				if scope.Model != "" {
+					model = scope.Model
 				}
-				if !found {
-					match = false
-					break
-				}
+				break
 			}
-			if match {
-				// Use the existing scope configuration
-				fmt.Printf("🚀 Starting scope %s with %d repositories (current terminal)\n", scopeName, len(repos))
-				return m.StartScopeWithOptions(scopeName, opts)
-			}
-		} else {
-			// Still use the scope even if it has more repos
-			fmt.Printf("🚀 Starting scope %s with %d repositories (current terminal)\n", scopeName, len(resolvedRepos))
-			return m.StartScopeWithOptions(scopeName, opts)
 		}
 	}
 	
-	// If no matching scope, create a temporary scope-like session
-	// This should never happen in normal flow, but handle it gracefully
-	if len(repos) > 0 {
-		// Fall back to starting individual repo
-		return m.StartRepoAsSingleScope(repos[0], opts)
+	// Create and start the command
+	var cmd Cmd
+	if m.CmdExecutor == nil {
+		m.CmdExecutor = &RealCommandExecutor{}
+	}
+	cmd = createNewTerminalCommand(m.CmdExecutor, repo, repoPath, model, systemPrompt, envVars, opts.NewWindow)
+	
+	// For current terminal, run in foreground and wait
+	if !opts.NewWindow {
+		// Run the command in foreground (blocking)
+		err := cmd.Run()
+		if err != nil {
+			return fmt.Errorf("failed to run Claude for %s: %w", repo, err)
+		}
+		// Command has completed when running in current terminal
+		return nil
 	}
 	
-	return fmt.Errorf("no repositories to start")
+	// For new window, start in background
+	err := cmd.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start Claude for %s: %w", repo, err)
+	}
+	
+	fmt.Printf("✅ Started Claude session for repository: %s (PID: %d)\n", repo, cmd.Process().Pid)
+	
+	// No longer tracking state - Claude Code manages its own lifecycle
+	return nil
 }
