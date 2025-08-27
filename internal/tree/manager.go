@@ -159,6 +159,19 @@ func (m *Manager) UseNode(path string, autoClone bool) (*Node, error) {
 		return nil, fmt.Errorf("node not found: %s", path)
 	}
 	
+	// If this node represents a lazy repo that hasn't been cloned, we need to check parent
+	if autoClone && node.Parent != nil {
+		// Check if this node corresponds to a lazy repo in its parent
+		for i, repo := range node.Parent.Repos {
+			if repo.Name == node.Name && repo.Lazy && repo.State == string(RepoStateMissing) {
+				fmt.Printf("🔄 Cloning lazy repository %s...\n", repo.Name)
+				if err := m.cloneRepo(&node.Parent.Repos[i]); err != nil {
+					return nil, fmt.Errorf("cloning lazy repository: %w", err)
+				}
+			}
+		}
+	}
+	
 	// Change working directory
 	if err := os.Chdir(node.FullPath); err != nil {
 		return nil, fmt.Errorf("changing directory: %w", err)
@@ -247,6 +260,10 @@ func (m *Manager) AddRepo(repoURL string, options AddOptions) (*RepoConfig, erro
 		},
 	}
 	
+	// Initialize Children map if nil
+	if m.currentNode.Children == nil {
+		m.currentNode.Children = make(map[string]*Node)
+	}
 	m.currentNode.Children[name] = childNode
 	
 	// Save state
@@ -510,6 +527,11 @@ func (m *Manager) reconstructTree() error {
 	
 	m.rootNode = rootNode
 	m.rootNode.FullPath = m.reposPath
+	
+	// Ensure root has Children map
+	if m.rootNode.Children == nil {
+		m.rootNode.Children = make(map[string]*Node)
+	}
 	
 	// Reconstruct parent-child relationships
 	for path, node := range m.state.Nodes {
