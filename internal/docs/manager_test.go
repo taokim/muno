@@ -140,3 +140,24 @@ func TestSync(t *testing.T) {
 	// We don't assert on the error as it depends on git initialization
 	_ = err
 }
+
+func TestEdit(t *testing.T) {
+	tmpDir := t.TempDir()
+	m, err := NewManager(tmpDir)
+	require.NoError(t, err)
+	
+	// Create a test document first
+	docName := "test-edit.md"
+	initialContent := "Initial content"
+	err = m.CreateGlobal(docName, initialContent)
+	require.NoError(t, err)
+	
+	// Edit the document
+	err = m.Edit(filepath.Join("global", docName))
+	// Will fail because editor command doesn't exist in test environment
+	assert.Error(t, err)
+	
+	// Try editing a non-existent document
+	err = m.Edit("non-existent.md")
+	assert.Error(t, err)
+}

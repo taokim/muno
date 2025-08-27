@@ -98,7 +98,7 @@ func (a *App) newInitCmd() *cobra.Command {
 		
 Creates:
 - repo-claude.yaml (v3 configuration)
-- workspaces/ directory for tree structure
+- repos/ directory for tree structure
 - Root CLAUDE.md with project instructions`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

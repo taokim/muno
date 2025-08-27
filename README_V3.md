@@ -11,7 +11,7 @@ Repo-Claude v3 introduces a revolutionary **tree-based architecture** that treat
 ### 🌳 **Workspace as a Tree**
 Your repositories form a natural tree structure:
 ```
-workspace/
+repos/
 ├── team-backend/           # Also a git repo
 │   ├── payment-service/    # Child repo
 │   ├── order-service/      # Child repo
@@ -24,7 +24,7 @@ workspace/
 ### 📍 **CWD-First Resolution**
 Commands operate based on your current location:
 ```bash
-cd workspaces/team-backend
+cd repos/team-backend
 rc pull                    # Pulls backend repos (CWD-based)
 rc add https://...         # Adds repo to backend team
 rc tree                    # Shows tree from current position

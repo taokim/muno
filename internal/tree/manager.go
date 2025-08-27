@@ -15,7 +15,7 @@ import (
 // Manager manages the workspace tree
 type Manager struct {
 	rootPath     string
-	workspacePath string  // workspaces/ directory
+	reposPath    string  // repos/ directory
 	rootNode     *Node
 	currentNode  *Node
 	config       *config.ConfigV3Tree
@@ -33,7 +33,7 @@ func NewManager(projectPath string) (*Manager, error) {
 	
 	return &Manager{
 		rootPath:      absPath,
-		workspacePath: filepath.Join(absPath, "workspaces"),
+		reposPath:     filepath.Join(absPath, "repos"),
 		statePath:     filepath.Join(absPath, ".repo-claude-tree.json"),
 		gitCmd:        git.New(),
 	}, nil
@@ -41,9 +41,9 @@ func NewManager(projectPath string) (*Manager, error) {
 
 // Initialize creates a new workspace tree
 func (m *Manager) Initialize(projectName string, rootRepoURL string) error {
-	// Create workspace directory
-	if err := os.MkdirAll(m.workspacePath, 0755); err != nil {
-		return fmt.Errorf("creating workspace directory: %w", err)
+	// Create repos directory
+	if err := os.MkdirAll(m.reposPath, 0755); err != nil {
+		return fmt.Errorf("creating repos directory: %w", err)
 	}
 	
 	// Create root node
@@ -51,7 +51,7 @@ func (m *Manager) Initialize(projectName string, rootRepoURL string) error {
 		ID:       "root",
 		Name:     projectName,
 		Path:     "/",
-		FullPath: m.workspacePath,
+		FullPath: m.reposPath,
 		Children: make(map[string]*Node),
 		Meta: NodeMeta{
 			Type:      string(NodeTypePersistent),
@@ -63,7 +63,7 @@ func (m *Manager) Initialize(projectName string, rootRepoURL string) error {
 	if rootRepoURL != "" {
 		rootRepo := RepoConfig{
 			URL:   rootRepoURL,
-			Path:  m.workspacePath,
+			Path:  m.reposPath,
 			Name:  "root",
 			Lazy:  false,
 			State: string(RepoStateMissing),
@@ -137,7 +137,7 @@ func (m *Manager) ResolveTarget(explicitPath string) (*TargetResolution, error) 
 	}
 	
 	// 3. Use stored current (only if outside workspace)
-	if m.currentNode != nil && !strings.HasPrefix(cwd, m.workspacePath) {
+	if m.currentNode != nil && !strings.HasPrefix(cwd, m.reposPath) {
 		return &TargetResolution{
 			Node:   m.currentNode,
 			Source: SourceStored,
@@ -417,12 +417,12 @@ func (m *Manager) resolvePath(path string) *Node {
 
 func (m *Manager) mapCWDToNode(cwd string) *Node {
 	// Check if CWD is within workspace
-	if !strings.HasPrefix(cwd, m.workspacePath) {
+	if !strings.HasPrefix(cwd, m.reposPath) {
 		return nil
 	}
 	
 	// Get relative path from workspace root
-	relPath, err := filepath.Rel(m.workspacePath, cwd)
+	relPath, err := filepath.Rel(m.reposPath, cwd)
 	if err != nil {
 		return nil
 	}
@@ -498,7 +498,7 @@ func (m *Manager) reconstructTree() error {
 			ID:       "root",
 			Name:     "workspace",
 			Path:     "/",
-			FullPath: m.workspacePath,
+			FullPath: m.reposPath,
 			Children: make(map[string]*Node),
 			Meta: NodeMeta{
 				Type:      string(NodeTypePersistent),
@@ -509,7 +509,7 @@ func (m *Manager) reconstructTree() error {
 	}
 	
 	m.rootNode = rootNode
-	m.rootNode.FullPath = m.workspacePath
+	m.rootNode.FullPath = m.reposPath
 	
 	// Reconstruct parent-child relationships
 	for path, node := range m.state.Nodes {
@@ -533,7 +533,7 @@ func (m *Manager) reconstructTree() error {
 		}
 		
 		// Set full path
-		node.FullPath = filepath.Join(m.workspacePath, strings.TrimPrefix(path, "/"))
+		node.FullPath = filepath.Join(m.reposPath, strings.TrimPrefix(path, "/"))
 	}
 	
 	return nil

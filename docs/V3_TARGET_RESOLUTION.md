@@ -24,7 +24,7 @@ Priority Order (highest to lowest):
 
 | Scenario | Command | Resolution | Rationale |
 |----------|---------|------------|-----------|
-| User in `/workspaces/team/backend/payment` | `rc pull` | `team/backend/payment` | CWD maps directly |
+| User in `/repos/team/backend/payment` | `rc pull` | `team/backend/payment` | CWD maps directly |
 | User in `/home/user` | `rc pull` | Stored current or root | Outside workspace |
 | User anywhere | `rc pull team/frontend` | `team/frontend` | Explicit wins |
 | After `rc use team/backend` | `rc pull` | `team/backend` OR CWD | **DECISION NEEDED** |
@@ -33,7 +33,7 @@ Priority Order (highest to lowest):
 
 ### Option A: CWD-First (Recommended) ✓
 ```bash
-cd workspaces/team/backend
+cd repos/team/backend
 rc pull                    # Always pulls backend (CWD-based)
 rc use team/frontend       # Changes stored state
 rc pull                    # STILL pulls backend (CWD wins)
@@ -53,7 +53,7 @@ rc pull                    # Now pulls frontend (CWD changed)
 
 ### Option B: Use-State-First
 ```bash
-cd workspaces/team/backend
+cd repos/team/backend
 rc pull                    # Pulls backend (CWD-based)
 rc use team/frontend       # Changes context
 rc pull                    # Pulls frontend (use state wins)
@@ -121,7 +121,7 @@ With CWD-first approach, `rc use` becomes:
 ```bash
 $ rc use team/frontend
 📍 Navigated to: team/frontend
-📂 Changed directory to: /workspace/workspaces/team/frontend
+📂 Changed directory to: /workspace/repos/team/frontend
 🔄 Auto-cloning 2 lazy repositories...
 ✓ component-lib (cloned)
 ✓ design-system (cloned)
@@ -139,7 +139,7 @@ $ rc pull
 
 #### Repository Subdirectories
 ```bash
-$ cd workspaces/team/backend/payment-service/src/handlers
+$ cd repos/team/backend/payment-service/src/handlers
 $ rc pull
 🎯 Target: team/backend/payment-service (mapped from CWD)
 ℹ️  Resolved from: .../payment-service/src/handlers → payment-service
@@ -147,7 +147,7 @@ $ rc pull
 
 #### Root Directory
 ```bash
-$ cd workspaces/
+$ cd repos/
 $ rc pull
 🎯 Target: / (root - from CWD)
 ⚠️  This will affect root-level repositories only
@@ -187,7 +187,7 @@ $ rc pull
 rc pull team/backend          # 🎯 Target: team/backend (explicit)
 
 # CWD-based (Priority 2)  
-cd workspaces/team/frontend
+cd repos/team/frontend
 rc pull                       # 🎯 Target: team/frontend (from CWD)
 
 # Stored current (Priority 3)
@@ -204,7 +204,7 @@ rc pull                       # 🎯 Target: / (fallback to root)
 
 | v2 Scope Concept | v3 Tree Equivalent |
 |------------------|-------------------|
-| `--scope backend` | `rc pull team/backend` or `cd workspaces/team/backend && rc pull` |
+| `--scope backend` | `rc pull team/backend` or `cd repos/team/backend && rc pull` |
 | Current scope | CWD-mapped node or stored current |
 | Scope isolation | Natural directory isolation |
 | Scope metadata | Node metadata in tree |

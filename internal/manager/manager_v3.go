@@ -177,7 +177,7 @@ between different Claude sessions.
 	
 	fmt.Println("✅ Workspace initialized successfully!")
 	fmt.Printf("📁 Project root: %s\n", m.ProjectPath)
-	fmt.Printf("🌳 Tree structure created in: workspaces/\n")
+	fmt.Printf("🌳 Tree structure created in: repos/\n")
 	fmt.Println("\nNext steps:")
 	fmt.Println("  1. rc add <repo-url> - Add repositories")
 	fmt.Println("  2. rc tree - View structure")

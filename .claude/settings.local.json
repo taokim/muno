@@ -18,8 +18,32 @@
       "Bash(grep:*)",
       "Bash(./bin/rc:*)",
       "Bash(git describe:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc list)",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc current)",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc scope create wms --type persistent --repos \"shared-libs\")",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc scope create:*)",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc pull)",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc pull --scope wms)",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc use \"\")",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc use --clear)",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc pull wms)",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc use oms)",
+      "Bash(cat:*)",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc pull -s wms)",
+      "Bash(chmod:*)",
+      "Bash(/private/tmp/test-v3-real.sh)",
+      "Bash(/private/tmp/test-v3-tree.sh:*)",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc scope --help)",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc --help)",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc init test-v3)",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc tree)",
+      "Bash(git rm:*)",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc init test-repos)"
     ],
-    "deny": []
+    "deny": [],
+    "additionalDirectories": [
+      "/private/tmp/test-repo-claude"
+    ]
   }
 }

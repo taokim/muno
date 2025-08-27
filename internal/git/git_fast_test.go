@@ -3,9 +3,13 @@ package git
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Tests that don't require actual git operations
@@ -303,4 +307,188 @@ func TestStatus_AllFields(t *testing.T) {
 	if status.Ahead != 5 || status.Behind != 2 {
 		t.Errorf("Ahead/Behind = %d/%d, want 5/2", status.Ahead, status.Behind)
 	}
+}
+
+func TestCloneMissing(t *testing.T) {
+	tmpDir := t.TempDir()
+	
+	// Create one existing repo and one missing
+	existingPath := filepath.Join(tmpDir, "existing")
+	err := os.MkdirAll(existingPath, 0755)
+	require.NoError(t, err)
+	
+	repos := []Repository{
+		{
+			Name:   "existing",
+			Path:   "existing",
+			URL:    "https://example.com/existing.git",
+			Branch: "main",
+		},
+		{
+			Name:   "missing",
+			Path:   "missing",
+			URL:    "https://example.com/missing.git",
+			Branch: "main",
+		},
+	}
+	
+	mgr := NewManager(tmpDir, repos)
+	
+	// CloneMissing should skip existing and try to clone missing
+	err = mgr.CloneMissing()
+	// Will fail for missing repo but that's expected
+	assert.Error(t, err)
+}
+
+func TestPush(t *testing.T) {
+	tmpDir := t.TempDir()
+	
+	repos := []Repository{
+		{
+			Name:   "repo1",
+			Path:   "repo1",
+			URL:    "https://example.com/repo1.git",
+			Branch: "main",
+		},
+	}
+	
+	mgr := NewManager(tmpDir, repos)
+	
+	// Push will fail as repos don't exist
+	_, err := mgr.Push(ExecutorOptions{})
+	assert.Error(t, err)
+}
+
+func TestPushWithOptions(t *testing.T) {
+	tmpDir := t.TempDir()
+	
+	// Create a fake git repo
+	repoPath := filepath.Join(tmpDir, "repo1")
+	err := os.MkdirAll(repoPath, 0755)
+	require.NoError(t, err)
+	
+	// Initialize git repo
+	cmd := exec.Command("git", "init")
+	cmd.Dir = repoPath
+	err = cmd.Run()
+	require.NoError(t, err)
+	
+	repos := []Repository{
+		{
+			Name:   "repo1",
+			Path:   "repo1",
+			URL:    "https://example.com/repo1.git",
+			Branch: "main",
+		},
+	}
+	
+	mgr := NewManager(tmpDir, repos)
+	
+	// Push will fail (no remote) but tests the function
+	_, err = mgr.PushWithOptions("origin", "main", ExecutorOptions{
+		Parallel:  false,
+	})
+	assert.Error(t, err)
+}
+
+func TestPull(t *testing.T) {
+	tmpDir := t.TempDir()
+	
+	repos := []Repository{
+		{
+			Name:   "repo1",
+			Path:   "repo1",
+			URL:    "https://example.com/repo1.git",
+			Branch: "main",
+		},
+	}
+	
+	mgr := NewManager(tmpDir, repos)
+	
+	// Pull will fail as repos don't exist
+	_, err := mgr.Pull(ExecutorOptions{})
+	assert.Error(t, err)
+}
+
+func TestPullWithOptions(t *testing.T) {
+	tmpDir := t.TempDir()
+	
+	// Create a fake git repo
+	repoPath := filepath.Join(tmpDir, "repo1")
+	err := os.MkdirAll(repoPath, 0755)
+	require.NoError(t, err)
+	
+	// Initialize git repo
+	cmd := exec.Command("git", "init")
+	cmd.Dir = repoPath
+	err = cmd.Run()
+	require.NoError(t, err)
+	
+	repos := []Repository{
+		{
+			Name:   "repo1",
+			Path:   "repo1",
+			URL:    "https://example.com/repo1.git",
+			Branch: "main",
+		},
+	}
+	
+	mgr := NewManager(tmpDir, repos)
+	
+	// Pull will fail (no remote) but tests the function
+	_, err = mgr.PullWithOptions("", "", false, ExecutorOptions{
+		Parallel:  false,
+	})
+	assert.Error(t, err)
+}
+
+func TestFetch(t *testing.T) {
+	tmpDir := t.TempDir()
+	
+	repos := []Repository{
+		{
+			Name:   "repo1",
+			Path:   "repo1",
+			URL:    "https://example.com/repo1.git",
+			Branch: "main",
+		},
+	}
+	
+	mgr := NewManager(tmpDir, repos)
+	
+	// Fetch will fail as repos don't exist
+	_, err := mgr.Fetch(ExecutorOptions{})
+	assert.Error(t, err)
+}
+
+func TestFetchWithOptions(t *testing.T) {
+	tmpDir := t.TempDir()
+	
+	// Create a fake git repo
+	repoPath := filepath.Join(tmpDir, "repo1")
+	err := os.MkdirAll(repoPath, 0755)
+	require.NoError(t, err)
+	
+	// Initialize git repo
+	cmd := exec.Command("git", "init")
+	cmd.Dir = repoPath
+	err = cmd.Run()
+	require.NoError(t, err)
+	
+	repos := []Repository{
+		{
+			Name:   "repo1",
+			Path:   "repo1",
+			URL:    "https://example.com/repo1.git",
+			Branch: "main",
+		},
+	}
+	
+	mgr := NewManager(tmpDir, repos)
+	
+	// Fetch will fail (no remote) but tests the function
+	_, err = mgr.FetchWithOptions("", true, false, ExecutorOptions{
+		Parallel:  false,
+	})
+	assert.Error(t, err)
 }
