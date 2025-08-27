@@ -2,19 +2,27 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ✅ V3 Tree-Based Architecture Implemented
+
+**Completed (2024-12-27)**: 
+- **V3 tree-based architecture is now fully implemented**
+- **All scope concepts have been removed**
+- **Tree navigation with CWD-first resolution is working**
+- **Lazy loading and auto-clone on navigation implemented**
+- **No migration from v2 - v3 is a clean slate**
+- The codebase now uses tree-based navigation exclusively
+
 ## Overview
 
-Repo-Claude v2 is a multi-repository orchestration tool that provides isolated, scope-based development environments. This Go implementation features workspace isolation where each scope operates in its own directory under `workspaces/`, preventing conflicts and enabling parallel development.
+Repo-Claude v3 is a multi-repository orchestration tool with a tree-based navigation system. Repositories form a navigable tree structure where every operation is based on your current position (CWD-first resolution).
 
 **Key Features:**
-- **Isolated workspace architecture** - each scope in its own `workspaces/` subdirectory
-- **Scope-based development** across multiple repositories with complete isolation
-- **Persistent and ephemeral scopes** for different workflow needs
-- **E-commerce focused examples** (WMS, OMS, Search, Catalog)
-- **Direct git management** with per-scope repository state
-- **Shared memory** for cross-scope coordination
-- **Documentation system** with global and scope-specific docs
-- **No TTL implementation** - scopes are manually managed
+- **Tree-based navigation** - Navigate repositories like a filesystem
+- **CWD-first resolution** - Current directory determines operation target
+- **Lazy loading** - Repositories clone on-demand when navigating
+- **Clear targeting** - Every command shows what it will affect
+- **Direct git management** - Native git operations at any tree node
+- **No scope concept** - Simple tree navigation replaces complex scope management
 
 ## Commands
 
@@ -28,15 +36,19 @@ go build -o bin/rc ./cmd/repo-claude
 # Initialize a new workspace
 ./bin/rc init <workspace-name>
 
-# Scope Management (v2)
-./bin/rc scope create <name> --type persistent --repos "wms-*,shared-libs"  # Create scope
-./bin/rc scope delete <name>       # Delete scope
-./bin/rc scope archive <name>      # Archive scope
-./bin/rc list                      # List all scopes (configured and created)
+# Navigation (v3)
+./bin/rc use <path>              # Navigate to a node (changes CWD)
+./bin/rc current                 # Show current position
+./bin/rc tree                    # Display tree structure
+./bin/rc list                    # List child nodes
 
-# Start scopes
-./bin/rc start              # Interactive scope selection
-./bin/rc start <scope-name> # Start specific scope
+# Repository Management
+./bin/rc add <repo-url> [--lazy] # Add child repository
+./bin/rc remove <name>           # Remove child repository
+./bin/rc clone [--recursive]     # Clone lazy repositories
+
+# Start Claude session
+./bin/rc start [path]            # Start at current or specified node
 
 # Check status
 ./bin/rc status             # Shows workspace configuration and scope status
@@ -288,7 +300,10 @@ make clean
 ./bin/rc --version
 ```
 
-### Binary Location
+### Local
 - Local builds: `./bin/rc` (in project root)
 - Installed: `$GOPATH/bin/rc` (via `make install`)
-- Release by tagging new version via GitHub Action, do not use goreeleaser directly or any release script locally to GitHub releases
+
+### Production
+- Release by tagging new version via GitHub Action, do not use goreleaser directly or any release script locally for GitHub releases
+- When releasing, verifying the release done with GH API

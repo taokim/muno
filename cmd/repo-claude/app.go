@@ -5,20 +5,19 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/taokim/repo-claude/internal/manager"
 )
 
-// App is the scope-based application
+// App is the tree-based application
 type App struct {
 	rootCmd *cobra.Command
 	stdout  io.Writer
 	stderr  io.Writer
 }
 
-// NewApp creates a new scope-based application
+// NewApp creates a new tree-based application
 func NewApp() *App {
 	app := &App{
 		stdout: os.Stdout,
@@ -51,15 +50,15 @@ func (a *App) ExecuteWithArgs(args []string) error {
 func (a *App) setupCommands() {
 	a.rootCmd = &cobra.Command{
 		Use:   "rc",
-		Short: "Scope-based multi-repository orchestration for Claude Code",
-		Long: `Repo-Claude v2 orchestrates Claude Code sessions across multiple 
-repositories using isolated scopes for parallel development.
+		Short: "Multi-repository orchestration for Claude Code with tree-based workspaces",
+		Long: `Repo-Claude v3 orchestrates Claude Code sessions across multiple 
+repositories with tree-based navigation and lazy loading.
 
-Each scope provides:
-- Isolated workspace with independent repository clones
-- Separate branch management
-- Cross-repository documentation
-- Inter-scope coordination via shared memory`,
+Features:
+- Tree-based navigation: Navigate workspace like a filesystem
+- Lazy loading: Repos clone on-demand when parent is used
+- CWD-first resolution: Commands operate based on current directory
+- Simple configuration: Everything is just a repository`,
 		Version: formatVersion(),
 	}
 	
@@ -69,20 +68,20 @@ Each scope provides:
 	a.rootCmd.AddCommand(a.newStartCmd())
 	a.rootCmd.AddCommand(a.newStatusCmd())
 	
-	// Scope commands
-	a.rootCmd.AddCommand(a.newScopeCmd())
+	// Navigation commands
 	a.rootCmd.AddCommand(a.newUseCmd())
 	a.rootCmd.AddCommand(a.newCurrentCmd())
+	a.rootCmd.AddCommand(a.newTreeCmd())
 	
-	// Git operations (all scope-aware)
+	// Repository management
+	a.rootCmd.AddCommand(a.newAddCmd())
+	a.rootCmd.AddCommand(a.newRemoveCmd())
+	a.rootCmd.AddCommand(a.newCloneCmd())
+	
+	// Git operations
 	a.rootCmd.AddCommand(a.newPullCmd())
 	a.rootCmd.AddCommand(a.newCommitCmd())
 	a.rootCmd.AddCommand(a.newPushCmd())
-	a.rootCmd.AddCommand(a.newBranchCmd())
-	a.rootCmd.AddCommand(a.newPRCmd())
-	
-	// Documentation
-	a.rootCmd.AddCommand(a.newDocsCmd())
 	
 	// Version
 	a.rootCmd.AddCommand(a.newVersionCmd())
@@ -94,14 +93,13 @@ func (a *App) newInitCmd() *cobra.Command {
 	
 	cmd := &cobra.Command{
 		Use:   "init [project-name]",
-		Short: "Initialize a new repo-claude project",
-		Long: `Initialize a new repo-claude project with scope-based architecture.
+		Short: "Initialize a new repo-claude v3 project",
+		Long: `Initialize a new repo-claude v3 project with tree-based workspace.
 		
 Creates:
-- repo-claude.yaml configuration
-- workspaces/ directory for isolated scopes  
-- docs/ directory for documentation
-- Root CLAUDE.md with instructions`,
+- repo-claude.yaml (v3 configuration)
+- workspaces/ directory for tree structure
+- Root CLAUDE.md with project instructions`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectName := ""
@@ -119,7 +117,7 @@ Creates:
 				projectName = filepath.Base(cwd)
 			}
 			
-			mgr, err := manager.New(projectPath)
+			mgr, err := manager.NewV3(projectPath)
 			if err != nil {
 				return fmt.Errorf("creating manager: %w", err)
 			}
@@ -139,26 +137,31 @@ Creates:
 
 // newListCmd creates the list command
 func (a *App) newListCmd() *cobra.Command {
-	return &cobra.Command{
+	var recursive bool
+	
+	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List available scopes",
-		Long: `List all configured scopes with their repositories and status.
+		Short: "List child nodes and repositories",
+		Long: `List child nodes and their repositories from the current position.
 		
 Shows:
-- Scope number (for easy selection)
-- Scope name and type
-- Repositories in each scope
-- Initialization status`,
+- Child node names
+- Repository count and status
+- Lazy/cloned state`,
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV3()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			return mgr.ListScopes()
+			return mgr.ListNodes(recursive)
 		},
 	}
+	
+	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "List recursively")
+	
+	return cmd
 }
 
 // newStartCmd creates the start command
@@ -166,24 +169,25 @@ func (a *App) newStartCmd() *cobra.Command {
 	var newWindow bool
 	
 	cmd := &cobra.Command{
-		Use:   "start <scope>",
-		Short: "Start a Claude session for a scope",
-		Long: `Start a Claude Code session for a specific scope.
+		Use:   "start [path]",
+		Short: "Start a Claude session at current or specified node",
+		Long: `Start a Claude Code session at the current node or a specified path.
 		
-The scope can be specified by:
-- Name: rc start backend
-- Number: rc start 1 (from 'rc list')
-		
-On first start, repositories will be cloned.
-The working directory will be set to the scope directory.`,
-		Args: cobra.ExactArgs(1),
+If no path is provided, starts at the current node based on CWD.
+The working directory will be set to the node's directory.`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV3()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			return mgr.StartScope(args[0], newWindow)
+			path := ""
+			if len(args) > 0 {
+				path = args[0]
+			}
+			
+			return mgr.StartNode(path, newWindow)
 		},
 	}
 	
@@ -194,209 +198,229 @@ The working directory will be set to the scope directory.`,
 
 // newStatusCmd creates the status command
 func (a *App) newStatusCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "status <scope>",
-		Short: "Show scope status",
-		Long: `Show detailed status of a scope including:
+	var recursive bool
+	
+	cmd := &cobra.Command{
+		Use:   "status [path]",
+		Short: "Show tree and repository status",
+		Long: `Show status of the current node or specified path including:
+- Tree structure
 - Repository states (clean/dirty)
 - Branch information
-- Uncommitted changes
-- Ahead/behind status`,
-		Args: cobra.ExactArgs(1),
+- Uncommitted changes`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV3()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			return mgr.StatusScope(args[0])
+			path := ""
+			if len(args) > 0 {
+				path = args[0]
+			}
+			
+			return mgr.StatusNode(path, recursive)
 		},
 	}
-}
-
-// newScopeCmd creates the scope management command
-func (a *App) newScopeCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "scope",
-		Short: "Manage scopes",
-		Long:  `Create, delete, and manage isolated scopes`,
-	}
 	
-	// Subcommands
-	cmd.AddCommand(a.newScopeCreateCmd())
-	cmd.AddCommand(a.newScopeDeleteCmd())
-	cmd.AddCommand(a.newScopeArchiveCmd())
+	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Show status recursively")
 	
 	return cmd
 }
 
-// newScopeCreateCmd creates the scope create command
-func (a *App) newScopeCreateCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "create <name>",
-		Short: "Create a new scope",
-		Args:  cobra.ExactArgs(1),
+// newTreeCmd creates the tree command
+func (a *App) newTreeCmd() *cobra.Command {
+	var depth int
+	
+	cmd := &cobra.Command{
+		Use:   "tree [path]",
+		Short: "Display workspace tree structure",
+		Long:  `Display the tree structure of the workspace from current or specified node.`,
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV3()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			return mgr.ScopeManager.CreateFromConfig(args[0])
+			path := ""
+			if len(args) > 0 {
+				path = args[0]
+			}
+			
+			return mgr.ShowTree(path, depth)
+		},
+	}
+	
+	cmd.Flags().IntVarP(&depth, "depth", "d", 0, "Maximum depth to display (0 for unlimited)")
+	
+	return cmd
+}
+
+// newAddCmd creates the add command
+func (a *App) newAddCmd() *cobra.Command {
+	var name string
+	var lazy bool
+	
+	cmd := &cobra.Command{
+		Use:   "add <repo-url>",
+		Short: "Add a child repository to current node",
+		Long: `Add a repository as a child of the current node.
+		
+The repository will be cloned immediately unless --lazy is specified.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDirV3()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			return mgr.AddRepo(args[0], name, lazy)
+		},
+	}
+	
+	cmd.Flags().StringVarP(&name, "name", "n", "", "Custom name for the repository")
+	cmd.Flags().BoolVarP(&lazy, "lazy", "l", false, "Don't clone until needed")
+	
+	return cmd
+}
+
+// newRemoveCmd creates the remove command
+func (a *App) newRemoveCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "remove <name>",
+		Short: "Remove a child repository",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDirV3()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			return mgr.RemoveRepo(args[0])
 		},
 	}
 }
 
-// newScopeDeleteCmd creates the scope delete command
-func (a *App) newScopeDeleteCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "delete <name>",
-		Short: "Delete a scope",
-		Args:  cobra.ExactArgs(1),
+// newCloneCmd creates the clone command
+func (a *App) newCloneCmd() *cobra.Command {
+	var recursive bool
+	
+	cmd := &cobra.Command{
+		Use:   "clone",
+		Short: "Clone lazy repositories at current node",
+		Long:  `Clone repositories marked as lazy that haven't been cloned yet.`,
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV3()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			return mgr.ScopeManager.Delete(args[0])
+			return mgr.CloneLazy(recursive)
 		},
 	}
-}
-
-// newScopeArchiveCmd creates the scope archive command
-func (a *App) newScopeArchiveCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "archive <name>",
-		Short: "Archive a scope",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return fmt.Errorf("loading workspace: %w", err)
-			}
-			
-			return mgr.ScopeManager.Archive(args[0])
-		},
-	}
+	
+	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Clone recursively in subtree")
+	
+	return cmd
 }
 
 // newUseCmd creates the use command
 func (a *App) newUseCmd() *cobra.Command {
+	var noClone bool
+	
 	cmd := &cobra.Command{
-		Use:   "use <scope>",
-		Short: "Set the active scope",
-		Long: `Set the active scope for all subsequent commands.
+		Use:   "use <path>",
+		Short: "Navigate to a node in the tree",
+		Long: `Navigate to a node in the workspace tree.
 		
-When a scope is set as active:
-- Git commands will use this scope by default
-- You don't need to specify --scope flag
-- The active scope persists across sessions
-
-Use 'rc use --clear' to unset the active scope.`,
-		Args: cobra.MaximumNArgs(1),
+Changes both the current working directory and stored context.
+Auto-clones lazy repositories unless --no-clone is specified.
+		
+Path formats:
+- Absolute: /team/backend
+- Relative: ../frontend
+- Parent: ..
+- Current: .
+- Previous: -
+- Root: ~ or /`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV3()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			// Check if --clear flag is set
-			clear, _ := cmd.Flags().GetBool("clear")
-			if clear {
-				return mgr.SetActiveScope("")
-			}
-			
-			// Otherwise require scope name
-			if len(args) == 0 {
-				return fmt.Errorf("scope name required (or use --clear to unset)")
-			}
-			
-			return mgr.SetActiveScope(args[0])
+			return mgr.UseNode(args[0], !noClone)
 		},
 	}
 	
-	cmd.Flags().Bool("clear", false, "Clear the active scope")
+	cmd.Flags().BoolVarP(&noClone, "no-clone", "n", false, "Skip auto-cloning lazy repositories")
 	
 	return cmd
 }
 
-// newCurrentCmd creates the current command
+// newCurrentCmd creates the current command  
 func (a *App) newCurrentCmd() *cobra.Command {
-	return &cobra.Command{
+	var clear bool
+	
+	cmd := &cobra.Command{
 		Use:   "current",
-		Short: "Show the current active scope",
-		Long:  `Display the currently active scope and its status.`,
+		Short: "Show current node position",
+		Long:  `Display the current node path in the workspace tree.`,
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV3()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			activeScope, err := mgr.GetActiveScope()
-			if err != nil {
-				return err
+			if clear {
+				return mgr.ClearCurrent()
 			}
 			
-			fmt.Printf("🎯 Active scope: %s\n", activeScope)
-			
-			// Show scope details
-			s, err := mgr.ScopeManager.Get(activeScope)
-			if err == nil {
-				meta := s.GetMeta()
-				fmt.Printf("   Type: %s\n", meta.Type)
-				fmt.Printf("   State: %s\n", meta.State)
-				fmt.Printf("   Path: %s\n", s.GetPath())
-				if meta.Description != "" {
-					fmt.Printf("   Description: %s\n", meta.Description)
-				}
-			}
-			
-			return nil
+			return mgr.ShowCurrent()
 		},
 	}
+	
+	cmd.Flags().BoolVar(&clear, "clear", false, "Clear stored current node")
+	
+	return cmd
 }
 
 // newPullCmd creates the pull command
 func (a *App) newPullCmd() *cobra.Command {
-	var cloneMissing bool
-	var scopeFlag string
+	var recursive bool
 	
 	cmd := &cobra.Command{
-		Use:   "pull [scope]",
-		Short: "Pull repositories in a scope",
-		Long: `Pull latest changes for all repositories in a scope.
+		Use:   "pull [path]",
+		Short: "Pull repositories at current or specified node",
+		Long: `Pull latest changes for repositories at the current node.
 		
-If no scope is specified, uses the active scope or current directory.
-Use --clone-missing to clone repositories that haven't been cloned yet.`,
+Target is determined by:
+1. Explicit path if provided
+2. Current working directory mapping
+3. Stored current node
+4. Root node`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV3()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			// Determine scope
-			var targetScope string
+			path := ""
 			if len(args) > 0 {
-				// Positional argument provided
-				targetScope = args[0]
-				mgr.LogScopeContext(targetScope, "positional argument")
-			} else {
-				// Use scope resolution
-				targetScope, _, err = mgr.ResolveScope(scopeFlag)
-				if err != nil {
-					return err
-				}
+				path = args[0]
 			}
 			
-			return mgr.PullScope(targetScope, cloneMissing)
+			return mgr.PullNode(path, recursive)
 		},
 	}
 	
-	cmd.Flags().BoolVarP(&cloneMissing, "clone-missing", "c", false, "Clone missing repositories")
-	cmd.Flags().StringVarP(&scopeFlag, "scope", "s", "", "Specify scope explicitly")
+	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Pull recursively in subtree")
 	
 	return cmd
 }
@@ -404,247 +428,68 @@ Use --clone-missing to clone repositories that haven't been cloned yet.`,
 // newCommitCmd creates the commit command
 func (a *App) newCommitCmd() *cobra.Command {
 	var message string
-	var scopeFlag string
+	var recursive bool
 	
 	cmd := &cobra.Command{
-		Use:   "commit [scope]",
-		Short: "Commit changes in a scope",
-		Long: `Commit all changes across repositories in a scope with the same message.
-		
-If no scope is specified, uses the active scope or current directory.`,
+		Use:   "commit [path]",
+		Short: "Commit changes at current or specified node",
+		Long: `Commit changes across repositories at the current node.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if message == "" {
 				return fmt.Errorf("commit message is required")
 			}
 			
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV3()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			// Determine scope
-			var targetScope string
+			path := ""
 			if len(args) > 0 {
-				// Positional argument provided
-				targetScope = args[0]
-				mgr.LogScopeContext(targetScope, "positional argument")
-			} else {
-				// Use scope resolution
-				targetScope, _, err = mgr.ResolveScope(scopeFlag)
-				if err != nil {
-					return err
-				}
+				path = args[0]
 			}
 			
-			return mgr.CommitScope(targetScope, message)
+			return mgr.CommitNode(path, message, recursive)
 		},
 	}
 	
 	cmd.Flags().StringVarP(&message, "message", "m", "", "Commit message (required)")
 	cmd.MarkFlagRequired("message")
-	cmd.Flags().StringVarP(&scopeFlag, "scope", "s", "", "Specify scope explicitly")
+	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Commit recursively in subtree")
 	
 	return cmd
 }
 
 // newPushCmd creates the push command
 func (a *App) newPushCmd() *cobra.Command {
-	var scopeFlag string
+	var recursive bool
 	
 	cmd := &cobra.Command{
-		Use:   "push [scope]",
-		Short: "Push changes from a scope",
-		Long: `Push all committed changes from repositories in a scope to their remotes.
-		
-If no scope is specified, uses the active scope or current directory.`,
+		Use:   "push [path]",
+		Short: "Push changes from current or specified node",
+		Long: `Push committed changes from repositories at the current node.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV3()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			// Determine scope
-			var targetScope string
+			path := ""
 			if len(args) > 0 {
-				// Positional argument provided
-				targetScope = args[0]
-				mgr.LogScopeContext(targetScope, "positional argument")
-			} else {
-				// Use scope resolution
-				targetScope, _, err = mgr.ResolveScope(scopeFlag)
-				if err != nil {
-					return err
-				}
+				path = args[0]
 			}
 			
-			return mgr.PushScope(targetScope)
+			return mgr.PushNode(path, recursive)
 		},
 	}
 	
-	cmd.Flags().StringVarP(&scopeFlag, "scope", "s", "", "Specify scope explicitly")
+	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Push recursively in subtree")
 	
 	return cmd
 }
 
-// newBranchCmd creates the branch command
-func (a *App) newBranchCmd() *cobra.Command {
-	var scopeFlag string
-	
-	cmd := &cobra.Command{
-		Use:   "branch [scope] <branch-name>",
-		Short: "Switch branches in a scope",
-		Long: `Switch all repositories in a scope to a specific branch.
-		
-Creates the branch if it doesn't exist.
-If no scope is specified, uses the active scope or current directory.`,
-		Args: cobra.RangeArgs(1, 2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return fmt.Errorf("loading workspace: %w", err)
-			}
-			
-			// Determine scope and branch
-			var targetScope, branchName string
-			if len(args) == 2 {
-				// Positional scope argument provided
-				targetScope = args[0]
-				branchName = args[1]
-				mgr.LogScopeContext(targetScope, "positional argument")
-			} else {
-				// Use scope resolution
-				targetScope, _, err = mgr.ResolveScope(scopeFlag)
-				if err != nil {
-					return err
-				}
-				branchName = args[0]
-			}
-			
-			return mgr.BranchScope(targetScope, branchName)
-		},
-	}
-	
-	cmd.Flags().StringVarP(&scopeFlag, "scope", "s", "", "Specify scope explicitly")
-	
-	return cmd
-}
-
-// newPRCmd creates the PR command
-func (a *App) newPRCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "pr",
-		Short: "Manage pull requests",
-		Long:  `Create and manage pull requests for scope repositories`,
-	}
-	
-	// Add PR subcommands here
-	// TODO: Implement PR functionality
-	
-	return cmd
-}
-
-// newDocsCmd creates the documentation command
-func (a *App) newDocsCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "docs",
-		Short: "Manage documentation",
-		Long: `Manage cross-repository documentation.
-		
-Documentation is stored in:
-- docs/global/ for project-wide docs
-- docs/scopes/<scope>/ for scope-specific docs`,
-	}
-	
-	cmd.AddCommand(a.newDocsCreateCmd())
-	cmd.AddCommand(a.newDocsListCmd())
-	cmd.AddCommand(a.newDocsSyncCmd())
-	
-	return cmd
-}
-
-// newDocsCreateCmd creates the docs create command
-func (a *App) newDocsCreateCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "create <scope|global> <filename>",
-		Short: "Create documentation",
-		Args:  cobra.ExactArgs(2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return fmt.Errorf("loading workspace: %w", err)
-			}
-			
-			scope := args[0]
-			filename := args[1]
-			
-			content := fmt.Sprintf("# %s\n\nCreated: %s\n\n## Overview\n\n",
-				filename, time.Now().Format("2006-01-02"))
-			
-			if scope == "global" {
-				return mgr.DocsManager.CreateGlobal(filename, content)
-			} else {
-				return mgr.DocsManager.CreateScope(scope, filename, content)
-			}
-		},
-	}
-}
-
-// newDocsListCmd creates the docs list command
-func (a *App) newDocsListCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "list [scope]",
-		Short: "List documentation",
-		Args:  cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return fmt.Errorf("loading workspace: %w", err)
-			}
-			
-			scope := ""
-			if len(args) > 0 {
-				scope = args[0]
-			}
-			
-			docs, err := mgr.DocsManager.List(scope)
-			if err != nil {
-				return err
-			}
-			
-			if len(docs) == 0 {
-				fmt.Fprintln(a.stdout, "No documentation found")
-				return nil
-			}
-			
-			fmt.Fprintln(a.stdout, "\n📚 Documentation:")
-			for _, doc := range docs {
-				fmt.Fprintf(a.stdout, "  %s (%.1f KB)\n", 
-					doc.Path, float64(doc.Size)/1024)
-			}
-			
-			return nil
-		},
-	}
-}
-
-// newDocsSyncCmd creates the docs sync command
-func (a *App) newDocsSyncCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "sync",
-		Short: "Sync documentation to git",
-		Long:  `Commit and optionally push documentation changes to git.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return fmt.Errorf("loading workspace: %w", err)
-			}
-			
-			return mgr.DocsManager.Sync(false)
-		},
-	}
-}
 
 // newVersionCmd creates the version command
 func (a *App) newVersionCmd() *cobra.Command {
