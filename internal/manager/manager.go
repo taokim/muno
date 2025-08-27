@@ -20,6 +20,8 @@ type Manager struct {
 	ScopeManager  *scope.Manager // Scope manager
 	DocsManager   *docs.Manager  // Documentation manager
 	CmdExecutor   CommandExecutor
+	State         *config.State  // Runtime state for active scope
+	statePath     string         // Path to state file
 }
 
 // New creates a new scope-based manager
@@ -38,9 +40,27 @@ func LoadFromCurrentDir() (*Manager, error) {
 		return nil, err
 	}
 
-	configPath := filepath.Join(cwd, "repo-claude.yaml")
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("no repo-claude.yaml found in current directory")
+	// Search upwards for repo-claude.yaml
+	searchDir := cwd
+	configPath := ""
+	for {
+		candidate := filepath.Join(searchDir, "repo-claude.yaml")
+		if _, err := os.Stat(candidate); err == nil {
+			configPath = candidate
+			cwd = searchDir // Update cwd to the project root
+			break
+		}
+		
+		parent := filepath.Dir(searchDir)
+		if parent == searchDir {
+			// Reached filesystem root
+			break
+		}
+		searchDir = parent
+	}
+	
+	if configPath == "" {
+		return nil, fmt.Errorf("no repo-claude.yaml found in current directory or parent directories")
 	}
 
 	cfg, err := config.Load(configPath)
@@ -60,12 +80,21 @@ func LoadFromCurrentDir() (*Manager, error) {
 		return nil, fmt.Errorf("creating docs manager: %w", err)
 	}
 
+	// Load state
+	statePath := filepath.Join(cwd, ".repo-claude-state.json")
+	state, err := config.LoadState(statePath)
+	if err != nil {
+		return nil, fmt.Errorf("loading state: %w", err)
+	}
+
 	return &Manager{
 		ProjectPath:  cwd,
 		Config:       cfg,
 		ScopeManager: scopeMgr,
 		DocsManager:  docsMgr,
 		CmdExecutor:  &RealCommandExecutor{},
+		State:        state,
+		statePath:    statePath,
 	}, nil
 }
 
@@ -149,6 +178,12 @@ func (m *Manager) ListScopes() error {
 		return fmt.Errorf("listing created scopes: %w", err)
 	}
 
+	// Get active scope
+	activeScope := ""
+	if m.State != nil {
+		activeScope = m.State.GetActiveScope()
+	}
+
 	// Build combined list
 	scopeMap := make(map[string]scope.ScopeDetail)
 	num := 1
@@ -186,6 +221,9 @@ func (m *Manager) ListScopes() error {
 	}
 
 	fmt.Println("\n📋 Available Scopes:")
+	if activeScope != "" {
+		fmt.Printf("🎯 Active scope: %s\n", activeScope)
+	}
 	fmt.Println(strings.Repeat("-", 80))
 	
 	// Convert map to slice and sort by number
@@ -201,7 +239,13 @@ func (m *Manager) ListScopes() error {
 			status = "●"
 		}
 		
-		fmt.Printf("\n%s [%d] %s (%s)\n", status, detail.Number, detail.Name, detail.Type)
+		// Add active indicator
+		nameDisplay := detail.Name
+		if activeScope == detail.Name {
+			nameDisplay = fmt.Sprintf("%s 🎯", detail.Name)
+		}
+		
+		fmt.Printf("\n%s [%d] %s (%s)\n", status, detail.Number, nameDisplay, detail.Type)
 		if detail.Description != "" {
 			fmt.Printf("    📝 %s\n", detail.Description)
 		}
@@ -218,6 +262,7 @@ func (m *Manager) ListScopes() error {
 	
 	fmt.Println("\n" + strings.Repeat("-", 80))
 	fmt.Println("Use 'rc start <number|name>' to start a scope")
+	fmt.Println("Use 'rc use <name>' to set the active scope")
 	
 	return nil
 }
@@ -502,4 +547,121 @@ func (m *Manager) interactiveConfig(projectName string) *config.Config {
 	// For now, return default config
 	// TODO: Implement interactive configuration
 	return config.DefaultConfig(projectName)
+}
+
+// ResolveScope resolves the scope to use with priority: explicit > cwd > active
+func (m *Manager) ResolveScope(explicitScope string) (string, string, error) {
+	var scopeName string
+	var source string
+
+	// 1. Explicit flag (highest priority)
+	if explicitScope != "" {
+		scopeName = explicitScope
+		source = "explicit --scope flag"
+	} else if cwd, _ := os.Getwd(); strings.Contains(cwd, "/workspaces/") {
+		// 2. Current directory detection
+		parts := strings.Split(cwd, "/workspaces/")
+		if len(parts) > 1 {
+			candidate := strings.Split(parts[1], "/")[0]
+			// Verify this is a valid scope
+			if _, err := m.ScopeManager.Get(candidate); err == nil {
+				scopeName = candidate
+				source = "cwd detection"
+			}
+		}
+	}
+	
+	// 3. Active scope from state (if not already set)
+	if scopeName == "" && m.State != nil {
+		if activeScope := m.State.GetActiveScope(); activeScope != "" {
+			// Verify the active scope still exists
+			if _, err := m.ScopeManager.Get(activeScope); err == nil {
+				scopeName = activeScope
+				source = "active scope"
+			}
+		}
+	}
+
+	if scopeName == "" {
+		fmt.Println("❌ No scope specified")
+		fmt.Println("   Options:")
+		fmt.Println("   • Use --scope or -s flag")
+		fmt.Println("   • Run 'rc use <scope>' to set active scope")
+		fmt.Println("   • Navigate to a scope directory")
+		return "", "", fmt.Errorf("no scope specified")
+	}
+
+	// Log the resolved scope
+	m.LogScopeContext(scopeName, source)
+	return scopeName, source, nil
+}
+
+// LogScopeContext logs which scope is being used and why
+func (m *Manager) LogScopeContext(scope, source string) {
+	// Use colors for better visibility (simplified for now)
+	fmt.Printf("🎯 Using scope: %s [%s]\n", scope, source)
+	fmt.Println(strings.Repeat("─", 60))
+}
+
+// SetActiveScope sets the active scope and saves state
+func (m *Manager) SetActiveScope(scopeName string) error {
+	// Handle clearing the active scope
+	if scopeName == "" {
+		if m.State == nil {
+			m.State = &config.State{
+				Scopes: make(map[string]config.ScopeStatus),
+			}
+		}
+		m.State.SetActiveScope("")
+		
+		// Save state
+		if m.statePath != "" {
+			if err := m.State.Save(m.statePath); err != nil {
+				return fmt.Errorf("saving state: %w", err)
+			}
+		}
+		
+		fmt.Println("✅ Active scope cleared")
+		return nil
+	}
+	
+	// Verify scope exists or is defined in config
+	if _, err := m.ScopeManager.Get(scopeName); err != nil {
+		// Check if it's in config
+		if _, exists := m.Config.Scopes[scopeName]; !exists {
+			return fmt.Errorf("scope '%s' not found", scopeName)
+		}
+	}
+
+	// Set active scope in state
+	if m.State == nil {
+		m.State = &config.State{
+			Scopes: make(map[string]config.ScopeStatus),
+		}
+	}
+	m.State.SetActiveScope(scopeName)
+
+	// Save state
+	if m.statePath != "" {
+		if err := m.State.Save(m.statePath); err != nil {
+			return fmt.Errorf("saving state: %w", err)
+		}
+	}
+
+	fmt.Printf("✅ Active scope set to: %s\n", scopeName)
+	return nil
+}
+
+// GetActiveScope returns the currently active scope
+func (m *Manager) GetActiveScope() (string, error) {
+	if m.State == nil {
+		return "", fmt.Errorf("no active scope set")
+	}
+
+	activeScope := m.State.GetActiveScope()
+	if activeScope == "" {
+		return "", fmt.Errorf("no active scope set")
+	}
+
+	return activeScope, nil
 }

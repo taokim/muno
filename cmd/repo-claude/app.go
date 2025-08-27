@@ -71,6 +71,8 @@ Each scope provides:
 	
 	// Scope commands
 	a.rootCmd.AddCommand(a.newScopeCmd())
+	a.rootCmd.AddCommand(a.newUseCmd())
+	a.rootCmd.AddCommand(a.newCurrentCmd())
 	
 	// Git operations (all scope-aware)
 	a.rootCmd.AddCommand(a.newPullCmd())
@@ -279,28 +281,122 @@ func (a *App) newScopeArchiveCmd() *cobra.Command {
 	}
 }
 
-// newPullCmd creates the pull command
-func (a *App) newPullCmd() *cobra.Command {
-	var cloneMissing bool
-	
+// newUseCmd creates the use command
+func (a *App) newUseCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "pull <scope>",
-		Short: "Pull repositories in a scope",
-		Long: `Pull latest changes for all repositories in a scope.
+		Use:   "use <scope>",
+		Short: "Set the active scope",
+		Long: `Set the active scope for all subsequent commands.
 		
-Use --clone-missing to clone repositories that haven't been cloned yet.`,
-		Args: cobra.ExactArgs(1),
+When a scope is set as active:
+- Git commands will use this scope by default
+- You don't need to specify --scope flag
+- The active scope persists across sessions
+
+Use 'rc use --clear' to unset the active scope.`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			return mgr.PullScope(args[0], cloneMissing)
+			// Check if --clear flag is set
+			clear, _ := cmd.Flags().GetBool("clear")
+			if clear {
+				return mgr.SetActiveScope("")
+			}
+			
+			// Otherwise require scope name
+			if len(args) == 0 {
+				return fmt.Errorf("scope name required (or use --clear to unset)")
+			}
+			
+			return mgr.SetActiveScope(args[0])
+		},
+	}
+	
+	cmd.Flags().Bool("clear", false, "Clear the active scope")
+	
+	return cmd
+}
+
+// newCurrentCmd creates the current command
+func (a *App) newCurrentCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "current",
+		Short: "Show the current active scope",
+		Long:  `Display the currently active scope and its status.`,
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			activeScope, err := mgr.GetActiveScope()
+			if err != nil {
+				return err
+			}
+			
+			fmt.Printf("🎯 Active scope: %s\n", activeScope)
+			
+			// Show scope details
+			s, err := mgr.ScopeManager.Get(activeScope)
+			if err == nil {
+				meta := s.GetMeta()
+				fmt.Printf("   Type: %s\n", meta.Type)
+				fmt.Printf("   State: %s\n", meta.State)
+				fmt.Printf("   Path: %s\n", s.GetPath())
+				if meta.Description != "" {
+					fmt.Printf("   Description: %s\n", meta.Description)
+				}
+			}
+			
+			return nil
+		},
+	}
+}
+
+// newPullCmd creates the pull command
+func (a *App) newPullCmd() *cobra.Command {
+	var cloneMissing bool
+	var scopeFlag string
+	
+	cmd := &cobra.Command{
+		Use:   "pull [scope]",
+		Short: "Pull repositories in a scope",
+		Long: `Pull latest changes for all repositories in a scope.
+		
+If no scope is specified, uses the active scope or current directory.
+Use --clone-missing to clone repositories that haven't been cloned yet.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			// Determine scope
+			var targetScope string
+			if len(args) > 0 {
+				// Positional argument provided
+				targetScope = args[0]
+				mgr.LogScopeContext(targetScope, "positional argument")
+			} else {
+				// Use scope resolution
+				targetScope, _, err = mgr.ResolveScope(scopeFlag)
+				if err != nil {
+					return err
+				}
+			}
+			
+			return mgr.PullScope(targetScope, cloneMissing)
 		},
 	}
 	
 	cmd.Flags().BoolVarP(&cloneMissing, "clone-missing", "c", false, "Clone missing repositories")
+	cmd.Flags().StringVarP(&scopeFlag, "scope", "s", "", "Specify scope explicitly")
 	
 	return cmd
 }
@@ -308,12 +404,15 @@ Use --clone-missing to clone repositories that haven't been cloned yet.`,
 // newCommitCmd creates the commit command
 func (a *App) newCommitCmd() *cobra.Command {
 	var message string
+	var scopeFlag string
 	
 	cmd := &cobra.Command{
-		Use:   "commit <scope>",
+		Use:   "commit [scope]",
 		Short: "Commit changes in a scope",
-		Long:  `Commit all changes across repositories in a scope with the same message.`,
-		Args:  cobra.ExactArgs(1),
+		Long: `Commit all changes across repositories in a scope with the same message.
+		
+If no scope is specified, uses the active scope or current directory.`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if message == "" {
 				return fmt.Errorf("commit message is required")
@@ -324,52 +423,112 @@ func (a *App) newCommitCmd() *cobra.Command {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			return mgr.CommitScope(args[0], message)
+			// Determine scope
+			var targetScope string
+			if len(args) > 0 {
+				// Positional argument provided
+				targetScope = args[0]
+				mgr.LogScopeContext(targetScope, "positional argument")
+			} else {
+				// Use scope resolution
+				targetScope, _, err = mgr.ResolveScope(scopeFlag)
+				if err != nil {
+					return err
+				}
+			}
+			
+			return mgr.CommitScope(targetScope, message)
 		},
 	}
 	
 	cmd.Flags().StringVarP(&message, "message", "m", "", "Commit message (required)")
 	cmd.MarkFlagRequired("message")
+	cmd.Flags().StringVarP(&scopeFlag, "scope", "s", "", "Specify scope explicitly")
 	
 	return cmd
 }
 
 // newPushCmd creates the push command
 func (a *App) newPushCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "push <scope>",
+	var scopeFlag string
+	
+	cmd := &cobra.Command{
+		Use:   "push [scope]",
 		Short: "Push changes from a scope",
-		Long:  `Push all committed changes from repositories in a scope to their remotes.`,
-		Args:  cobra.ExactArgs(1),
+		Long: `Push all committed changes from repositories in a scope to their remotes.
+		
+If no scope is specified, uses the active scope or current directory.`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			return mgr.PushScope(args[0])
+			// Determine scope
+			var targetScope string
+			if len(args) > 0 {
+				// Positional argument provided
+				targetScope = args[0]
+				mgr.LogScopeContext(targetScope, "positional argument")
+			} else {
+				// Use scope resolution
+				targetScope, _, err = mgr.ResolveScope(scopeFlag)
+				if err != nil {
+					return err
+				}
+			}
+			
+			return mgr.PushScope(targetScope)
 		},
 	}
+	
+	cmd.Flags().StringVarP(&scopeFlag, "scope", "s", "", "Specify scope explicitly")
+	
+	return cmd
 }
 
 // newBranchCmd creates the branch command
 func (a *App) newBranchCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "branch <scope> <branch-name>",
+	var scopeFlag string
+	
+	cmd := &cobra.Command{
+		Use:   "branch [scope] <branch-name>",
 		Short: "Switch branches in a scope",
 		Long: `Switch all repositories in a scope to a specific branch.
 		
-Creates the branch if it doesn't exist.`,
-		Args: cobra.ExactArgs(2),
+Creates the branch if it doesn't exist.
+If no scope is specified, uses the active scope or current directory.`,
+		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			return mgr.BranchScope(args[0], args[1])
+			// Determine scope and branch
+			var targetScope, branchName string
+			if len(args) == 2 {
+				// Positional scope argument provided
+				targetScope = args[0]
+				branchName = args[1]
+				mgr.LogScopeContext(targetScope, "positional argument")
+			} else {
+				// Use scope resolution
+				targetScope, _, err = mgr.ResolveScope(scopeFlag)
+				if err != nil {
+					return err
+				}
+				branchName = args[0]
+			}
+			
+			return mgr.BranchScope(targetScope, branchName)
 		},
 	}
+	
+	cmd.Flags().StringVarP(&scopeFlag, "scope", "s", "", "Specify scope explicitly")
+	
+	return cmd
 }
 
 // newPRCmd creates the PR command

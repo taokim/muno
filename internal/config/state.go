@@ -9,8 +9,9 @@ import (
 
 // State represents the runtime state of the system
 type State struct {
-	Timestamp string                 `json:"timestamp"`
-	Scopes    map[string]ScopeStatus `json:"scopes"`
+	Timestamp   string                 `json:"timestamp"`
+	ActiveScope string                 `json:"active_scope,omitempty"` // Currently active scope
+	Scopes      map[string]ScopeStatus `json:"scopes"`
 	
 	// Deprecated: Agents field for backwards compatibility
 	Agents    map[string]AgentStatus `json:"agents,omitempty"`
@@ -115,4 +116,15 @@ func (s *State) ChangeScopeContext(sessionName, newScopeName string, newRepos []
 func (s *State) UpdateAgent(status AgentStatus) {
 	status.LastActivity = time.Now().Format(time.RFC3339)
 	s.Agents[status.Name] = status
+}
+
+// SetActiveScope sets the currently active scope
+func (s *State) SetActiveScope(scopeName string) {
+	s.ActiveScope = scopeName
+	s.Timestamp = time.Now().Format(time.RFC3339)
+}
+
+// GetActiveScope returns the currently active scope
+func (s *State) GetActiveScope() string {
+	return s.ActiveScope
 }
