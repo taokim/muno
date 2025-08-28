@@ -6,8 +6,9 @@
 set -e
 
 # Configuration
-SCRIPT_DIR="$(dirname "$0")"
-RC_BIN="${RC_BIN:-$SCRIPT_DIR/../bin/rc}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+RC_BIN="${RC_BIN:-$PROJECT_DIR/bin/rc}"
 TEST_BASE="${TEST_BASE:-/tmp/rc-advanced-test}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 

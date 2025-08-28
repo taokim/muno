@@ -6,6 +6,11 @@
 
 set -e
 
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+RC_BIN="${RC_BIN:-$PROJECT_DIR/bin/rc}"
+
 # Configuration
 BASE_DIR="${1:-/tmp/repo-claude-test}"
 MAX_DEPTH="${2:-5}"
@@ -378,71 +383,81 @@ create_repo_pool() {
 create_test_script() {
     local script_path="$BASE_DIR/test-repo-claude.sh"
     
-    cat > "$script_path" <<'EOF'
+    cat > "$script_path" <<EOF
 #!/bin/bash
 
 # Test script for repo-claude v3
 
-RC_BIN="${RC_BIN:-rc}"
-TEST_DIR="$(dirname "$0")"
+# Get absolute path to rc binary
+if [ -f "$RC_BIN" ]; then
+    RC_BIN="$RC_BIN"
+elif [ -f "$PROJECT_DIR/bin/rc" ]; then
+    RC_BIN="$PROJECT_DIR/bin/rc"
+else
+    echo "Error: rc binary not found"
+    echo "Please set RC_BIN environment variable or build with 'make build'"
+    exit 1
+fi
+
+TEST_DIR="\$(dirname "\$0")"
 
 echo "Testing repo-claude v3 with generated tree"
 echo "========================================="
 
 # Function to run and check command
 run_test() {
-    local cmd="$1"
-    local expected="$2"
+    local cmd="\$1"
+    local expected="\$2"
     
-    echo "Running: $cmd"
-    output=$($cmd 2>&1)
+    echo "Running: \$cmd"
+    output=\$(\$cmd 2>&1)
     
-    if [[ "$output" == *"$expected"* ]]; then
+    if [[ "\$output" == *"\$expected"* ]]; then
         echo "✓ Success"
     else
-        echo "✗ Failed - expected '$expected'"
-        echo "Output: $output"
+        echo "✗ Failed - expected '\$expected'"
+        echo "Output: \$output"
     fi
     echo
 }
 
 # Change to workspace
-cd "$TEST_DIR/workspace"
+cd "\$TEST_DIR/workspace"
 
 # Test 1: Initialize workspace
 echo "Test 1: Initialize workspace"
-run_test "$RC_BIN init test-tree" "initialized"
+run_test "\$RC_BIN init test-tree" "initialized"
 
 # Test 2: Add repositories with different depths
 echo "Test 2: Add repositories"
-for repo in "$TEST_DIR/repo-pool"/*/; do
-    if [ -d "$repo/.git" ]; then
-        name=$(basename "$repo")
+for repo in "\$TEST_DIR/repo-pool"/*/; do
+    if [ -d "\$repo/.git" ]; then
+        name=\$(basename "\$repo")
         # Add first 3 as regular, rest as lazy
-        if [[ "$name" == *"L1-1"* ]] || [[ "$name" == *"L1-2"* ]]; then
-            run_test "$RC_BIN add file://$repo --name $name" ""
+        if [[ "\$name" == *"L1-1"* ]] || [[ "\$name" == *"L1-2"* ]]; then
+            run_test "\$RC_BIN add file://\$repo --name \$name" ""
         else
-            run_test "$RC_BIN add file://$repo --name $name --lazy" ""
+            run_test "\$RC_BIN add file://\$repo --name \$name --lazy" ""
         fi
         
         # Only add first 5 for testing
-        count=$((count + 1))
-        [ $count -eq 5 ] && break
+        count=\$((count + 1))
+        [ \$count -eq 5 ] && break
     fi
 done
 
 # Test 3: Navigate tree
 echo "Test 3: Tree navigation"
-run_test "$RC_BIN tree" "root"
-run_test "$RC_BIN list" "Current"
+run_test "\$RC_BIN tree" "root"
+run_test "\$RC_BIN list" "Current"
 
 # Test 4: Use node
 echo "Test 4: Use node"
-run_test "$RC_BIN use /" "Target"
+run_test "\$RC_BIN use /" "Target"
 
 # Test 5: Git status
 echo "Test 5: Git operations"
-run_test "$RC_BIN status" "Status"
+run_test "\$RC_BIN status" "Status"
 
 echo "Testing complete!"
 EOF

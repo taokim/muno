@@ -13,8 +13,10 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Configuration
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEMO_DIR="/tmp/rc-demo-$(date +%s)"
-RC_BIN="${RC_BIN:-$(dirname "$0")/../bin/rc}"
+RC_BIN="${RC_BIN:-$PROJECT_DIR/bin/rc}"
 
 echo -e "${CYAN}╔════════════════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║      Repo-Claude V3 Quick Demo                ║${NC}"
@@ -24,8 +26,11 @@ echo
 # Check rc binary
 if [ ! -f "$RC_BIN" ]; then
     echo -e "${YELLOW}Building rc binary...${NC}"
-    (cd "$(dirname "$0")/.." && make build)
+    (cd "$PROJECT_DIR" && make build)
+    RC_BIN="$PROJECT_DIR/bin/rc"
 fi
+
+echo -e "${GREEN}Using rc binary: $RC_BIN${NC}"
 
 echo -e "${BLUE}Creating demo environment at: $DEMO_DIR${NC}"
 echo
@@ -134,6 +139,9 @@ cd "$DEMO_DIR/workspace"
 
 $RC_BIN init demo-project
 
+# Change to the created project directory
+cd "$DEMO_DIR/workspace/demo-project"
+
 echo
 echo -e "${BLUE}Step 3: Building tree structure${NC}"
 
@@ -191,7 +199,7 @@ echo
 echo -e "${CYAN}Demo environment created at: $DEMO_DIR${NC}"
 echo
 echo -e "${YELLOW}You can now explore the workspace:${NC}"
-echo -e "  cd $DEMO_DIR/workspace"
+echo -e "  cd $DEMO_DIR/workspace/demo-project"
 echo -e "  $RC_BIN tree"
 echo -e "  $RC_BIN use <node>"
 echo -e "  $RC_BIN list"
@@ -230,9 +238,10 @@ $DEMO_DIR/
 │   ├── shared-utils/
 │   └── ui-components/
 └── workspace/      # Repo-claude workspace
-    ├── repos/      # Cloned repositories
-    ├── repo-claude.yaml
-    └── shared-memory.md
+    └── demo-project/    # Project directory
+        ├── repos/      # Cloned repositories
+        ├── repo-claude.yaml
+        └── shared-memory.md
 \`\`\`
 
 ## Testing Ideas
@@ -256,7 +265,7 @@ $DEMO_DIR/
 ## Commands
 
 \`\`\`bash
-cd $DEMO_DIR/workspace
+cd $DEMO_DIR/workspace/demo-project
 
 # Navigation
 $RC_BIN tree
