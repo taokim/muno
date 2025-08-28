@@ -43,7 +43,8 @@
       "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc init test-full)",
       "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc add:*)",
       "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc init test-clone)",
-      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc use test-viper)"
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc use test-viper)",
+      "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc use cobra)"
     ],
     "deny": [],
     "additionalDirectories": [
