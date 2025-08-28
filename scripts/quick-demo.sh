@@ -1,0 +1,276 @@
+#!/bin/bash
+
+# Quick Demo Script for Repo-Claude V3 Testing
+# Shows how to use local git repos for testing
+
+set -e
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# Configuration
+DEMO_DIR="/tmp/rc-demo-$(date +%s)"
+RC_BIN="${RC_BIN:-$(dirname "$0")/../bin/rc}"
+
+echo -e "${CYAN}╔════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║      Repo-Claude V3 Quick Demo                ║${NC}"
+echo -e "${CYAN}╚════════════════════════════════════════════════╝${NC}"
+echo
+
+# Check rc binary
+if [ ! -f "$RC_BIN" ]; then
+    echo -e "${YELLOW}Building rc binary...${NC}"
+    (cd "$(dirname "$0")/.." && make build)
+fi
+
+echo -e "${BLUE}Creating demo environment at: $DEMO_DIR${NC}"
+echo
+
+# Create demo directory structure
+mkdir -p "$DEMO_DIR/repos"
+mkdir -p "$DEMO_DIR/workspace"
+
+# Function to create a demo repo
+create_demo_repo() {
+    local name="$1"
+    local type="$2"
+    local path="$DEMO_DIR/repos/$name"
+    
+    echo -e "${GREEN}  Creating $name ($type)...${NC}"
+    
+    mkdir -p "$path"
+    cd "$path"
+    
+    git init --quiet
+    git config user.name "Demo"
+    git config user.email "demo@test.com"
+    
+    # Add type-specific content
+    case $type in
+        frontend)
+            cat > package.json <<EOF
+{
+  "name": "$name",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  }
+}
+EOF
+            mkdir -p src
+            echo "console.log('$name');" > src/main.js
+            ;;
+            
+        backend)
+            cat > main.go <<EOF
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("$name service")
+}
+EOF
+            cat > go.mod <<EOF
+module github.com/demo/$name
+
+go 1.21
+EOF
+            ;;
+            
+        library)
+            cat > index.js <<EOF
+// $name - Shared library
+module.exports = {
+    name: "$name",
+    version: "1.0.0"
+};
+EOF
+            ;;
+    esac
+    
+    # Create README
+    cat > README.md <<EOF
+# $name
+
+This is a demo $type repository for testing repo-claude.
+
+## Type
+$type
+
+## Created
+$(date)
+EOF
+    
+    # Commit
+    git add .
+    git commit -m "Initial commit" --quiet
+    
+    # Add some history
+    echo "## Updates" >> README.md
+    git add README.md
+    git commit -m "Add updates section" --quiet
+}
+
+# Create demo repositories
+echo -e "${BLUE}Step 1: Creating demo repositories${NC}"
+create_demo_repo "web-app" "frontend"
+create_demo_repo "mobile-app" "frontend"
+create_demo_repo "api-gateway" "backend"
+create_demo_repo "auth-service" "backend"
+create_demo_repo "user-service" "backend"
+create_demo_repo "shared-utils" "library"
+create_demo_repo "ui-components" "library"
+
+echo
+echo -e "${BLUE}Step 2: Initializing repo-claude workspace${NC}"
+cd "$DEMO_DIR/workspace"
+
+$RC_BIN init demo-project
+
+echo
+echo -e "${BLUE}Step 3: Building tree structure${NC}"
+
+# Add root level repos
+echo -e "${YELLOW}  Adding frontend applications...${NC}"
+$RC_BIN add "file://$DEMO_DIR/repos/web-app" --name web
+$RC_BIN add "file://$DEMO_DIR/repos/mobile-app" --name mobile --lazy
+
+echo -e "${YELLOW}  Adding backend services...${NC}"
+$RC_BIN add "file://$DEMO_DIR/repos/api-gateway" --name gateway
+$RC_BIN add "file://$DEMO_DIR/repos/auth-service" --name auth --lazy
+$RC_BIN add "file://$DEMO_DIR/repos/user-service" --name users --lazy
+
+echo -e "${YELLOW}  Adding shared libraries...${NC}"
+$RC_BIN add "file://$DEMO_DIR/repos/shared-utils" --name utils
+$RC_BIN add "file://$DEMO_DIR/repos/ui-components" --name components --lazy
+
+echo
+echo -e "${BLUE}Step 4: Demonstrating navigation${NC}"
+
+# Show tree
+echo -e "${YELLOW}  Tree structure:${NC}"
+$RC_BIN tree
+
+# Navigate
+echo -e "${YELLOW}  Navigating to web...${NC}"
+$RC_BIN use web
+
+echo -e "${YELLOW}  Current location:${NC}"
+pwd
+
+echo -e "${YELLOW}  Going back to root...${NC}"
+$RC_BIN use /
+
+echo
+echo -e "${BLUE}Step 5: Testing lazy loading${NC}"
+
+echo -e "${YELLOW}  Navigating to lazy repo (mobile)...${NC}"
+$RC_BIN use mobile
+
+echo -e "${YELLOW}  Mobile app should be cloned now${NC}"
+ls -la
+
+echo
+echo -e "${BLUE}Step 6: Git operations${NC}"
+
+echo -e "${YELLOW}  Checking status...${NC}"
+$RC_BIN status || true
+
+echo
+echo -e "${GREEN}════════════════════════════════════════════════${NC}"
+echo -e "${GREEN}Demo Complete!${NC}"
+echo -e "${GREEN}════════════════════════════════════════════════${NC}"
+echo
+echo -e "${CYAN}Demo environment created at: $DEMO_DIR${NC}"
+echo
+echo -e "${YELLOW}You can now explore the workspace:${NC}"
+echo -e "  cd $DEMO_DIR/workspace"
+echo -e "  $RC_BIN tree"
+echo -e "  $RC_BIN use <node>"
+echo -e "  $RC_BIN list"
+echo
+echo -e "${YELLOW}Available nodes:${NC}"
+echo -e "  web        - Web application (cloned)"
+echo -e "  mobile     - Mobile app (lazy)"
+echo -e "  gateway    - API gateway (cloned)"
+echo -e "  auth       - Auth service (lazy)"
+echo -e "  users      - User service (lazy)"
+echo -e "  utils      - Shared utilities (cloned)"
+echo -e "  components - UI components (lazy)"
+echo
+echo -e "${YELLOW}Try these commands:${NC}"
+echo -e "  $RC_BIN use auth    # Clone and navigate to auth service"
+echo -e "  $RC_BIN clone --recursive  # Clone all lazy repos"
+echo -e "  $RC_BIN status      # Check git status across tree"
+echo
+
+# Save demo info
+cat > "$DEMO_DIR/DEMO_INFO.md" <<EOF
+# Repo-Claude V3 Demo Environment
+
+Created: $(date)
+
+## Structure
+
+\`\`\`
+$DEMO_DIR/
+├── repos/          # Git repositories (source)
+│   ├── web-app/
+│   ├── mobile-app/
+│   ├── api-gateway/
+│   ├── auth-service/
+│   ├── user-service/
+│   ├── shared-utils/
+│   └── ui-components/
+└── workspace/      # Repo-claude workspace
+    ├── repos/      # Cloned repositories
+    ├── repo-claude.yaml
+    └── shared-memory.md
+\`\`\`
+
+## Testing Ideas
+
+1. **Deep Navigation**:
+   - Navigate into repos and add child repos
+   - Test relative navigation (../, ./)
+   
+2. **Lazy Loading**:
+   - Navigate to lazy repos to trigger cloning
+   - Use \`rc clone --recursive\` to clone all
+
+3. **Git Operations**:
+   - Make changes in repos
+   - Test \`rc commit\` and \`rc status\`
+
+4. **Tree Visualization**:
+   - Use \`rc tree\` to see structure
+   - Test at different depths
+
+## Commands
+
+\`\`\`bash
+cd $DEMO_DIR/workspace
+
+# Navigation
+$RC_BIN tree
+$RC_BIN use web
+$RC_BIN use /
+$RC_BIN use auth
+
+# Git operations
+$RC_BIN status
+$RC_BIN pull /
+
+# Lazy loading
+$RC_BIN clone --recursive
+\`\`\`
+EOF
+
+echo -e "${CYAN}Demo info saved to: $DEMO_DIR/DEMO_INFO.md${NC}"
