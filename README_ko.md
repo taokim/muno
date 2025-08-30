@@ -1,12 +1,10 @@
-<div align="center">
-  <img src="assets/muno-logo.png" alt="MUNO - 다중 저장소 통합 오케스트레이션" width="200">
-  
-  # MUNO
+![MUNO - Multi-Repository Orchestration](assets/muno-logo.png)
 
-  AI 기반 네비게이션으로 다중 저장소 개발을 통합된 트리 기반 작업 공간으로 변환합니다.
+# MUNO
+
+AI 기반 네비게이션으로 다중 저장소 개발을 통합된 트리 기반 작업 공간으로 변환합니다.
   
-  [English](README.md) | [한국어](#)
-</div>
+[English](README.md) | [한국어](#)
 
 ## 이름의 의미: MUNO 🐙
 

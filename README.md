@@ -1,12 +1,10 @@
-<div align="center">
-  <img src="assets/muno-logo.png" alt="MUNO - Multi-Repository Orchestration" width="200">
+![MUNO - Multi-Repository Orchestration](assets/muno-logo.png)
   
-  # MUNO
+# MUNO
 
-  Transform your multi-repository development into a unified tree-based workspace with AI-powered navigation.
+Transform your multi-repository development into a unified tree-based workspace with AI-powered navigation.
   
-  [English](#) | [한국어](README_ko.md)
-</div>
+[English](#) | [한국어](README_ko.md)
 
 ## The Name: MUNO 🐙
 
