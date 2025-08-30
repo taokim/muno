@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewV3(t *testing.T) {
+func TestNewManager(t *testing.T) {
 	tmpDir := t.TempDir()
 	
-	mgr, err := NewV3(tmpDir)
+	mgr, err := NewManager(tmpDir)
 	require.NoError(t, err)
 	assert.NotNil(t, mgr)
 	assert.Equal(t, tmpDir, mgr.ProjectPath)
@@ -20,10 +20,10 @@ func TestNewV3(t *testing.T) {
 	assert.NotNil(t, mgr.GitCmd)
 }
 
-func TestInitWorkspaceV3(t *testing.T) {
+func TestInitWorkspace(t *testing.T) {
 	tmpDir := t.TempDir()
 	
-	mgr, err := NewV3(tmpDir)
+	mgr, err := NewManager(tmpDir)
 	require.NoError(t, err)
 	
 	t.Run("BasicInitialization", func(t *testing.T) {
@@ -55,12 +55,12 @@ func TestInitWorkspaceV3(t *testing.T) {
 	})
 }
 
-func TestLoadFromCurrentDirV3(t *testing.T) {
+func TestLoadFromCurrentDir(t *testing.T) {
 	t.Run("LoadExistingProject", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		
 		// Initialize project first
-		mgr, err := NewV3(tmpDir)
+		mgr, err := NewManager(tmpDir)
 		require.NoError(t, err)
 		
 		err = mgr.InitWorkspace("existing-project", false)
@@ -73,7 +73,7 @@ func TestLoadFromCurrentDirV3(t *testing.T) {
 		require.NoError(t, err)
 		
 		// Load manager
-		mgr2, err := LoadFromCurrentDirV3()
+		mgr2, err := LoadFromCurrentDir()
 		require.NoError(t, err)
 		assert.NotNil(t, mgr2)
 		assert.NotNil(t, mgr2.TreeManager)
@@ -88,7 +88,7 @@ func TestLoadFromCurrentDirV3(t *testing.T) {
 		err := os.Chdir(tmpDir)
 		require.NoError(t, err)
 		
-		mgr, err := LoadFromCurrentDirV3()
+		mgr, err := LoadFromCurrentDir()
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 	})
@@ -97,7 +97,7 @@ func TestLoadFromCurrentDirV3(t *testing.T) {
 func TestTreeOperationsV3(t *testing.T) {
 	tmpDir := t.TempDir()
 	
-	mgr, err := NewV3(tmpDir)
+	mgr, err := NewManager(tmpDir)
 	require.NoError(t, err)
 	
 	err = mgr.InitWorkspace("tree-ops-test", false)
@@ -161,7 +161,7 @@ func TestTreeOperationsV3(t *testing.T) {
 func TestShowCurrentV3(t *testing.T) {
 	tmpDir := t.TempDir()
 	
-	mgr, err := NewV3(tmpDir)
+	mgr, err := NewManager(tmpDir)
 	require.NoError(t, err)
 	
 	err = mgr.InitWorkspace("show-test", false)
@@ -183,7 +183,7 @@ func TestShowCurrentV3(t *testing.T) {
 func TestStartNodeV3(t *testing.T) {
 	tmpDir := t.TempDir()
 	
-	mgr, err := NewV3(tmpDir)
+	mgr, err := NewManager(tmpDir)
 	require.NoError(t, err)
 	
 	err = mgr.InitWorkspace("claude-test", false)
@@ -206,7 +206,7 @@ func TestStartNodeV3(t *testing.T) {
 func TestGitOperationsV3(t *testing.T) {
 	tmpDir := t.TempDir()
 	
-	mgr, err := NewV3(tmpDir)
+	mgr, err := NewManager(tmpDir)
 	require.NoError(t, err)
 	
 	err = mgr.InitWorkspace("git-test", false)

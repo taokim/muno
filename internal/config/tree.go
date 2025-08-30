@@ -8,18 +8,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ConfigV3Tree represents the v3 tree-based configuration
-type ConfigV3Tree struct {
+// ConfigTree represents the tree-based configuration
+type ConfigTree struct {
 	Version      int              `yaml:"version"`
-	Workspace    WorkspaceV3Tree  `yaml:"workspace"`
+	Workspace    WorkspaceTree  `yaml:"workspace"`
 	Repositories []RepoDefinition `yaml:"repositories,omitempty"`
 	
 	// Runtime fields (not in YAML)
 	Path     string `yaml:"-"`
 }
 
-// WorkspaceV3Tree represents workspace configuration for v3
-type WorkspaceV3Tree struct {
+// WorkspaceTree represents workspace configuration for v3
+type WorkspaceTree struct {
 	Name     string `yaml:"name"`
 	RootRepo string `yaml:"root_repo,omitempty"` // Root is also a git repo
 	ReposDir string `yaml:"repos_dir,omitempty"` // Directory for repositories (default: "repos")
@@ -58,11 +58,11 @@ type TreeState struct {
 	LastUpdated    string              `json:"last_updated"`
 }
 
-// DefaultConfigV3Tree returns the default tree configuration
-func DefaultConfigV3Tree(projectName string) *ConfigV3Tree {
-	return &ConfigV3Tree{
+// DefaultConfigTree returns the default tree configuration
+func DefaultConfigTree(projectName string) *ConfigTree {
+	return &ConfigTree{
 		Version: 3,
-		Workspace: WorkspaceV3Tree{
+		Workspace: WorkspaceTree{
 			Name:     projectName,
 			RootRepo: "", // Can be set if root is a repo
 			ReposDir: "repos", // Default repos directory
@@ -70,14 +70,14 @@ func DefaultConfigV3Tree(projectName string) *ConfigV3Tree {
 	}
 }
 
-// LoadV3Tree reads a v3 tree configuration from a YAML file
-func LoadV3Tree(path string) (*ConfigV3Tree, error) {
+// LoadTree reads a tree configuration from a YAML file
+func LoadTree(path string) (*ConfigTree, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading config file: %w", err)
 	}
 
-	var cfg ConfigV3Tree
+	var cfg ConfigTree
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
@@ -101,8 +101,8 @@ func LoadV3Tree(path string) (*ConfigV3Tree, error) {
 	return &cfg, nil
 }
 
-// Save writes a v3 tree configuration to a YAML file
-func (c *ConfigV3Tree) Save(path string) error {
+// Save writes a tree configuration to a YAML file
+func (c *ConfigTree) Save(path string) error {
 	// Ensure directory exists
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -121,8 +121,8 @@ func (c *ConfigV3Tree) Save(path string) error {
 	return nil
 }
 
-// Validate validates the v3 tree configuration
-func (c *ConfigV3Tree) Validate() error {
+// Validate validates the tree configuration
+func (c *ConfigTree) Validate() error {
 	if c.Version != 3 {
 		return fmt.Errorf("invalid version: %d (expected 3)", c.Version)
 	}
@@ -135,7 +135,7 @@ func (c *ConfigV3Tree) Validate() error {
 }
 
 // GetReposDir returns the configured repos directory name
-func (c *ConfigV3Tree) GetReposDir() string {
+func (c *ConfigTree) GetReposDir() string {
 	if c.Workspace.ReposDir == "" {
 		return "repos"
 	}

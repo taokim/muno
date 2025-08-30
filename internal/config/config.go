@@ -13,21 +13,21 @@ import (
 // DefaultMetaRepoPattern is the default regex pattern to detect meta-repos
 const DefaultMetaRepoPattern = `(?i)(-(repo|monorepo|rc|meta)$)`
 
-// ConfigV3 represents the simplified configuration structure (version 3)
-type ConfigV3 struct {
+// Config represents the simplified configuration structure (version 3)
+type Config struct {
 	Version       int                      `yaml:"version"`
 	Workspace     WorkspaceConfig          `yaml:"workspace"`
 	Defaults      Defaults                 `yaml:"defaults,omitempty"`
-	Repositories  map[string]RepositoryV3  `yaml:"repositories"`
-	// Scopes - removed in tree-based v3 architecture
-	// Scopes        map[string]ScopeV3       `yaml:"scopes"`
+	Repositories  map[string]Repository  `yaml:"repositories"`
+	// Scopes - removed in tree-based architecture
+	// Scopes        map[string]Scope       `yaml:"scopes"`
 	Documentation DocumentationConfig      `yaml:"documentation,omitempty"`
 	
 	// Runtime fields (not in YAML)
 	Path          string                 `yaml:"-"`
-	Parent        *ConfigV3              `yaml:"-"`
+	Parent        *Config              `yaml:"-"`
 	Depth         int                    `yaml:"-"`
-	Children      map[string]*ConfigV3   `yaml:"-"` // Lazy-loaded child workspaces
+	Children      map[string]*Config   `yaml:"-"` // Lazy-loaded child workspaces
 }
 
 // Defaults contains default settings for repositories
@@ -37,8 +37,8 @@ type Defaults struct {
 	EagerPattern string `yaml:"eager_pattern,omitempty"` // Regex for repos to eager-load (meta-repos)
 }
 
-// RepositoryV3 represents a simplified repository definition
-type RepositoryV3 struct {
+// Repository represents a simplified repository definition
+type Repository struct {
 	URL    string  `yaml:"url"`
 	Branch string  `yaml:"branch,omitempty"`
 	Groups []string `yaml:"groups,omitempty"`
@@ -46,12 +46,12 @@ type RepositoryV3 struct {
 	
 	// Runtime fields (not in YAML)
 	IsWorkspace bool      `yaml:"-"` // Auto-detected: true if contains repo-claude.yaml
-	Config      *ConfigV3 `yaml:"-"` // Loaded config if it's a workspace
+	Config      *Config `yaml:"-"` // Loaded config if it's a workspace
 	Path        string    `yaml:"-"` // Local path after cloning
 }
 
-// ScopeV3 represents a scope that can reference both local repos and child workspace scopes
-type ScopeV3 struct {
+// Scope represents a scope that can reference both local repos and child workspace scopes
+type Scope struct {
 	Type            string              `yaml:"type"`                       // "persistent" or "ephemeral"
 	Repos           []string            `yaml:"repos,omitempty"`            // Local repository references
 	Description     string              `yaml:"description"`                // Human-readable description
@@ -68,16 +68,16 @@ func DefaultDefaults() Defaults {
 	}
 }
 
-// DefaultConfigV3 returns the default configuration template
-func DefaultConfigV3(projectName string) *ConfigV3 {
-	return &ConfigV3{
+// DefaultConfig returns the default configuration template
+func DefaultConfig(projectName string) *Config {
+	return &Config{
 		Version: 3,
 		Workspace: WorkspaceConfig{
 			Name:     projectName,
 			RootPath: "repos",
 		},
 		Defaults: DefaultDefaults(),
-		Repositories: map[string]RepositoryV3{
+		Repositories: map[string]Repository{
 			// Meta-repos (will be eager-loaded due to naming)
 			"backend-repo": {
 				URL:    "https://github.com/yourorg/backend-repo.git",
@@ -105,20 +105,21 @@ func DefaultConfigV3(projectName string) *ConfigV3 {
 				Groups: []string{"frontend", "ui"},
 			},
 		},
-		Scopes: map[string]ScopeV3{
-			"backend": {
-				Type:        "persistent",
-				Repos:       []string{"payment-service", "fraud-detection"},
-				Description: "Backend services development",
-				Model:       "claude-3-5-sonnet-20241022",
-			},
-			"fullstack": {
-				Type:        "persistent",
-				Repos:       []string{"payment-service", "web-app"},
-				Description: "Full-stack development",
-				Model:       "claude-3-5-sonnet-20241022",
-			},
-		},
+		// Scopes removed in tree-based architecture
+		// Scopes: map[string]Scope{
+		// 	"backend": {
+		// 		Type:        "persistent",
+		// 		Repos:       []string{"payment-service", "fraud-detection"},
+		// 		Description: "Backend services development",
+		// 		Model:       "claude-3-5-sonnet-20241022",
+		// 	},
+		// 	"fullstack": {
+		// 		Type:        "persistent",
+		// 		Repos:       []string{"payment-service", "web-app"},
+		// 		Description: "Full-stack development",
+		// 		Model:       "claude-3-5-sonnet-20241022",
+		// 	},
+		// },
 		Documentation: DocumentationConfig{
 			Path:      "docs",
 			SyncToGit: true,
@@ -127,7 +128,7 @@ func DefaultConfigV3(projectName string) *ConfigV3 {
 }
 
 // IsLazy determines if a repository should be lazy-loaded
-func (r *RepositoryV3) IsLazy(name string, defaults Defaults) bool {
+func (r *Repository) IsLazy(name string, defaults Defaults) bool {
 	// Explicit configuration wins
 	if r.Lazy != nil {
 		return *r.Lazy
@@ -188,14 +189,14 @@ func (d *Defaults) ValidateDefaults() error {
 	return nil
 }
 
-// LoadV3 reads a v3 configuration from a YAML file
-func LoadV3(path string) (*ConfigV3, error) {
+// Load reads a configuration from a YAML file
+func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading config file: %w", err)
 	}
 
-	var cfg ConfigV3
+	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
@@ -224,15 +225,15 @@ func LoadV3(path string) (*ConfigV3, error) {
 	cfg.Path = filepath.Dir(path)
 	
 	// Validate configuration
-	if err := cfg.ValidateV3(); err != nil {
+	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
 	return &cfg, nil
 }
 
-// SaveV3 writes a v3 configuration to a YAML file
-func (c *ConfigV3) SaveV3(path string) error {
+// Save writes a configuration to a YAML file
+func (c *Config) Save(path string) error {
 	// Ensure directory exists
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -251,8 +252,8 @@ func (c *ConfigV3) SaveV3(path string) error {
 	return nil
 }
 
-// ValidateV3 validates the v3 configuration
-func (c *ConfigV3) ValidateV3() error {
+// Validate validates the configuration
+func (c *Config) Validate() error {
 	if c.Workspace.Name == "" {
 		return fmt.Errorf("workspace name is required")
 	}
@@ -261,7 +262,7 @@ func (c *ConfigV3) ValidateV3() error {
 		return fmt.Errorf("at least one repository must be defined")
 	}
 
-	// Scopes validation removed - tree-based v3 doesn't use scopes
+	// Scopes validation removed - tree-based doesn't use scopes
 	// if len(c.Scopes) == 0 {
 	// 	return fmt.Errorf("at least one scope must be defined")
 	// }
@@ -271,7 +272,7 @@ func (c *ConfigV3) ValidateV3() error {
 		return fmt.Errorf("invalid defaults: %w", err)
 	}
 
-	// Scope validation removed - tree-based v3 doesn't use scopes
+	// Scope validation removed - tree-based doesn't use scopes
 	// for scopeName, scope := range c.Scopes {
 	// 	// Check local repos
 	// 	for _, repoName := range scope.Repos {
@@ -292,8 +293,8 @@ func (c *ConfigV3) ValidateV3() error {
 	return nil
 }
 
-// GetRepositoryV3 returns a repository by name
-func (c *ConfigV3) GetRepositoryV3(name string) (*RepositoryV3, error) {
+// GetRepository returns a repository by name
+func (c *Config) GetRepository(name string) (*Repository, error) {
 	repo, exists := c.Repositories[name]
 	if !exists {
 		return nil, fmt.Errorf("repository %s not found", name)
@@ -302,8 +303,8 @@ func (c *ConfigV3) GetRepositoryV3(name string) (*RepositoryV3, error) {
 	return &repoCopy, nil
 }
 
-// GetScopeV3 - removed in tree-based v3 architecture
-// func (c *ConfigV3) GetScopeV3(name string) (*ScopeV3, error) {
+// GetScope - removed in tree-based architecture
+// func (c *Config) GetScope(name string) (*Scope, error) {
 // 	scope, exists := c.Scopes[name]
 // 	if !exists {
 // 		return nil, fmt.Errorf("scope %s not found", name)
@@ -330,8 +331,8 @@ func IsMetaRepo(name string, url string, defaults Defaults) bool {
 }
 
 // GetChildWorkspaces returns repositories that are workspaces
-func (c *ConfigV3) GetChildWorkspaces() map[string]*RepositoryV3 {
-	workspaces := make(map[string]*RepositoryV3)
+func (c *Config) GetChildWorkspaces() map[string]*Repository {
+	workspaces := make(map[string]*Repository)
 	
 	for name, repo := range c.Repositories {
 		if repo.IsWorkspace {
@@ -344,8 +345,8 @@ func (c *ConfigV3) GetChildWorkspaces() map[string]*RepositoryV3 {
 }
 
 // GetLocalRepositories returns repositories that are not workspaces
-func (c *ConfigV3) GetLocalRepositories() map[string]*RepositoryV3 {
-	repos := make(map[string]*RepositoryV3)
+func (c *Config) GetLocalRepositories() map[string]*Repository {
+	repos := make(map[string]*Repository)
 	
 	for name, repo := range c.Repositories {
 		if !repo.IsWorkspace {

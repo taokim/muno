@@ -50,25 +50,25 @@ func TestRepositoryIsLazy(t *testing.T) {
 	
 	tests := []struct {
 		name         string
-		repo         RepositoryV3
+		repo         Repository
 		repoName     string
 		expectedLazy bool
 	}{
 		{
 			name:         "meta-repo is eager",
-			repo:         RepositoryV3{URL: "https://github.com/acme/backend-repo.git"},
+			repo:         Repository{URL: "https://github.com/acme/backend-repo.git"},
 			repoName:     "backend-repo",
 			expectedLazy: false,
 		},
 		{
 			name:         "regular repo is lazy",
-			repo:         RepositoryV3{URL: "https://github.com/acme/payment-service.git"},
+			repo:         Repository{URL: "https://github.com/acme/payment-service.git"},
 			repoName:     "payment-service",
 			expectedLazy: true,
 		},
 		{
 			name: "explicit lazy true",
-			repo: RepositoryV3{
+			repo: Repository{
 				URL:  "https://github.com/acme/backend-repo.git",
 				Lazy: boolPtr(true),
 			},
@@ -77,7 +77,7 @@ func TestRepositoryIsLazy(t *testing.T) {
 		},
 		{
 			name: "explicit lazy false",
-			repo: RepositoryV3{
+			repo: Repository{
 				URL:  "https://github.com/acme/payment-service.git",
 				Lazy: boolPtr(false),
 			},
@@ -121,67 +121,61 @@ func TestCustomPatterns(t *testing.T) {
 	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := RepositoryV3{URL: "https://github.com/acme/" + tt.repoName + ".git"}
+			repo := Repository{URL: "https://github.com/acme/" + tt.repoName + ".git"}
 			result := repo.IsLazy(tt.repoName, customDefaults)
 			assert.Equal(t, tt.expectedLazy, result)
 		})
 	}
 }
 
-func TestConfigV3Validation(t *testing.T) {
+func TestConfigValidation(t *testing.T) {
 	tests := []struct {
 		name    string
-		config  *ConfigV3
+		config  *Config
 		wantErr string
 	}{
 		{
 			name: "valid config",
-			config: &ConfigV3{
+			config: &Config{
 				Version: 3,
 				Workspace: WorkspaceConfig{
 					Name: "test",
 				},
 				Defaults: DefaultDefaults(),
-				Repositories: map[string]RepositoryV3{
+				Repositories: map[string]Repository{
 					"repo1": {URL: "https://github.com/test/repo1.git"},
 				},
-				Scopes: map[string]ScopeV3{
-					"default": {Type: "persistent"},
-				},
+				// Scopes removed
 			},
 			wantErr: "",
 		},
 		{
 			name: "missing workspace name",
-			config: &ConfigV3{
+			config: &Config{
 				Version:   3,
 				Workspace: WorkspaceConfig{},
-				Repositories: map[string]RepositoryV3{
+				Repositories: map[string]Repository{
 					"repo1": {URL: "https://github.com/test/repo1.git"},
 				},
-				Scopes: map[string]ScopeV3{
-					"default": {Type: "persistent"},
-				},
+				// Scopes removed
 			},
 			wantErr: "workspace name is required",
 		},
 		{
 			name: "no repositories",
-			config: &ConfigV3{
+			config: &Config{
 				Version: 3,
 				Workspace: WorkspaceConfig{
 					Name: "test",
 				},
-				Repositories: map[string]RepositoryV3{},
-				Scopes: map[string]ScopeV3{
-					"default": {Type: "persistent"},
-				},
+				Repositories: map[string]Repository{},
+				// Scopes removed
 			},
 			wantErr: "at least one repository must be defined",
 		},
 		{
 			name: "invalid regex pattern",
-			config: &ConfigV3{
+			config: &Config{
 				Version: 3,
 				Workspace: WorkspaceConfig{
 					Name: "test",
@@ -190,12 +184,10 @@ func TestConfigV3Validation(t *testing.T) {
 					Lazy:         true,
 					EagerPattern: "[(invalid regex",
 				},
-				Repositories: map[string]RepositoryV3{
+				Repositories: map[string]Repository{
 					"repo1": {URL: "https://github.com/test/repo1.git"},
 				},
-				Scopes: map[string]ScopeV3{
-					"default": {Type: "persistent"},
-				},
+				// Scopes removed
 			},
 			wantErr: "invalid eager_pattern regex",
 		},
@@ -203,7 +195,7 @@ func TestConfigV3Validation(t *testing.T) {
 	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.config.ValidateV3()
+			err := tt.config.Validate()
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
@@ -215,7 +207,7 @@ func TestConfigV3Validation(t *testing.T) {
 }
 
 
-func TestConfigV3YAML(t *testing.T) {
+func TestConfigYAML(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "repo-claude.yaml")
 	
@@ -263,7 +255,7 @@ documentation:
 	require.NoError(t, err)
 	
 	// Load and validate
-	cfg, err := LoadV3(configPath)
+	cfg, err := Load(configPath)
 	require.NoError(t, err)
 	
 	assert.Equal(t, 3, cfg.Version)
@@ -281,20 +273,20 @@ documentation:
 	assert.False(t, specialConfig.IsLazy("special-config", cfg.Defaults)) // Explicit false override
 }
 
-// TestConfigV3SaveLoad tests saving and loading v3 config
-func TestConfigV3SaveLoad(t *testing.T) {
+// TestConfigSaveLoad tests saving and loading config
+func TestConfigSaveLoad(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "repo-claude.yaml")
 	
 	// Create a config
-	cfg := &ConfigV3{
+	cfg := &Config{
 		Version: 3,
 		Workspace: WorkspaceConfig{
 			Name:     "test-project",
 			RootPath: "repos",
 		},
 		Defaults: DefaultDefaults(),
-		Repositories: map[string]RepositoryV3{
+		Repositories: map[string]Repository{
 			"backend-repo": {
 				URL:    "https://github.com/test/backend-repo.git",
 				Branch: "main",
@@ -305,14 +297,7 @@ func TestConfigV3SaveLoad(t *testing.T) {
 				Groups: []string{"backend", "core"},
 			},
 		},
-		Scopes: map[string]ScopeV3{
-			"backend": {
-				Type:        "persistent",
-				Repos:       []string{"payment-service"},
-				Description: "Backend services",
-				Model:       "claude-3-5-sonnet",
-			},
-		},
+		// Scopes removed
 		Documentation: DocumentationConfig{
 			Path:       "docs",
 			SyncToGit:  true,
@@ -320,11 +305,11 @@ func TestConfigV3SaveLoad(t *testing.T) {
 	}
 	
 	// Save config
-	err := cfg.SaveV3(configPath)
+	err := cfg.Save(configPath)
 	require.NoError(t, err)
 	
 	// Load config back
-	loaded, err := LoadV3(configPath)
+	loaded, err := Load(configPath)
 	require.NoError(t, err)
 	
 	// Verify loaded config matches original
@@ -339,19 +324,20 @@ func TestConfigV3SaveLoad(t *testing.T) {
 	assert.Equal(t, "develop", loaded.Repositories["payment-service"].Branch)
 	assert.Equal(t, []string{"backend", "core"}, loaded.Repositories["payment-service"].Groups)
 	
-	assert.Len(t, loaded.Scopes, 1)
-	assert.Equal(t, "Backend services", loaded.Scopes["backend"].Description)
+	// Scopes removed in tree-based architecture
+	// assert.Len(t, loaded.Scopes, 1)
+	// assert.Equal(t, "Backend services", loaded.Scopes["backend"].Description)
 }
 
 // TestRecursiveWorkspaceDetection tests detecting nested workspaces
 func TestRecursiveWorkspaceDetection(t *testing.T) {
-	cfg := &ConfigV3{
+	cfg := &Config{
 		Version: 3,
 		Workspace: WorkspaceConfig{
 			Name: "root",
 		},
 		Defaults: DefaultDefaults(),
-		Repositories: map[string]RepositoryV3{
+		Repositories: map[string]Repository{
 			"backend-meta": {
 				URL:    "https://github.com/test/backend-meta.git",
 				Branch: "main",

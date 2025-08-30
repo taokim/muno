@@ -13,14 +13,14 @@ import (
 
 // SmartInitWorkspace performs intelligent initialization
 // It detects existing git repos and offers to add them
-func (m *ManagerV3) SmartInitWorkspace(projectName string, options InitOptions) error {
+func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) error {
 	// Check if we're in an existing rc workspace
 	configPath := filepath.Join(".", "repo-claude.yaml")
 	
 	// Create base configuration early to get repos directory
-	cfg := &config.ConfigV3Tree{
+	cfg := &config.ConfigTree{
 		Version: 3,
-		Workspace: config.WorkspaceV3Tree{
+		Workspace: config.WorkspaceTree{
 			Name:     projectName,
 			ReposDir: "repos", // Default value
 		},
@@ -31,7 +31,7 @@ func (m *ManagerV3) SmartInitWorkspace(projectName string, options InitOptions) 
 	hasConfig := false
 	if _, err := os.Stat(configPath); err == nil {
 		hasConfig = true
-		if existingCfg, err := config.LoadV3Tree(configPath); err == nil {
+		if existingCfg, err := config.LoadTree(configPath); err == nil {
 			// Use existing repos dir if specified
 			if existingCfg.Workspace.ReposDir != "" {
 				cfg.Workspace.ReposDir = existingCfg.Workspace.ReposDir
@@ -258,7 +258,7 @@ func (m *ManagerV3) SmartInitWorkspace(projectName string, options InitOptions) 
 	claudePath := filepath.Join(".", "CLAUDE.md")
 	if _, err := os.Stat(claudePath); os.IsNotExist(err) {
 		claudeContent := fmt.Sprintf("# %s\n\n", projectName)
-		claudeContent += "This is a repo-claude v3 workspace with tree-based navigation.\n\n"
+		claudeContent += "This is a repo-claude workspace with tree-based navigation.\n\n"
 		claudeContent += "## Commands\n\n"
 		claudeContent += "- `rc tree` - Display repository tree\n"
 		claudeContent += "- `rc use <path>` - Navigate to repository\n"
@@ -319,7 +319,7 @@ type GitRepoInfo struct {
 }
 
 // findGitRepositoriesWithReposDir searches for git repositories in the given path
-func (m *ManagerV3) findGitRepositoriesWithReposDir(rootPath string, reposDir string) ([]GitRepoInfo, error) {
+func (m *Manager) findGitRepositoriesWithReposDir(rootPath string, reposDir string) ([]GitRepoInfo, error) {
 	var repos []GitRepoInfo
 	
 	// Track visited directories to avoid duplicates

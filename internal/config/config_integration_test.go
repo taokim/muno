@@ -10,19 +10,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestV3WorkspaceHierarchy tests creating and navigating a workspace hierarchy
-func TestV3WorkspaceHierarchy(t *testing.T) {
+// TestWorkspaceHierarchy tests creating and navigating a workspace hierarchy
+func TestWorkspaceHierarchy(t *testing.T) {
 	tempDir := t.TempDir()
 	
 	// Create root workspace config
-	rootConfig := &ConfigV3{
+	rootConfig := &Config{
 		Version: 3,
 		Workspace: WorkspaceConfig{
 			Name:     "platform",
 			RootPath: "repos",
 		},
 		Defaults: DefaultDefaults(),
-		Repositories: map[string]RepositoryV3{
+		Repositories: map[string]Repository{
 			// Meta-repos (will be detected as workspaces)
 			"backend-meta": {
 				URL:    "https://github.com/acme/backend-meta.git",
@@ -39,20 +39,7 @@ func TestV3WorkspaceHierarchy(t *testing.T) {
 				Groups: []string{"common"},
 			},
 		},
-		Scopes: map[string]ScopeV3{
-			"platform": {
-				Type:        "persistent",
-				Repos:       []string{"shared-libs"},
-				Description: "Platform-wide development",
-			},
-			"backend": {
-				Type: "persistent",
-				WorkspaceScopes: map[string][]string{
-					"backend-meta": {"api", "services"},
-				},
-				Description: "Backend development with sub-scopes",
-			},
-		},
+		// Scopes removed
 	}
 	
 	// Save root config
@@ -60,15 +47,16 @@ func TestV3WorkspaceHierarchy(t *testing.T) {
 	require.NoError(t, os.MkdirAll(rootPath, 0755))
 	
 	configPath := filepath.Join(rootPath, "repo-claude.yaml")
-	require.NoError(t, rootConfig.SaveV3(configPath))
+	require.NoError(t, rootConfig.Save(configPath))
 	
 	// Load and verify
-	loaded, err := LoadV3(configPath)
+	loaded, err := Load(configPath)
 	require.NoError(t, err)
 	
 	assert.Equal(t, "platform", loaded.Workspace.Name)
 	assert.Len(t, loaded.Repositories, 3)
-	assert.Len(t, loaded.Scopes, 2)
+	// Scopes removed in tree-based architecture
+	// assert.Len(t, loaded.Scopes, 2)
 	
 	// Check lazy loading detection
 	backendMeta := loaded.Repositories["backend-meta"]
@@ -78,15 +66,15 @@ func TestV3WorkspaceHierarchy(t *testing.T) {
 	assert.True(t, sharedLibs.IsLazy("shared-libs", loaded.Defaults), "Regular repos should be lazy")
 }
 
-// TestV3RecursiveScopes tests scopes that reference sub-workspace scopes
-func TestV3RecursiveScopes(t *testing.T) {
-	cfg := &ConfigV3{
+// TestRecursiveScopes tests scopes that reference sub-workspace scopes
+func TestRecursiveScopes(t *testing.T) {
+	cfg := &Config{
 		Version: 3,
 		Workspace: WorkspaceConfig{
 			Name: "root",
 		},
 		Defaults: DefaultDefaults(),
-		Repositories: map[string]RepositoryV3{
+		Repositories: map[string]Repository{
 			"backend-repo": {
 				URL: "https://github.com/test/backend-repo.git",
 			},
@@ -94,42 +82,27 @@ func TestV3RecursiveScopes(t *testing.T) {
 				URL: "https://github.com/test/frontend-repo.git",
 			},
 		},
-		Scopes: map[string]ScopeV3{
-			"full-stack": {
-				Type: "persistent",
-				WorkspaceScopes: map[string][]string{
-					"backend-repo":  {"api", "services"},
-					"frontend-repo": {"web", "mobile"},
-				},
-				Description: "Full-stack development across workspaces",
-			},
-			"backend-only": {
-				Type: "persistent",
-				WorkspaceScopes: map[string][]string{
-					"backend-repo": {"api"},
-				},
-				Repos: []string{}, // Can be empty when using workspace scopes
-			},
-		},
+		// Scopes removed
 	}
 	
 	// Validate config
-	err := cfg.ValidateV3()
+	err := cfg.Validate()
 	require.NoError(t, err)
 	
+	// Scopes removed in tree-based architecture
 	// Check scope references
-	fullStack := cfg.Scopes["full-stack"]
-	assert.Len(t, fullStack.WorkspaceScopes, 2)
-	assert.Contains(t, fullStack.WorkspaceScopes["backend-repo"], "api")
-	assert.Contains(t, fullStack.WorkspaceScopes["frontend-repo"], "web")
+	// fullStack := cfg.Scopes["full-stack"]
+	// assert.Len(t, fullStack.WorkspaceScopes, 2)
+	// assert.Contains(t, fullStack.WorkspaceScopes["backend-repo"], "api")
+	// assert.Contains(t, fullStack.WorkspaceScopes["frontend-repo"], "web")
 }
 
-// TestV3SmartLoading tests the smart loading strategy
-func TestV3SmartLoading(t *testing.T) {
+// TestSmartLoading tests the smart loading strategy
+func TestSmartLoading(t *testing.T) {
 	tests := []struct {
 		name         string
 		repoName     string
-		repoConfig   RepositoryV3
+		repoConfig   Repository
 		defaults     Defaults
 		expectedLazy bool
 		description  string
@@ -137,7 +110,7 @@ func TestV3SmartLoading(t *testing.T) {
 		{
 			name:     "meta-repo eager by default",
 			repoName: "payments-meta",
-			repoConfig: RepositoryV3{
+			repoConfig: Repository{
 				URL: "https://github.com/acme/payments-meta.git",
 			},
 			defaults:     DefaultDefaults(),
@@ -147,7 +120,7 @@ func TestV3SmartLoading(t *testing.T) {
 		{
 			name:     "monorepo eager by pattern",
 			repoName: "backend-monorepo",
-			repoConfig: RepositoryV3{
+			repoConfig: Repository{
 				URL: "https://github.com/acme/backend-monorepo.git",
 			},
 			defaults:     DefaultDefaults(),
@@ -157,7 +130,7 @@ func TestV3SmartLoading(t *testing.T) {
 		{
 			name:     "service lazy by default",
 			repoName: "payment-service",
-			repoConfig: RepositoryV3{
+			repoConfig: Repository{
 				URL: "https://github.com/acme/payment-service.git",
 			},
 			defaults:     DefaultDefaults(),
@@ -167,7 +140,7 @@ func TestV3SmartLoading(t *testing.T) {
 		{
 			name:     "explicit lazy override",
 			repoName: "critical-meta",
-			repoConfig: RepositoryV3{
+			repoConfig: Repository{
 				URL:  "https://github.com/acme/critical-meta.git",
 				Lazy: boolPtr(true), // Explicit override
 			},
@@ -178,7 +151,7 @@ func TestV3SmartLoading(t *testing.T) {
 		{
 			name:     "explicit eager override",
 			repoName: "important-service",
-			repoConfig: RepositoryV3{
+			repoConfig: Repository{
 				URL:  "https://github.com/acme/important-service.git",
 				Lazy: boolPtr(false), // Explicit override
 			},
@@ -196,23 +169,23 @@ func TestV3SmartLoading(t *testing.T) {
 	}
 }
 
-// TestV3PerformanceOptimization tests that v3 config optimizes for performance
-func TestV3PerformanceOptimization(t *testing.T) {
+// TestPerformanceOptimization tests that config optimizes for performance
+func TestPerformanceOptimization(t *testing.T) {
 	// Create a large workspace config
-	cfg := &ConfigV3{
+	cfg := &Config{
 		Version: 3,
 		Workspace: WorkspaceConfig{
 			Name: "enterprise",
 		},
 		Defaults: DefaultDefaults(),
-		Repositories: make(map[string]RepositoryV3),
-		Scopes:       make(map[string]ScopeV3),
+		Repositories: make(map[string]Repository),
+		// Scopes removed
 	}
 	
 	// Add many repositories
 	for i := 0; i < 100; i++ {
 		name := fmt.Sprintf("service-%d", i)
-		cfg.Repositories[name] = RepositoryV3{
+		cfg.Repositories[name] = Repository{
 			URL:    fmt.Sprintf("https://github.com/acme/%s.git", name),
 			Branch: "main",
 		}
@@ -221,7 +194,7 @@ func TestV3PerformanceOptimization(t *testing.T) {
 	// Add meta-repos
 	for i := 0; i < 10; i++ {
 		name := fmt.Sprintf("domain-%d-meta", i)
-		cfg.Repositories[name] = RepositoryV3{
+		cfg.Repositories[name] = Repository{
 			URL:    fmt.Sprintf("https://github.com/acme/%s.git", name),
 			Branch: "main",
 		}

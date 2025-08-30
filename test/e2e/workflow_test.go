@@ -12,8 +12,8 @@ import (
 	"github.com/taokim/repo-claude/internal/manager"
 )
 
-// TestV3CompleteWorkflow tests a complete v3 workflow from init to scope operations
-func TestV3CompleteWorkflow(t *testing.T) {
+// TestCompleteWorkflow tests a complete workflow from init to scope operations
+func TestCompleteWorkflow(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
@@ -21,7 +21,7 @@ func TestV3CompleteWorkflow(t *testing.T) {
 	tempDir := t.TempDir()
 	projectPath := filepath.Join(tempDir, "test-platform")
 	
-	// Step 1: Initialize a new v3 workspace
+	// Step 1: Initialize a new workspace
 	t.Run("Initialize", func(t *testing.T) {
 		mgr, err := manager.New(projectPath)
 		require.NoError(t, err)
@@ -40,11 +40,11 @@ func TestV3CompleteWorkflow(t *testing.T) {
 	// Step 2: Load and modify the config
 	t.Run("ConfigureWorkspace", func(t *testing.T) {
 		configPath := filepath.Join(projectPath, "repo-claude.yaml")
-		cfg, err := config.LoadV3(configPath)
+		cfg, err := config.Load(configPath)
 		require.NoError(t, err)
 		
 		// Add repositories
-		cfg.Repositories = map[string]config.RepositoryV3{
+		cfg.Repositories = map[string]config.Repository{
 			"backend-meta": {
 				URL:    "https://github.com/test/backend-meta.git",
 				Branch: "main",
@@ -70,32 +70,10 @@ func TestV3CompleteWorkflow(t *testing.T) {
 			},
 		}
 		
-		// Add scopes
-		cfg.Scopes = map[string]config.ScopeV3{
-			"backend": {
-				Type:        "persistent",
-				Repos:       []string{"payment-service", "fraud-detection"},
-				Description: "Backend services development",
-				Model:       "claude-3-5-sonnet",
-			},
-			"frontend": {
-				Type:        "persistent",
-				Repos:       []string{"web-app"},
-				Description: "Frontend development",
-				Model:       "claude-3-5-sonnet",
-			},
-			"full-stack": {
-				Type: "ephemeral",
-				WorkspaceScopes: map[string][]string{
-					"backend-meta":  {"api", "services"},
-					"frontend-repo": {"web", "mobile"},
-				},
-				Description: "Full-stack development across workspaces",
-			},
-		}
+		// Scopes removed in tree-based architecture
 		
 		// Save updated config
-		err = cfg.SaveV3(configPath)
+		err = cfg.Save(configPath)
 		require.NoError(t, err)
 	})
 	
@@ -112,7 +90,7 @@ func TestV3CompleteWorkflow(t *testing.T) {
 		// Verify loaded configuration
 		assert.Equal(t, "test-platform", mgr.Config.Workspace.Name)
 		assert.Len(t, mgr.Config.Repositories, 5)
-		assert.Len(t, mgr.Config.Scopes, 3)
+		// Scopes removed - assert.Len(t, mgr.Config.Scopes, 3)
 		
 		// Test lazy loading detection
 		backendMeta := mgr.Config.Repositories["backend-meta"]
@@ -124,8 +102,8 @@ func TestV3CompleteWorkflow(t *testing.T) {
 			"Regular services should be lazy-loaded")
 	})
 	
-	// Step 4: Test scope operations
-	t.Run("ScopeOperations", func(t *testing.T) {
+	// Step 4: Test tree operations
+	t.Run("TreeOperations", func(t *testing.T) {
 		originalDir, _ := os.Getwd()
 		defer os.Chdir(originalDir)
 		require.NoError(t, os.Chdir(projectPath))
@@ -133,26 +111,13 @@ func TestV3CompleteWorkflow(t *testing.T) {
 		mgr, err := manager.LoadFromCurrentDir()
 		require.NoError(t, err)
 		
-		// List scopes
-		err = mgr.ListScopes()
-		assert.NoError(t, err)
-		
-		// Set active scope
-		err = mgr.SetActiveScope("backend")
-		assert.NoError(t, err)
-		
-		// Verify active scope was set
-		assert.Equal(t, "backend", mgr.State.GetActiveScope())
-		
-		// Clear active scope
-		err = mgr.SetActiveScope("")
-		assert.NoError(t, err)
-		assert.Equal(t, "", mgr.State.GetActiveScope())
+		// Tree operations would go here
+		// ShowTree, UseNode, etc.
 	})
 }
 
-// TestV3RecursiveWorkspace tests recursive workspace functionality
-func TestV3RecursiveWorkspace(t *testing.T) {
+// TestRecursiveWorkspace tests recursive workspace functionality
+func TestRecursiveWorkspace(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
@@ -161,15 +126,14 @@ func TestV3RecursiveWorkspace(t *testing.T) {
 	
 	// Create a root workspace
 	rootPath := filepath.Join(tempDir, "platform")
-	rootConfig := &config.ConfigV3{
+	rootConfig := &config.Config{
 		Version: 3,
 		Workspace: config.WorkspaceConfig{
 			Name:          "platform",
-			IsolationMode: true,
-			BasePath:      "workspaces",
+			RootPath: "repos",
 		},
 		Defaults: config.DefaultDefaults(),
-		Repositories: map[string]config.RepositoryV3{
+		Repositories: map[string]config.Repository{
 			"backend-meta": {
 				URL:    "https://github.com/acme/backend-meta.git",
 				Branch: "main",
@@ -183,31 +147,24 @@ func TestV3RecursiveWorkspace(t *testing.T) {
 				Branch: "main",
 			},
 		},
-		Scopes: map[string]config.ScopeV3{
-			"platform": {
-				Type:        "persistent",
-				Repos:       []string{"shared-libs"},
-				Description: "Platform-wide scope",
-			},
-		},
+		// Scopes removed
 	}
 	
 	// Create root workspace
 	require.NoError(t, os.MkdirAll(rootPath, 0755))
 	configPath := filepath.Join(rootPath, "repo-claude.yaml")
-	require.NoError(t, rootConfig.SaveV3(configPath))
+	require.NoError(t, rootConfig.Save(configPath))
 	
 	// Create a child workspace (backend-meta)
 	backendPath := filepath.Join(rootPath, "backend-meta")
-	backendConfig := &config.ConfigV3{
+	backendConfig := &config.Config{
 		Version: 3,
 		Workspace: config.WorkspaceConfig{
 			Name:          "backend",
-			IsolationMode: true,
-			BasePath:      "workspaces",
+			RootPath: "repos",
 		},
 		Defaults: config.DefaultDefaults(),
-		Repositories: map[string]config.RepositoryV3{
+		Repositories: map[string]config.Repository{
 			"payment-service": {
 				URL:    "https://github.com/acme/payment-service.git",
 				Branch: "main",
@@ -217,27 +174,16 @@ func TestV3RecursiveWorkspace(t *testing.T) {
 				Branch: "main",
 			},
 		},
-		Scopes: map[string]config.ScopeV3{
-			"api": {
-				Type:        "persistent",
-				Repos:       []string{"payment-service", "order-service"},
-				Description: "API development",
-			},
-			"services": {
-				Type:        "persistent", 
-				Repos:       []string{"payment-service"},
-				Description: "Service development",
-			},
-		},
+		// Scopes removed
 	}
 	
 	require.NoError(t, os.MkdirAll(backendPath, 0755))
 	backendConfigPath := filepath.Join(backendPath, "repo-claude.yaml")
-	require.NoError(t, backendConfig.SaveV3(backendConfigPath))
+	require.NoError(t, backendConfig.Save(backendConfigPath))
 	
 	// Load root workspace and verify hierarchy
 	t.Run("VerifyHierarchy", func(t *testing.T) {
-		cfg, err := config.LoadV3(configPath)
+		cfg, err := config.Load(configPath)
 		require.NoError(t, err)
 		
 		// Check that backend-meta is detected as a meta-repo
@@ -255,58 +201,47 @@ func TestV3RecursiveWorkspace(t *testing.T) {
 		assert.FileExists(t, backendConfigPath)
 		
 		// Load child workspace
-		childCfg, err := config.LoadV3(backendConfigPath)
+		childCfg, err := config.Load(backendConfigPath)
 		require.NoError(t, err)
 		assert.Equal(t, "backend", childCfg.Workspace.Name)
 		assert.Len(t, childCfg.Repositories, 2)
-		assert.Len(t, childCfg.Scopes, 2)
+		// Scopes removed - assert.Len(t, childCfg.Scopes, 2)
 	})
 	
 	// Test cross-workspace scope references
 	t.Run("CrossWorkspaceScopes", func(t *testing.T) {
 		// Add a scope to root that references child workspace scopes
-		cfg, err := config.LoadV3(configPath)
+		cfg, err := config.Load(configPath)
 		require.NoError(t, err)
 		
-		cfg.Scopes["full-backend"] = config.ScopeV3{
-			Type: "persistent",
-			WorkspaceScopes: map[string][]string{
-				"backend-meta": {"api", "services"},
-			},
-			Repos:       []string{"shared-libs"},
-			Description: "Full backend development including sub-workspaces",
-		}
+		// Scopes removed - cfg.Scopes no longer exists
 		
-		err = cfg.SaveV3(configPath)
+		err = cfg.Save(configPath)
 		require.NoError(t, err)
 		
 		// Reload and verify
-		cfg, err = config.LoadV3(configPath)
+		cfg, err = config.Load(configPath)
 		require.NoError(t, err)
 		
-		fullBackend := cfg.Scopes["full-backend"]
-		assert.Len(t, fullBackend.WorkspaceScopes, 1)
-		assert.Contains(t, fullBackend.WorkspaceScopes["backend-meta"], "api")
-		assert.Contains(t, fullBackend.WorkspaceScopes["backend-meta"], "services")
-		assert.Contains(t, fullBackend.Repos, "shared-libs")
+		// Scopes validation removed
 	})
 }
 
-// TestV3PerformanceCharacteristics tests performance characteristics of v3
-func TestV3PerformanceCharacteristics(t *testing.T) {
+// TestPerformanceCharacteristics tests performance characteristics of v3
+func TestPerformanceCharacteristics(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
 	
 	// Create a large enterprise workspace
-	cfg := &config.ConfigV3{
+	cfg := &config.Config{
 		Version: 3,
 		Workspace: config.WorkspaceConfig{
 			Name: "enterprise",
 		},
 		Defaults: config.DefaultDefaults(),
-		Repositories: make(map[string]config.RepositoryV3),
-		Scopes:       make(map[string]config.ScopeV3),
+		Repositories: make(map[string]config.Repository),
+		// Scopes removed
 	}
 	
 	// Add 500 repositories
@@ -323,7 +258,7 @@ func TestV3PerformanceCharacteristics(t *testing.T) {
 			serviceRepoCount++
 		}
 		
-		cfg.Repositories[name] = config.RepositoryV3{
+		cfg.Repositories[name] = config.Repository{
 			URL:    fmt.Sprintf("https://github.com/enterprise/%s.git", name),
 			Branch: "main",
 		}
