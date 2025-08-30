@@ -15,7 +15,7 @@ The scripts in this directory are organized by purpose:
 ### 🧪 Testing Scripts
 
 #### `advanced-test-framework.sh`
-**Purpose**: Comprehensive testing framework for v3 tree-based architecture  
+**Purpose**: Comprehensive testing framework for tree-based architecture  
 **Usage**: `./scripts/advanced-test-framework.sh`
 
 Tests multiple scenarios including:

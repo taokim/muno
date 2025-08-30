@@ -1,6 +1,0 @@
-workspace:
-    name: test-workspace
-    repos_dir: repos
-repositories:
-    - url: git@github.com:taokim/repo-claude.git
-      name: .

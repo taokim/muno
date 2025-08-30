@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Quick Demo Script for Repo-Claude V3 Testing
+# Quick Demo Script for Repo-Claude Testing
 # Shows how to use local git repos for testing
 
 set -e
@@ -19,7 +19,7 @@ DEMO_DIR="/tmp/rc-demo-$(date +%s)"
 RC_BIN="${RC_BIN:-$PROJECT_DIR/bin/rc}"
 
 echo -e "${CYAN}╔════════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║      Repo-Claude V3 Quick Demo                ║${NC}"
+echo -e "${CYAN}║      Repo-Claude Quick Demo                   ║${NC}"
 echo -e "${CYAN}╚════════════════════════════════════════════════╝${NC}"
 echo
 echo -e "${YELLOW}This demo shows how to use rc with test repositories.${NC}"
@@ -225,7 +225,7 @@ echo
 
 # Save demo info
 cat > "$DEMO_DIR/DEMO_INFO.md" <<EOF
-# Repo-Claude V3 Demo Environment
+# Repo-Claude Demo Environment
 
 Created: $(date)
 

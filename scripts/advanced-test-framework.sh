@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Advanced Testing Framework for repo-claude v3
+# Advanced Testing Framework for repo-claude
 # Simulates real-world scenarios with complex tree structures
 
 set -e
@@ -536,7 +536,7 @@ run_scenario_tests() {
 # Main execution
 main() {
     echo -e "${MAGENTA}╔════════════════════════════════════════════════╗${NC}"
-    echo -e "${MAGENTA}║     Advanced Testing Framework for RC v3      ║${NC}"
+    echo -e "${MAGENTA}║     Advanced Testing Framework for RC         ║${NC}"
     echo -e "${MAGENTA}╚════════════════════════════════════════════════╝${NC}"
     echo
     

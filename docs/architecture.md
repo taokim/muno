@@ -51,13 +51,13 @@ The heart of the navigation system:
 
 Manages workspace configuration:
 
-#### `config_v3.go` - Configuration
+#### `config.go` - Configuration
 - **Tree Structure**: Define initial tree layout
 - **Repository Settings**: URLs, branches, lazy flags
 - **Workspace Metadata**: Name, root path, settings
 
 #### `types.go` - Data Types
-- **ConfigV3**: Main configuration structure
+- **Config**: Main configuration structure
 - **NodeConfig**: Repository node configuration
 - **TreeState**: Runtime tree state
 

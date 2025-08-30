@@ -46,7 +46,9 @@
       "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc use test-viper)",
       "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc use cobra)",
       "Bash(./scripts/quick-demo.sh:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(go mod:*)"
     ],
     "deny": [],
     "additionalDirectories": [

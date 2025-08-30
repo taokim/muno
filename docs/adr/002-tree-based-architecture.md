@@ -1,4 +1,4 @@
-# ADR-002: Tree-Based Architecture (V3)
+# ADR-002: Tree-Based Architecture
 
 Date: 2024-12-27
 

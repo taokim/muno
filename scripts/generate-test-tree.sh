@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Generate Test Tree Script for repo-claude v3
+# Generate Test Tree Script for repo-claude
 # Creates a flat repository pool and a meta tree structure for testing
 # Usage: ./generate-test-tree.sh [num_repos] [tree_depth]
 
@@ -28,7 +28,7 @@ NC='\033[0m' # No Color
 
 # Announce the test directory at the start
 echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
-echo -e "${CYAN}     REPO-CLAUDE V3 TEST TREE GENERATOR${NC}"
+echo -e "${CYAN}     REPO-CLAUDE TEST TREE GENERATOR${NC}"
 echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
 echo
 echo -e "${YELLOW}📁 Test Directory: ${BLUE}$BASE_DIR${NC}"
@@ -555,7 +555,7 @@ create_test_script() {
     cat > "$script_path" <<EOF
 #!/bin/bash
 
-# Test script for repo-claude v3 (tree already built)
+# Test script for repo-claude (tree already built)
 
 # Get absolute path to rc binary
 if [ -f "$RC_BIN" ]; then
@@ -570,7 +570,7 @@ fi
 
 TEST_DIR="\$(dirname "\$0")"
 
-echo "Testing repo-claude v3 with pre-built tree"
+echo "Testing repo-claude with pre-built tree"
 echo "==========================================="
 echo
 
@@ -653,12 +653,12 @@ create_performance_test() {
     cat > "$script_path" <<'EOF'
 #!/bin/bash
 
-# Performance test for repo-claude v3
+# Performance test for repo-claude
 
 RC_BIN="${RC_BIN:-rc}"
 TEST_DIR="$(dirname "$0")"
 
-echo "Performance Testing repo-claude v3"
+echo "Performance Testing repo-claude"
 echo "=================================="
 
 cd "$TEST_DIR/workspace"
@@ -722,7 +722,7 @@ main() {
     cat > "$BASE_DIR/README.md" <<EOF
 # Repo-Claude Test Tree
 
-This directory contains a test environment for repo-claude v3.
+This directory contains a test environment for repo-claude.
 
 ## Structure
 
@@ -778,7 +778,7 @@ Each repository is tagged with a type:
 - Total repositories: $TOTAL_REPOS
 - Repository pool: Flat structure
 - Meta tree depth: $TREE_DEPTH
-- Architecture: V3 tree-based navigation
+- Architecture: Tree-based navigation
 EOF
     
     echo
