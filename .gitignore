@@ -46,7 +46,8 @@ dist/.tmp/
 coverage-*.out
 test_coverage_*.md
 test_results.log
-*.html
+coverage.html
+test_*.html
 
 # Development/testing workspace files (should not be in repo root)
 /muno.yaml

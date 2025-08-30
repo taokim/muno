@@ -2,7 +2,7 @@
 theme: jekyll-theme-minimal
 title: MUNO
 description: 🐙 Multi-repository UNified Orchestration - Manage multiple git repositories with monorepo-like convenience
-logo: /assets/muno-logo.png
+logo: ../assets/muno-logo.png
 show_downloads: true
 google_analytics: 
 
@@ -18,14 +18,14 @@ twitter:
   card: summary_large_image
   title: MUNO - Multi-repository Orchestration
   description: Manage multiple git repositories with monorepo-like convenience
-  image: /assets/muno-social-preview.png
+  image: ../assets/muno-social-preview.png
 
 # Open Graph
 og:
   title: MUNO
   type: website
   url: https://github.com/taokim/muno
-  image: /assets/muno-social-preview.png
+  image: ../assets/muno-social-preview.png
   description: 🐙 Multi-repository UNified Orchestration
   site_name: MUNO
 
