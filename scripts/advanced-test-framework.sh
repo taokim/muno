@@ -21,14 +21,12 @@ CYAN='\033[0;36m'
 MAGENTA='\033[0;35m'
 NC='\033[0m'
 
-# Test scenarios configuration
-declare -A SCENARIOS=(
-    ["microservices"]="Microservices architecture with shared libraries"
-    ["monorepo"]="Large monorepo with multiple applications"
-    ["documentation"]="Documentation-heavy project with wikis"
-    ["ml_pipeline"]="Machine learning pipeline with data repos"
-    ["enterprise"]="Enterprise multi-team structure"
-)
+# Test scenarios configuration (bash 3 compatible)
+SCENARIOS="microservices:Microservices architecture with shared libraries
+monorepo:Large monorepo with multiple applications
+documentation:Documentation-heavy project with wikis
+ml_pipeline:Machine learning pipeline with data repos
+enterprise:Enterprise multi-team structure"
 
 # Function to create microservices scenario
 create_microservices_scenario() {
@@ -456,7 +454,10 @@ run_scenario_tests() {
     
     # Initialize repo-claude
     echo -e "${BLUE}  Initializing workspace...${NC}"
-    $RC_BIN init "$scenario_name-test" >/dev/null 2>&1 || true
+    $RC_BIN init -n "$scenario_name-test" >/dev/null 2>&1 || true
+    
+    # Change to the actual workspace directory
+    cd "$workspace/$scenario_name-test"
     
     # Add repositories based on scenario
     echo -e "${BLUE}  Adding repositories...${NC}"
@@ -550,14 +551,16 @@ main() {
     TEST_DIR="$TEST_BASE/$TIMESTAMP"
     mkdir -p "$TEST_DIR"
     
-    echo -e "${YELLOW}Test directory: $TEST_DIR${NC}"
+    echo -e "${YELLOW}════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}TEST DIRECTORY: $TEST_DIR${NC}"
+    echo -e "${YELLOW}════════════════════════════════════════════════${NC}"
     echo
     
     # Create scenarios
-    for scenario in "${!SCENARIOS[@]}"; do
+    echo "$SCENARIOS" | while IFS=: read -r scenario description; do
         echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
         echo -e "${CYAN}Scenario: $scenario${NC}"
-        echo -e "${CYAN}Description: ${SCENARIOS[$scenario]}${NC}"
+        echo -e "${CYAN}Description: $description${NC}"
         echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
         
         scenario_dir="$TEST_DIR/$scenario"
@@ -599,9 +602,9 @@ main() {
 
 ## Scenarios Tested
 
-$(for scenario in "${!SCENARIOS[@]}"; do
+$(echo "$SCENARIOS" | while IFS=: read -r scenario description; do
     echo "### $scenario"
-    echo "${SCENARIOS[$scenario]}"
+    echo "$description"
     echo "- Location: $TEST_DIR/$scenario"
     echo
 done)
@@ -630,10 +633,24 @@ done)
    \`\`\`
 EOF
     
-    echo -e "${GREEN}Testing complete!${NC}"
+    echo -e "${GREEN}════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}ALL TESTS COMPLETE!${NC}"
+    echo -e "${GREEN}════════════════════════════════════════════════${NC}"
     echo
-    echo -e "${YELLOW}Results saved to: $TEST_DIR/SUMMARY.md${NC}"
-    echo -e "${YELLOW}Explore scenarios: cd $TEST_DIR/<scenario>${NC}"
+    echo -e "${YELLOW}TEST DIRECTORY:${NC}"
+    echo -e "  ${CYAN}$TEST_DIR${NC}"
+    echo
+    echo -e "${YELLOW}Results saved to:${NC}"
+    echo -e "  ${CYAN}$TEST_DIR/SUMMARY.md${NC}"
+    echo
+    echo -e "${YELLOW}To explore a specific scenario:${NC}"
+    echo -e "  ${CYAN}cd $TEST_DIR/microservices${NC}"
+    echo -e "  ${CYAN}cd $TEST_DIR/monorepo${NC}"
+    echo -e "  ${CYAN}cd $TEST_DIR/enterprise${NC}"
+    echo
+    echo -e "${YELLOW}To test repo-claude with a scenario:${NC}"
+    echo -e "  ${CYAN}cd $TEST_DIR/<scenario>/rc-workspace/<scenario>-test${NC}"
+    echo -e "  ${CYAN}$RC_BIN tree${NC}"
 }
 
 # Parse arguments
@@ -645,8 +662,26 @@ case "${1:-}" in
         scenario_dir="$TEST_DIR/$1"
         
         echo -e "${CYAN}Running single scenario: $1${NC}"
+        echo -e "${YELLOW}════════════════════════════════════════════════${NC}"
+        echo -e "${YELLOW}TEST DIRECTORY: $TEST_DIR${NC}"
+        echo -e "${YELLOW}════════════════════════════════════════════════${NC}"
+        echo
         create_${1}_scenario "$scenario_dir"
         run_scenario_tests "$scenario_dir" "$1"
+        
+        # Show completion message with paths
+        echo
+        echo -e "${GREEN}════════════════════════════════════════════════${NC}"
+        echo -e "${GREEN}TEST COMPLETE!${NC}"
+        echo -e "${GREEN}════════════════════════════════════════════════${NC}"
+        echo -e "${YELLOW}Test files created at:${NC}"
+        echo -e "  ${CYAN}$scenario_dir${NC}"
+        echo -e "${YELLOW}Workspace created at:${NC}"
+        echo -e "  ${CYAN}$scenario_dir/rc-workspace/$1-test${NC}"
+        echo
+        echo -e "${YELLOW}To explore the test:${NC}"
+        echo -e "  ${CYAN}cd $scenario_dir/rc-workspace/$1-test${NC}"
+        echo -e "  ${CYAN}$RC_BIN tree${NC}"
         ;;
     *)
         # Run all scenarios

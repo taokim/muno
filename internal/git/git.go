@@ -212,6 +212,44 @@ func (m *Manager) CloneMissing() error {
 	return nil
 }
 
+// GetRemotes gets all remote URLs for a repository
+func (g *Git) GetRemotes(repoPath string) (map[string]string, error) {
+	cmd := exec.Command("git", "remote", "-v")
+	cmd.Dir = repoPath
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	remotes := make(map[string]string)
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		parts := strings.Fields(line)
+		if len(parts) >= 2 && strings.Contains(line, "(fetch)") {
+			remotes[parts[0]] = parts[1]
+		}
+	}
+
+	return remotes, nil
+}
+
+// CurrentBranch gets the current branch name
+func (g *Git) CurrentBranch(repoPath string) (string, error) {
+	cmd := exec.Command("git", "branch", "--show-current")
+	cmd.Dir = repoPath
+	output, err := cmd.Output()
+	if err != nil {
+		// Try alternative method for older git versions
+		cmd = exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+		cmd.Dir = repoPath
+		output, err = cmd.Output()
+		if err != nil {
+			return "", err
+		}
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
 // Status gets the status of all repositories
 func (m *Manager) Status() ([]Status, error) {
 	var statuses []Status

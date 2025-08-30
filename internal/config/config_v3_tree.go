@@ -10,8 +10,9 @@ import (
 
 // ConfigV3Tree represents the v3 tree-based configuration
 type ConfigV3Tree struct {
-	Version   int              `yaml:"version"`
-	Workspace WorkspaceV3Tree  `yaml:"workspace"`
+	Version      int              `yaml:"version"`
+	Workspace    WorkspaceV3Tree  `yaml:"workspace"`
+	Repositories []RepoDefinition `yaml:"repositories,omitempty"`
 	
 	// Runtime fields (not in YAML)
 	Path     string `yaml:"-"`
@@ -20,7 +21,15 @@ type ConfigV3Tree struct {
 // WorkspaceV3Tree represents workspace configuration for v3
 type WorkspaceV3Tree struct {
 	Name     string `yaml:"name"`
-	RootRepo string `yaml:"root_repo"` // Root is also a git repo
+	RootRepo string `yaml:"root_repo,omitempty"` // Root is also a git repo
+	ReposDir string `yaml:"repos_dir,omitempty"` // Directory for repositories (default: "repos")
+}
+
+// RepoDefinition represents a repository definition in config
+type RepoDefinition struct {
+	URL  string `yaml:"url"`
+	Name string `yaml:"name"`
+	Lazy bool   `yaml:"lazy,omitempty"`
 }
 
 // NodeMeta represents metadata for a tree node
@@ -56,6 +65,7 @@ func DefaultConfigV3Tree(projectName string) *ConfigV3Tree {
 		Workspace: WorkspaceV3Tree{
 			Name:     projectName,
 			RootRepo: "", // Can be set if root is a repo
+			ReposDir: "repos", // Default repos directory
 		},
 	}
 }
@@ -75,6 +85,9 @@ func LoadV3Tree(path string) (*ConfigV3Tree, error) {
 	// Apply defaults
 	if cfg.Version == 0 {
 		cfg.Version = 3
+	}
+	if cfg.Workspace.ReposDir == "" {
+		cfg.Workspace.ReposDir = "repos"
 	}
 	
 	// Store the path
@@ -119,6 +132,14 @@ func (c *ConfigV3Tree) Validate() error {
 	}
 
 	return nil
+}
+
+// GetReposDir returns the configured repos directory name
+func (c *ConfigV3Tree) GetReposDir() string {
+	if c.Workspace.ReposDir == "" {
+		return "repos"
+	}
+	return c.Workspace.ReposDir
 }
 
 // LoadTreeState loads the tree state from JSON
