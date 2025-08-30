@@ -1,253 +1,209 @@
-# Repo-Claude v2 Architecture
+# Repo-Claude Architecture
 
 ## Overview
 
-Repo-Claude v2 is a multi-repository orchestration tool for Claude Code that provides **isolated, scope-based development environments**. Each scope operates in its own workspace directory, enabling parallel development without conflicts while maintaining coordination through shared memory.
+Repo-Claude is a multi-repository orchestration tool for Claude Code that provides **tree-based navigation and workspace management**. The architecture treats your entire codebase as a navigable filesystem where repositories form parent-child relationships.
 
-## Version 2: Workspace Isolation
+## Tree-Based Architecture
 
-The v2 architecture introduces fundamental changes to support isolated development:
+The core innovation is organizing repositories in a tree structure with filesystem-like navigation:
 
-### Three-Level Hierarchy
 ```
-Project Level (repo-claude.yaml, shared-memory.md)
+Workspace Root
     ↓
-Scope Level (workspaces/<scope-name>/)
+Repository Tree (repos/)
     ↓  
-Repository Level (individual Git repos)
+Node Level (team/service/component)
 ```
 
-### Key Architectural Changes from v1
+### Key Principles
 
-1. **Isolated Workspaces**: Each scope has its own directory in `workspaces/`
-2. **Scope Metadata**: `.scope-meta.json` files track scope state
-3. **Per-Scope Git State**: Repositories cloned separately for each scope
-4. **Documentation System**: Structured docs with global and scope-specific content
-5. **No TTL**: Manual lifecycle management without automatic expiration
+1. **Tree Navigation**: Repositories organized in parent-child hierarchy
+2. **CWD-First Resolution**: Current directory determines operation target
+3. **Lazy Loading**: Repositories clone only when accessed
+4. **Clear Targeting**: Every operation shows what it will affect
+5. **Direct Git Management**: Native git operations with tree awareness
 
-## Architecture Components
+## Core Components
 
-### 1. Configuration System (`internal/config`)
+### 1. Tree Manager (`internal/tree`)
 
-The v2 configuration schema introduces isolation-specific settings:
+The heart of the navigation system:
 
-```yaml
-version: 2  # Required for v2 features
-workspace:
-  name: my-ecommerce-platform
-  isolation_mode: true      # Default: true
-  base_path: workspaces     # Where scopes are created
+#### `manager.go` - Tree Operations
+- **Navigate**: Move through the tree changing current position
+- **Resolve**: Map CWD to tree nodes for operations
+- **Add/Remove**: Manage tree structure dynamically
+- **Clone**: Handle lazy repository loading
 
-repositories:
-  wms-core:
-    url: https://github.com/yourorg/wms-core.git
-    default_branch: main
-    groups: [wms, backend, core]
+#### `node.go` - Node Structure
+- **Hierarchy**: Parent-child relationships
+- **State**: Track repository status (cloned, lazy, modified)
+- **Metadata**: Store node information and configuration
+- **Operations**: Execute commands at node level
 
-scopes:
-  wms:
-    type: persistent  # or ephemeral
-    repos: ["wms-*", "shared-libs"]
-    description: "Warehouse Management System"
-    model: claude-3-5-sonnet-20241022
-    auto_start: false
-```
+#### `state.go` - Persistence
+- **Tree State**: Save/load tree structure
+- **Current Position**: Track navigation position
+- **History**: Maintain navigation history
 
-### 2. Scope Manager (`internal/scope`)
+### 2. Configuration System (`internal/config`)
 
-Core component for isolated workspace management:
+Manages workspace configuration:
 
-#### `manager.go` - Scope Lifecycle
-- **Create**: Initializes new scope directory with metadata
-- **Delete**: Removes scope and its repositories
-- **Archive**: Marks scope as archived for later reference
-- **List**: Shows all scopes with their status
-- **Get**: Retrieves specific scope information
+#### `config_v3.go` - Configuration
+- **Tree Structure**: Define initial tree layout
+- **Repository Settings**: URLs, branches, lazy flags
+- **Workspace Metadata**: Name, root path, settings
 
-#### `scope.go` - Scope Operations
-- **Clone**: Clones repositories into scope directory
-- **Pull/Push**: Git operations within scope context
-- **Start**: Launches Claude Code session for scope
-- **Status**: Reports repository state within scope
-
-#### `types.go` - Data Structures
-```go
-type Meta struct {
-    ID          string
-    Name        string
-    Type        Type        // persistent or ephemeral
-    State       State       // active, inactive, archived
-    Repos       []string
-    CreatedAt   time.Time
-    UpdatedAt   time.Time
-    // No TTL field per requirements
-}
-```
+#### `types.go` - Data Types
+- **ConfigV3**: Main configuration structure
+- **NodeConfig**: Repository node configuration
+- **TreeState**: Runtime tree state
 
 ### 3. Manager (`internal/manager`)
 
-Orchestrates the overall system:
+Orchestrates all operations:
 
-- **InitWorkspace**: Creates v2 project structure
-- **ListScopes**: Combines configured and created scopes
-- **StartScope**: Launches isolated scope sessions
-- **Delegates**: To ScopeManager and DocsManager
+- **InitWorkspace**: Creates tree-based workspace
+- **TreeOperations**: Coordinates tree navigation
+- **GitIntegration**: Manages git operations
+- **SessionManagement**: Launches Claude Code sessions
 
-### 4. Documentation System (`internal/docs`)
+### 4. Git Integration (`internal/git`)
 
-Manages structured documentation:
-
-```
-docs/
-├── global/           # Project-wide documentation
-│   ├── architecture.md
-│   └── api-design.md
-└── scopes/          # Scope-specific docs
-    ├── wms/
-    │   └── inventory-logic.md
-    └── oms/
-        └── payment-flow.md
-```
-
-### 5. Git Manager (`internal/git`)
-
-Handles Git operations with scope awareness:
-- **Clone**: Into scope-specific directories
-- **Operations**: Pull, push, commit, branch per scope
-- **Status**: Repository state within scope context
+Handles version control:
+- **NodeOperations**: Git commands at specific nodes
+- **RecursiveOps**: Operations across subtrees
+- **StatusTracking**: Monitor repository states
+- **ParallelExecution**: Concurrent git operations
 
 ## Data Flow
 
-### Workspace Initialization
+### Initialization
 ```
-rc init → Create v2 Config → Setup workspaces/ → Initialize docs/ → Create shared-memory.md
-```
-
-### Scope Creation
-```
-rc scope create → Create workspaces/<name>/ → Generate .scope-meta.json → Clone repos → Create CLAUDE.md files
+rc init → Create Workspace → Setup Tree Root → Initialize Config → Create State File
 ```
 
-### Scope Activation
+### Tree Building
 ```
-rc start <scope> → Load metadata → Verify repos → Launch Claude session → Update state
-```
-
-### Cross-Scope Coordination
-```
-Scope A → Write to shared-memory.md → Scope B reads → Coordinated action
+rc add <url> → Create Node → Update Parent → Clone/Mark Lazy → Save State
 ```
 
-## E-Commerce Example Structure
-
-After initialization with e-commerce configuration:
-
+### Navigation
 ```
-my-ecommerce-platform/
-├── repo-claude.yaml              # v2 configuration
-├── .repo-claude-state.json       # Runtime state
-├── shared-memory.md              # Cross-scope coordination
-├── docs/
-│   ├── global/
-│   │   ├── api-standards.md
-│   │   └── deployment-guide.md
-│   └── scopes/
-│       ├── wms/
-│       │   └── warehouse-ops.md
-│       └── oms/
-│           └── order-flow.md
-└── workspaces/
-    ├── wms-feature-inventory/    # Isolated WMS scope
-    │   ├── .scope-meta.json
-    │   ├── wms-core/
-    │   │   └── CLAUDE.md
-    │   ├── wms-inventory/
-    │   │   └── CLAUDE.md
-    │   └── shared-libs/
-    │       └── CLAUDE.md
-    └── oms-payment-hotfix/       # Isolated OMS scope
-        ├── .scope-meta.json
-        ├── oms-core/
-        │   └── CLAUDE.md
-        ├── oms-payment/
-        │   └── CLAUDE.md
-        └── shared-libs/
-            └── CLAUDE.md
+rc use <path> → Resolve Path → Change Position → Auto-Clone Lazy → Update CWD
 ```
 
-## Design Principles
+### Operations
+```
+Command → Resolve Target (CWD/Explicit) → Execute at Node → Update State → Show Feedback
+```
 
-### v2 Specific Principles
+## Workspace Structure
 
-1. **Isolation First**: Complete separation between scopes
-2. **Explicit Lifecycle**: Manual scope management (no TTL)
-3. **State Tracking**: Comprehensive metadata for each scope
-4. **Documentation Integration**: First-class documentation support
+```
+my-platform/
+├── repo-claude.yaml          # Configuration
+├── .repo-claude-state.json   # Tree state
+├── repos/                    # Tree root
+│   ├── team-backend/         # Parent node (git repo)
+│   │   ├── .git/
+│   │   ├── payment-service/  # Child repo
+│   │   ├── order-service/    # Child repo
+│   │   └── shared-libs/      # Lazy repo
+│   └── team-frontend/        # Parent node (git repo)
+│       ├── .git/
+│       ├── web-app/          # Child repo
+│       └── component-lib/    # Lazy repo
+└── CLAUDE.md                 # AI context
+```
 
-### Inherited from v1
+## Resolution System
 
-1. **Simplicity**: Avoid unnecessary complexity
-2. **Git Native**: Direct Git operations
-3. **Parallel by Default**: Concurrent operations
-4. **Fail Gracefully**: Continue despite failures
-5. **Clear Structure**: Three-level hierarchy
+### Target Resolution Priority
 
-## Scope Types
+1. **Explicit Path**: User-specified target
+2. **CWD Mapping**: Current directory location
+3. **Stored Position**: Last navigation position
+4. **Root Fallback**: Default to workspace root
 
-### Persistent Scopes
-- Long-lived development environments
-- Remain across sessions
-- Used for ongoing feature work
-- Example: `wms`, `oms`, `catalog`
+### Resolution Feedback
 
-### Ephemeral Scopes
-- Temporary workspaces
-- Created for specific tasks
-- Easy cleanup when done
-- Example: `hotfix`, `feature`, `experiment`
+Every command shows its target clearly:
+```
+🎯 Target: team/backend/payment (from CWD)
+🎯 Target: team/frontend (explicit)
+🎯 Target: / (root fallback)
+```
 
-## Benefits of v2 Architecture
+## Key Features
 
-1. **Parallel Development**: Multiple scopes without conflicts
-2. **Clean Separation**: No cross-contamination between projects
-3. **Flexible Workflows**: Mix persistent and ephemeral scopes
-4. **Better Organization**: Clear structure with metadata
-5. **Documentation Integration**: Structured knowledge management
+### Lazy Loading
 
-## Migration from v1
+Repositories clone on-demand:
+- Mark repositories as lazy during addition
+- Auto-clone when navigating to them
+- Manual clone with `rc clone` command
+- Recursive clone for entire subtrees
 
-For existing v1 workspaces:
+### Recursive Operations
 
-1. **Backup** existing workspace
-2. **Update** config to v2 schema:
-   - Add `version: 2`
-   - Add `workspace.isolation_mode: true`
-   - Add `workspace.base_path: "workspaces"`
-3. **Create** scopes for existing workflows
-4. **Clone** repositories into new scope directories
+Commands can operate on entire subtrees:
+- `--recursive` flag for git operations
+- Parallel execution for performance
+- Progress tracking across repositories
+- Aggregated status reporting
 
-See [Migration Guide](migration-guide.md) for detailed steps.
+### State Management
 
-## Implementation Status
+Persistent state across sessions:
+- Tree structure saved to JSON
+- Current position tracking
+- Navigation history
+- Repository status cache
 
-### Completed
-- ✅ Core scope management (create, delete, archive)
-- ✅ Isolated workspace directories
-- ✅ Scope metadata tracking
-- ✅ Git operations per scope
-- ✅ Documentation system
-- ✅ E-commerce example configuration
-- ✅ v2 configuration schema
+## Design Decisions
 
-### Not Implemented
-- ❌ TTL for ephemeral scopes (per requirements)
-- ❌ Automatic scope cleanup
-- ❌ Cross-scope repository sharing
+### Why Tree-Based?
+
+1. **Natural Mental Model**: Developers think in hierarchies
+2. **Filesystem Familiarity**: Leverages existing navigation knowledge
+3. **Clear Relationships**: Parent-child structure is intuitive
+4. **Scalability**: Trees handle large repository counts well
+
+### Why CWD-First?
+
+1. **No Hidden State**: Your location determines behavior
+2. **Predictability**: Commands work where you are
+3. **Simplicity**: No complex scope management
+4. **Transparency**: Always know what will be affected
+
+### Why Lazy Loading?
+
+1. **Performance**: Don't clone until needed
+2. **Storage**: Save disk space
+3. **Flexibility**: Add repositories without immediate overhead
+4. **Speed**: Faster workspace setup
+
+## Performance Considerations
+
+- **Parallel Git Operations**: Execute across multiple repos simultaneously
+- **Lazy Loading**: Defer expensive clones until necessary
+- **State Caching**: Minimize filesystem operations
+- **Efficient Tree Traversal**: Optimized path resolution algorithms
+
+## Security Considerations
+
+- **Git Credentials**: Leverages existing git credential management
+- **No Stored Secrets**: No passwords or tokens in configuration
+- **Filesystem Permissions**: Respects OS-level access controls
+- **Safe Operations**: Confirmation prompts for destructive actions
 
 ## Future Enhancements
 
-1. **Scope Templates**: Pre-configured scope definitions
-2. **Scope Cloning**: Duplicate existing scope setup
-3. **Scope Snapshots**: Save and restore scope state
-4. **Enhanced Coordination**: Advanced cross-scope communication
-5. **Web UI**: Visual scope management interface
+- **Plugin System**: Extensible command architecture
+- **Remote Trees**: Distributed workspace support
+- **Advanced Patterns**: Tree templates and presets
+- **Performance Metrics**: Operation timing and optimization
+- **Enhanced UI**: Interactive tree visualization

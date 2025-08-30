@@ -2,19 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## ✅ V3 Tree-Based Architecture Implemented
-
-**Completed (2024-12-27)**: 
-- **V3 tree-based architecture is now fully implemented**
-- **All scope concepts have been removed**
-- **Tree navigation with CWD-first resolution is working**
-- **Lazy loading and auto-clone on navigation implemented**
-- **No migration from v2 - v3 is a clean slate**
-- The codebase now uses tree-based navigation exclusively
-
 ## Overview
 
-Repo-Claude v3 is a multi-repository orchestration tool with a tree-based navigation system. Repositories form a navigable tree structure where every operation is based on your current position (CWD-first resolution).
+Repo-Claude is a multi-repository orchestration tool with a tree-based navigation system. Repositories form a navigable tree structure where every operation is based on your current position (CWD-first resolution).
 
 **Key Features:**
 - **Tree-based navigation** - Navigate repositories like a filesystem
@@ -22,7 +12,6 @@ Repo-Claude v3 is a multi-repository orchestration tool with a tree-based naviga
 - **Lazy loading** - Repositories clone on-demand when navigating
 - **Clear targeting** - Every command shows what it will affect
 - **Direct git management** - Native git operations at any tree node
-- **No scope concept** - Simple tree navigation replaces complex scope management
 
 ## Commands
 
@@ -36,7 +25,7 @@ go build -o bin/rc ./cmd/repo-claude
 # Initialize a new workspace
 ./bin/rc init <workspace-name>
 
-# Navigation (v3)
+# Navigation
 ./bin/rc use <path>              # Navigate to a node (changes CWD)
 ./bin/rc current                 # Show current position
 ./bin/rc tree                    # Display tree structure
@@ -50,25 +39,11 @@ go build -o bin/rc ./cmd/repo-claude
 # Start Claude session
 ./bin/rc start [path]            # Start at current or specified node
 
-# Check status
-./bin/rc status             # Shows workspace configuration and scope status
-
-# Git operations within scopes
-./bin/rc pull --scope <name>              # Pull repos in scope
-./bin/rc commit --scope <name> -m "msg"   # Commit in scope
-./bin/rc push --scope <name>              # Push scope changes
-./bin/rc branch --scope <name> <branch>   # Switch branch in scope
-
-# Documentation management
-./bin/rc docs create --global <name>      # Create global doc
-./bin/rc docs create --scope <scope>      # Create scope doc
-./bin/rc docs list                        # List all docs
-./bin/rc docs sync                        # Sync to Git
-
-# Pull request management
-./bin/rc pr list --scope <name>           # List PRs for scope repos
-./bin/rc pr create --scope <name>         # Create PR for scope
-./bin/rc pr status --scope <name>         # Show PR status
+# Git operations
+./bin/rc pull [--recursive]      # Pull repositories
+./bin/rc push [--recursive]      # Push changes
+./bin/rc commit -m "msg"         # Commit changes
+./bin/rc status [--recursive]    # Show git status
 ```
 
 ### Development Commands
@@ -90,105 +65,85 @@ go install ./cmd/repo-claude
 
 ## Architecture
 
-### Core Components (v2 Architecture)
+### Core Components
 
-1. **Manager** (`internal/manager/manager.go`)
-   - Main orchestration handling workspace initialization and coordination
-   - Delegates to specialized managers (ScopeManager, DocsManager)
-   - Manages v2 configuration with isolation mode
+1. **Tree Manager** (`internal/tree/`)
+   - Manages tree-based workspace navigation
+   - Handles CWD-first resolution for all operations
+   - Implements lazy loading for repositories
 
-2. **ScopeManager** (`internal/scope/manager.go`)
-   - Creates and manages isolated scope directories in `workspaces/`
-   - Handles scope lifecycle (create, delete, archive)
-   - Manages `.scope-meta.json` files for scope metadata
+2. **Node System** (`internal/tree/node.go`)
+   - Represents each point in the tree (can be a repository)
+   - Manages parent-child relationships
+   - Tracks repository state (cloned, lazy, modified)
 
-3. **Scope** (`internal/scope/scope.go`)
-   - Represents an individual isolated workspace
-   - Handles git operations within scope context
-   - Creates CLAUDE.md files for AI context
-   - Manages repository state per scope
+3. **Manager** (`internal/manager/manager.go`)
+   - Main orchestration handling workspace initialization
+   - Coordinates tree operations with git commands
+   - Manages Claude session launching
 
-4. **Configuration System** (`internal/config/config.go`)
-   - v2 configuration schema with `version: 2`
-   - `isolation_mode: true` by default
-   - `base_path: "workspaces"` for isolated scopes
-   - E-commerce themed default repositories and scopes
+4. **Configuration System** (`internal/config/config_v3.go`)
+   - Tree-based configuration schema
+   - Stores tree state and current position
+   - Handles workspace metadata
 
-5. **Documentation System** (`internal/docs/manager.go`)
-   - Manages global docs in `docs/global/`
-   - Manages scope-specific docs in `docs/scopes/`
-   - Supports Git synchronization
+5. **Git Integration** (`internal/git/`)
+   - Direct git operations at any tree node
+   - Recursive operations for subtrees
+   - Status tracking across the tree
 
-6. **Types** (`internal/scope/types.go`)
-   - `Meta`: Scope metadata (id, name, type, state, repos)
-   - `RepoState`: Repository status within scope
-   - `Type`: persistent or ephemeral
-   - `State`: active, inactive, or archived
-   - No TTL field per requirements
-
-### Workspace Structure (v2)
+### Workspace Structure
 
 ```
-my-ecommerce-platform/
-├── repo-claude.yaml         # v2 configuration
-├── .repo-claude-state.json  # State tracking
-├── shared-memory.md         # Cross-scope coordination
-├── docs/                    # Documentation system
-│   ├── global/             # Project-wide docs
-│   └── scopes/             # Scope-specific docs
-└── workspaces/             # Isolated scope directories
-    ├── wms-dev/            # WMS development scope
-    │   ├── .scope-meta.json
-    │   ├── wms-core/
-    │   ├── wms-inventory/
-    │   ├── wms-shipping/
-    │   └── shared-libs/
-    └── oms-hotfix/         # OMS hotfix scope
-        ├── .scope-meta.json
-        ├── oms-core/
-        ├── oms-payment/
-        └── shared-libs/
+my-platform/
+├── repo-claude.yaml         # Configuration file
+├── .repo-claude-state.json  # Tree state tracking
+├── repos/                   # Tree root
+│   ├── team-backend/        # Parent node (also a git repo)
+│   │   ├── .git/
+│   │   ├── payment-service/ # Child repository
+│   │   ├── order-service/   # Child repository
+│   │   └── shared-libs/     # Lazy repository (not cloned yet)
+│   └── team-frontend/       # Parent node (also a git repo)
+│       ├── .git/
+│       ├── web-app/         # Child repository
+│       └── component-lib/   # Lazy repository
+└── CLAUDE.md                # This file
 ```
 
-See [docs/workspace-structure.md](docs/workspace-structure.md) for details.
+### Key Design Patterns
 
-### Key Design Patterns (v2)
+1. **Tree-Based Navigation**: Repositories organized in parent-child hierarchy
+2. **CWD-First Resolution**: Current directory determines operation target
+3. **Lazy Loading**: Repositories clone only when accessed
+4. **Clear Targeting**: Every operation shows what it will affect
+5. **Direct Git Management**: Native git operations with tree awareness
 
-1. **Workspace Isolation**: Each scope operates in its own `workspaces/<scope-name>/` directory
-2. **Scope Metadata**: `.scope-meta.json` tracks scope state and repository information
-3. **Three-Level Architecture**: Project → Scope → Repository hierarchy
-4. **Persistent vs Ephemeral**: Long-lived vs temporary scope lifecycle management
-5. **Direct Git Management**: Native git operations with per-scope state
-6. **Shared Memory Pattern**: `shared-memory.md` for cross-scope coordination
-7. **Documentation System**: Structured docs with global and scope-specific content
-8. **No TTL**: Manual scope lifecycle management without automatic expiration
-
-### Data Flow (v2)
+### Data Flow
 
 1. **Initialization**: 
-   - Creates project directory with v2 structure
-   - Generates `repo-claude.yaml` with `version: 2`, `isolation_mode: true`
-   - Creates `workspaces/` base directory for isolated scopes
-   - Initializes `docs/` structure (global and scopes subdirectories)
-   - Creates shared memory file
+   - Creates workspace directory
+   - Initializes configuration file
+   - Creates tree root structure
+   - Sets up state tracking
 
-2. **Scope Creation**:
-   - Create isolated directory in `workspaces/<scope-name>/`
-   - Generate `.scope-meta.json` with scope metadata
-   - Clone repositories into scope directory
-   - Create CLAUDE.md in each repository
-   - Initialize scope documentation
+2. **Tree Building**:
+   - Add repositories as nodes
+   - Create parent-child relationships
+   - Mark repositories as lazy if needed
+   - Update tree state
 
-3. **Scope Lifecycle**: 
-   - Load scope metadata → verify repos → start Claude session
-   - Track state (active/inactive/archived)
-   - Manage repository state per scope
-   - Handle cleanup and archival
+3. **Navigation**: 
+   - Change current position in tree
+   - Auto-clone lazy repositories on access
+   - Update CWD to match tree position
+   - Track navigation history
 
-4. **Coordination**: 
-   - Scopes communicate via shared memory
-   - Each scope has isolated git state
-   - Documentation system provides cross-scope knowledge
+4. **Operations**: 
+   - Resolve target from CWD or explicit path
+   - Execute operation at target node
+   - Support recursive operations for subtrees
+   - Update tree state after operations
 
 ## Dependencies
 
@@ -202,38 +157,35 @@ Go dependencies (see `go.mod`):
 
 ## Important Implementation Details
 
-1. **Git Operations**:
-   - Direct git clone/pull operations replace repo tool
+1. **Tree Operations**:
+   - CWD-first resolution for all commands
+   - Lazy loading with auto-clone on navigation
+   - Recursive operations for subtrees
+   - State persistence across sessions
+
+2. **Git Operations**:
+   - Direct git commands at any tree node
    - Parallel repository operations for performance
    - Branch tracking and status monitoring
 
-2. **Process Management**: 
-   - Uses `os/exec` for non-blocking Claude Code execution
+3. **Process Management**: 
+   - Uses `os/exec` for Claude Code execution
    - Terminal tab creation via AppleScript on macOS
-   - Fallback to new window if tab creation fails
    - Signal handling for graceful shutdown
-   - Process monitoring with numbered tracking
-
-3. **Dependency Resolution**: 
-   - Topological sort for scope startup order
-   - Dependency validation before scope launch
-   - Repository pattern matching with wildcard support
 
 4. **Error Handling**: 
-   - Graceful degradation when repositories or tools are missing
+   - Graceful degradation when repositories missing
    - Comprehensive error reporting with context
-
-5. **State Persistence**: 
-   - Atomic writes for state file updates
    - Recovery mechanisms for interrupted operations
 
-6. **Configuration Management**:
-   - Schema validation for YAML configuration
-   - Default values and interactive setup support
+5. **State Persistence**: 
+   - Tree state saved to JSON file
+   - Current position tracking
+   - Navigation history maintained
 
 ## Testing
 
-**Coverage Target**: 70-80% for all packages (current: ~57% overall)
+**Coverage Target**: 70-80% for all packages
 
 ```bash
 # Unit tests
@@ -245,17 +197,7 @@ go test ./test/...
 # Coverage report
 go test -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out
-
-# Check coverage percentage
-go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out | tail -1
 ```
-
-### Current Coverage Status
-- `internal/config`: 91.2% ✓
-- `internal/git`: 65.0%
-- `internal/docs`: 66.9%
-- `internal/scope`: 46.5%
-- `internal/manager`: 43.4%
 
 ### Testing Guidelines
 - Write unit tests for all new functionality
@@ -266,12 +208,10 @@ go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out | t
 
 ## Extension Points
 
-1. **Scope Configuration**: Add new scopes in the `scopes` section of config
-2. **Project Structure**: Modify repository projects in workspace configuration
-3. **Coordination Mechanisms**: Extend shared memory format or add new coordination files
-4. **Command Extensions**: Add new subcommands in the CLI
-5. **Git Strategies**: Implement alternative branching strategies beyond trunk-based
-6. **Terminal Support**: Add tab support for more terminal emulators
+1. **Tree Operations**: Add new navigation patterns or tree algorithms
+2. **Repository Types**: Support different VCS systems beyond git
+3. **Command Extensions**: Add new subcommands in the CLI
+4. **Terminal Support**: Add tab support for more terminal emulators
 
 ## Code Style
 
@@ -296,14 +236,14 @@ make lint
 # Clean build artifacts
 make clean
 
-# Check version (format: YYMMDDHHMM for local builds, git tag for releases)
+# Check version
 ./bin/rc --version
 ```
 
-### Local
+### Installation
 - Local builds: `./bin/rc` (in project root)
 - Installed: `$GOPATH/bin/rc` (via `make install`)
 
 ### Production
-- Release by tagging new version via GitHub Action, do not use goreleaser directly or any release script locally for GitHub releases
-- When releasing, verifying the release done with GH API
+- Release by tagging new version via GitHub Action
+- Verify releases with GitHub API

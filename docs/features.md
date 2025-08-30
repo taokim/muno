@@ -1,282 +1,216 @@
 # Repo-Claude Features
 
-## Overview
-
-Repo-Claude provides comprehensive multi-repository management with integrated CI/CD workflows, making it easy to coordinate changes across microservices, monorepos, and multi-team projects.
-
 ## Core Features
 
-### 🔄 Git Synchronization with Rebase
+### 🌳 Tree-Based Navigation
+Navigate your multi-repository workspace like a filesystem:
+- **Intuitive paths**: `/team/backend/service` structure
+- **CWD-first resolution**: Commands work where you are
+- **Natural movement**: `cd`, `..`, `.`, `-` navigation
+- **Clear feedback**: Always shows target location
 
-**Default rebase mode for cleaner history**
-- `rc sync` uses `git pull --rebase` by default
-- Maintains linear commit history
-- Avoids unnecessary merge commits
-- Ideal for trunk-based development workflows
+### 📍 CWD-First Operations
+Your current directory determines behavior:
+- **No hidden state**: Location = operation target
+- **Predictable commands**: Work in current context
+- **Transparent targeting**: See what will be affected
+- **Filesystem familiarity**: Works like standard shell
 
-### 🌿 Branch Management
+### 💤 Lazy Loading
+Clone repositories only when needed:
+- **Fast initialization**: Quick workspace setup
+- **Storage efficient**: Save disk space
+- **On-demand access**: Auto-clone on navigation
+- **Manual control**: Clone when you want
 
-**Coordinate branches across all repositories**
-
-#### Create Branches
+### 🎯 Clear Targeting
+Every command shows its target:
 ```bash
-rc branch create feature/payment-integration
-```
-- Creates the same branch in all repositories
-- Option to specify base branch with `--from`
-- Target specific repos with `--repos`
-
-#### List Branch Status
-```bash
-rc branch list
-```
-- Visual indicators: 🔵 main branch, 🟢 feature branch
-- Shows all repos at a glance
-- `--all` flag to see all branches
-- Helpful tip when feature branches are detected
-
-#### Checkout Branches
-```bash
-rc branch checkout develop
-```
-- Switch branches across all repos simultaneously
-- `--create` flag to create if missing
-- Ensures consistency across workspace
-
-#### Delete Branches
-```bash
-rc branch delete feature/old --remote
-```
-- Clean up branches across all repos
-- Optional `--force` for unmerged branches
-- `--remote` to also delete from origin
-
-### 📋 Pull Request Management
-
-**Centralized PR workflows using GitHub CLI**
-
-#### Batch PR Creation
-```bash
-rc pr batch-create --title "Add payment integration"
+🎯 Target: team/backend/payment (from CWD)
+🎯 Target: team/frontend (explicit)
+🎯 Target: / (root fallback)
 ```
 
-**Key Features:**
-- Creates PRs for all repositories on feature branches
-- Automatic safety checks:
-  - ✅ Skips repositories on main/master branch
-  - ✅ Detects uncommitted changes
-  - ✅ Auto-pushes unpushed branches
-  - ✅ Shows detailed results per repository
+## Repository Management
 
-**Options:**
-- `--base`: Specify target branch
-- `--draft`: Create as draft PRs
-- `--reviewers`: Request reviews
-- `--assignees`: Assign to users
-- `--labels`: Add labels
-- `--repos`: Target specific repositories
-- `--skip-main-check`: Override safety check (use with caution)
+### Tree Building
+Organize repositories hierarchically:
+- **Parent nodes**: Group related repositories
+- **Child repositories**: Nested organization
+- **Mixed nodes**: Parents can be repos too
+- **Flexible structure**: Design your ideal layout
 
-#### Individual PR Creation
+### Add Repositories
+Simple repository addition:
 ```bash
-rc pr create --repo backend --title "Fix authentication bug"
-```
-- Interactive or CLI-driven
-- Full GitHub PR features support
-
-#### PR Status Monitoring
-```bash
-rc pr list --author @me
-rc pr status --repo backend --pr 42
-```
-- List PRs across all repositories
-- Check CI/CD status and reviews
-- Filter by state, author, assignee, labels
-
-#### PR Review Workflow
-```bash
-rc pr checkout 42 --repo backend
-rc pr merge 42 --repo backend --squash
-```
-- Checkout PR branches locally
-- Multiple merge strategies (merge, squash, rebase)
-- Auto-delete branches after merge
-
-## Workflow Examples
-
-### Feature Development Workflow
-
-Perfect for coordinated feature development across microservices:
-
-```bash
-# 1. Create feature branches
-rc branch create feature/payment-api
-
-# 2. Develop and commit changes
-# ... make changes in each repo ...
-rc forall -- git add -A
-rc forall -- git commit -m "Implement payment processing"
-
-# 3. Push all branches
-rc forall -- git push -u origin HEAD
-
-# 4. Create PRs for review
-rc pr batch-create \
-  --title "Add payment processing API" \
-  --body "Implements payment gateway integration across services" \
-  --reviewers senior-dev \
-  --labels enhancement,backend
-
-# 5. Monitor PR status
-rc pr list --author @me
-rc pr status
-
-# 6. After approval, merge PRs
-rc pr merge 123 --repo backend --squash
-rc pr merge 124 --repo frontend --squash
-
-# 7. Clean up branches
-rc branch delete feature/payment-api --remote
+rc add https://github.com/org/repo
+rc add https://github.com/org/repo --name custom-name
+rc add https://github.com/org/repo --lazy
+rc add https://github.com/org/repo --branch develop
 ```
 
-### Hotfix Workflow
+### Remove & Manage
+Clean repository management:
+- **Safe removal**: Confirmation for destructive ops
+- **State tracking**: Monitor repository status
+- **Branch management**: Track and switch branches
+- **Recursive operations**: Manage entire subtrees
 
-Quick fixes across multiple services:
+## Git Operations
 
+### Parallel Execution
+Efficient multi-repository operations:
+- **Concurrent pulls**: Update all repos simultaneously
+- **Parallel pushes**: Push changes across repos
+- **Batch commits**: Commit to multiple repos
+- **Progress tracking**: See operation status
+
+### Recursive Operations
+Work with entire subtrees:
 ```bash
-# 1. Create hotfix branches from main
-rc branch create hotfix/security-patch --from main
-
-# 2. Apply fixes and commit
-rc forall -- git add -A
-rc forall -- git commit -m "Fix security vulnerability CVE-2024-XXX"
-
-# 3. Create PRs with urgency
-rc pr batch-create \
-  --title "URGENT: Security patch CVE-2024-XXX" \
-  --body "Critical security fix" \
-  --labels security,urgent
-
-# 4. Fast-track review and merge
-rc pr list --label urgent
-# ... after quick review ...
-rc forall -- gh pr merge --auto --squash
+rc pull --recursive          # Pull entire subtree
+rc push --recursive          # Push all changes
+rc status --recursive        # Check all status
+rc commit -m "msg" --recursive  # Commit everywhere
 ```
 
-### Dependency Update Workflow
+### Branch Management
+Consistent branch operations:
+- **Branch tracking**: Monitor current branches
+- **Synchronized switching**: Change branches together
+- **Status reporting**: See branch states
+- **Conflict detection**: Identify issues early
 
-Update dependencies across all services:
+## Session Management
 
-```bash
-# 1. Create update branch
-rc branch create chore/update-dependencies
+### Claude Integration
+Launch AI-powered coding sessions:
+- **Context awareness**: Claude understands tree structure
+- **Multi-repo context**: See related repositories
+- **Navigation hints**: Claude knows how to move
+- **Shared memory**: Cross-session coordination
 
-# 2. Update dependencies in each repo
-rc forall -- npm update  # or appropriate package manager
+### Session Features
+- **Target selection**: Start at any tree node
+- **Auto-setup**: Creates context files
+- **State persistence**: Resume where you left off
+- **Terminal integration**: Opens in new tab
 
-# 3. Run tests
-rc forall -- npm test
+## Navigation Features
 
-# 4. Commit changes
-rc forall -- git add -A
-rc forall -- git commit -m "chore: update dependencies"
+### Path Resolution
+Multiple ways to specify targets:
+- **Absolute**: `/team/backend/service`
+- **Relative**: `../frontend/app`
+- **Child**: `service-name`
+- **Parent**: `..`
+- **Current**: `.`
+- **Previous**: `-`
+- **Root**: `/` or `~`
 
-# 5. Create PRs
-rc pr batch-create \
-  --title "Update dependencies Q4 2024" \
-  --body "Quarterly dependency updates for security and performance" \
-  --labels dependencies,maintenance
+### Smart Navigation
+Intelligent movement through tree:
+- **Auto-complete**: Tab completion for paths
+- **History tracking**: Navigate to previous positions
+- **Quick jumps**: Bookmarks for common locations
+- **Tree visualization**: See structure anytime
+
+## State Management
+
+### Persistent State
+Maintain context across sessions:
+- **Tree structure**: Saved configuration
+- **Current position**: Remember where you were
+- **Repository status**: Track clone states
+- **Navigation history**: Recent positions
+
+### State Tracking
+Monitor workspace status:
+```json
+{
+  "current_path": "/team/backend",
+  "tree_state": {
+    "/team/backend": {
+      "status": "cloned",
+      "branch": "main",
+      "modified": false
+    }
+  }
+}
 ```
 
-## Safety Features
+## Performance Features
 
-### Main Branch Protection
-- Batch PR creation automatically skips repositories on main/master
-- Prevents accidental PRs from production branches
-- Override available with `--skip-main-check` flag
+### Optimizations
+Built for speed and efficiency:
+- **Parallel operations**: Maximize throughput
+- **Lazy evaluation**: Defer expensive operations
+- **State caching**: Minimize filesystem calls
+- **Efficient algorithms**: Optimized tree traversal
 
-### Change Detection
-- Warns about uncommitted changes before PR creation
-- Prevents incomplete PRs
-- Ensures clean working directories
+### Resource Management
+Intelligent resource usage:
+- **Selective cloning**: Only what you need
+- **Memory efficiency**: Lightweight state tracking
+- **Disk optimization**: Minimal storage overhead
+- **Network efficiency**: Batch git operations
 
-### Automatic Branch Management
-- Auto-pushes local branches before PR creation
-- Handles branch tracking setup
-- Manages remote branch lifecycle
+## User Experience
 
-### Visual Feedback
-- Clear status indicators with emojis
-- Detailed success/failure reporting
-- Summary statistics for batch operations
+### Clear Feedback
+Always know what's happening:
+- **Progress indicators**: See operation status
+- **Target display**: Know what's affected
+- **Error messages**: Clear problem explanations
+- **Success confirmation**: Know when done
 
-## Integration Benefits
+### Interactive Features
+Enhanced interaction:
+- **Confirmation prompts**: Prevent accidents
+- **Tab completion**: Faster navigation
+- **Help system**: Built-in documentation
+- **Color output**: Visual clarity
 
-### For Trunk-Based Development
-While TBD favors direct commits to main, PR features support:
-- Code review for significant changes
-- External contributor workflows
-- Cross-team collaboration
-- Changes requiring discussion or approval
+## Integration Features
 
-### For Microservices Architecture
-- Coordinate API changes across services
-- Synchronized feature rollouts
-- Consistent dependency updates
-- Unified security patches
+### Terminal Integration
+Works with your environment:
+- **macOS**: Terminal tab support
+- **Linux**: Terminal detection
+- **Windows**: PowerShell/CMD support
+- **Custom**: Configurable launch commands
 
-### For Multi-Team Projects
-- Clear ownership with PR assignments
-- Parallel development with branch isolation
-- Controlled integration through PR reviews
-- Audit trail of changes
+### Git Integration
+Leverages existing git setup:
+- **Credential reuse**: Use existing auth
+- **Config inheritance**: Respect git settings
+- **Hook support**: Works with git hooks
+- **Remote management**: Handle origins
 
-## Requirements
+## Advanced Features
 
-### Git Operations
-- Git 2.0 or later
-- Configured remotes for each repository
+### Tree Operations
+Sophisticated tree management:
+- **Subtree operations**: Work on branches
+- **Tree reshaping**: Reorganize structure
+- **Bulk operations**: Multiple repos at once
+- **Pattern matching**: Select by criteria
 
-### Pull Request Features
-- GitHub CLI (`gh`) installed and authenticated
-- GitHub as remote repository host
-- Appropriate repository permissions
+### Workspace Features
+Enhanced workspace capabilities:
+- **Multiple workspaces**: Manage different projects
+- **Workspace templates**: Reusable structures
+- **Import/Export**: Share configurations
+- **Backup/Restore**: Protect your setup
 
-## Best Practices
+## Future Features (Roadmap)
 
-### Branch Naming
-- Use consistent prefixes: `feature/`, `bugfix/`, `hotfix/`, `chore/`
-- Include ticket numbers when applicable: `feature/JIRA-123-payment`
-- Keep names short but descriptive
-
-### PR Titles and Descriptions
-- Use conventional commit format for titles
-- Include context in PR body
-- Reference related issues or tickets
-- Add appropriate labels for filtering
-
-### Workflow Automation
-- Use `rc forall` for repetitive commands
-- Leverage batch operations for efficiency
-- Set up consistent reviewer groups
-- Automate with CI/CD where possible
-
-## Comparison with Alternatives
-
-### vs. Manual Repository Management
-- **10x faster** for multi-repo operations
-- **Consistency** across all repositories
-- **Safety checks** prevent common mistakes
-- **Unified view** of entire workspace
-
-### vs. Monorepo
-- **Maintains separation** between teams/services
-- **Independent versioning** and deployment
-- **Flexible ownership** models
-- **Gradual migration** possible
-
-### vs. Git Submodules
-- **Simpler workflow** without submodule complexity
-- **Better PR integration** with GitHub
-- **Parallel operations** for performance
-- **Cleaner history** with rebase default
+### Planned Enhancements
+- **Plugin system**: Extend functionality
+- **Remote workspaces**: Distributed teams
+- **Advanced search**: Find across repos
+- **Dependency tracking**: Understand relationships
+- **CI/CD integration**: Automated workflows
+- **Team collaboration**: Shared workspaces
+- **Performance metrics**: Operation analytics
+- **Visual UI**: Tree visualization GUI

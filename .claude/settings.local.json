@@ -45,7 +45,8 @@
       "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc init test-clone)",
       "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc use test-viper)",
       "Bash(/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc use cobra)",
-      "Bash(./scripts/quick-demo.sh:*)"
+      "Bash(./scripts/quick-demo.sh:*)",
+      "Bash(mv:*)"
     ],
     "deny": [],
     "additionalDirectories": [

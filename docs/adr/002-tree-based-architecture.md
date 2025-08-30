@@ -1,7 +1,9 @@
-# ADR-003: Recursive Workspaces Architecture
+# ADR-002: Tree-Based Architecture (V3)
+
+Date: 2024-12-27
 
 ## Status
-Proposed
+Accepted
 
 ## Context
 As repo-claude adoption grows, organizations need to manage 100-500+ repositories. The current flat configuration becomes unwieldy at this scale. Teams need:
@@ -40,8 +42,7 @@ Implement a recursive, tree-based workspace architecture where:
 - Use familiar filesystem-like path syntax
 
 ## Implementation
-See [RECURSIVE_WORKSPACE_PLAN.md](../RECURSIVE_WORKSPACE_PLAN.md) for detailed implementation plan.
+Implemented in v3 with tree-based navigation, CWD-first resolution, and lazy loading.
 
 ## References
-- [ADR-001: Scope Isolation](001-scope-isolation.md)
-- [ADR-002: Git Integration](002-direct-git-integration.md)
+- [ADR-001: Simplify Git Management](001-simplify-git-management.md)
