@@ -18,9 +18,8 @@ func TestV3WorkspaceHierarchy(t *testing.T) {
 	rootConfig := &ConfigV3{
 		Version: 3,
 		Workspace: WorkspaceConfig{
-			Name:          "platform",
-			IsolationMode: true,
-			BasePath:      "workspaces",
+			Name:     "platform",
+			RootPath: "repos",
 		},
 		Defaults: DefaultDefaults(),
 		Repositories: map[string]RepositoryV3{

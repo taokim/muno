@@ -290,9 +290,8 @@ func TestConfigV3SaveLoad(t *testing.T) {
 	cfg := &ConfigV3{
 		Version: 3,
 		Workspace: WorkspaceConfig{
-			Name:          "test-project",
-			IsolationMode: true,
-			BasePath:      "workspaces",
+			Name:     "test-project",
+			RootPath: "repos",
 		},
 		Defaults: DefaultDefaults(),
 		Repositories: map[string]RepositoryV3{
@@ -331,8 +330,7 @@ func TestConfigV3SaveLoad(t *testing.T) {
 	// Verify loaded config matches original
 	assert.Equal(t, cfg.Version, loaded.Version)
 	assert.Equal(t, cfg.Workspace.Name, loaded.Workspace.Name)
-	assert.Equal(t, cfg.Workspace.IsolationMode, loaded.Workspace.IsolationMode)
-	assert.Equal(t, cfg.Workspace.BasePath, loaded.Workspace.BasePath)
+	assert.Equal(t, cfg.Workspace.RootPath, loaded.Workspace.RootPath)
 	
 	assert.Len(t, loaded.Repositories, 2)
 	assert.Contains(t, loaded.Repositories, "backend-repo")

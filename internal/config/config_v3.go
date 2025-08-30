@@ -19,7 +19,8 @@ type ConfigV3 struct {
 	Workspace     WorkspaceConfig          `yaml:"workspace"`
 	Defaults      Defaults                 `yaml:"defaults,omitempty"`
 	Repositories  map[string]RepositoryV3  `yaml:"repositories"`
-	Scopes        map[string]ScopeV3       `yaml:"scopes"`
+	// Scopes - removed in tree-based v3 architecture
+	// Scopes        map[string]ScopeV3       `yaml:"scopes"`
 	Documentation DocumentationConfig      `yaml:"documentation,omitempty"`
 	
 	// Runtime fields (not in YAML)
@@ -72,9 +73,8 @@ func DefaultConfigV3(projectName string) *ConfigV3 {
 	return &ConfigV3{
 		Version: 3,
 		Workspace: WorkspaceConfig{
-			Name:          projectName,
-			IsolationMode: true,
-			BasePath:      "workspaces",
+			Name:     projectName,
+			RootPath: "repos",
 		},
 		Defaults: DefaultDefaults(),
 		Repositories: map[string]RepositoryV3{
@@ -206,10 +206,9 @@ func LoadV3(path string) (*ConfigV3, error) {
 	}
 	
 	// Set default workspace settings
-	if cfg.Workspace.BasePath == "" {
-		cfg.Workspace.BasePath = "workspaces"
+	if cfg.Workspace.RootPath == "" {
+		cfg.Workspace.RootPath = "repos"
 	}
-	cfg.Workspace.IsolationMode = true
 	
 	// Set default repository loading settings
 	if cfg.Defaults.EagerPattern == "" {
@@ -262,32 +261,33 @@ func (c *ConfigV3) ValidateV3() error {
 		return fmt.Errorf("at least one repository must be defined")
 	}
 
-	if len(c.Scopes) == 0 {
-		return fmt.Errorf("at least one scope must be defined")
-	}
+	// Scopes validation removed - tree-based v3 doesn't use scopes
+	// if len(c.Scopes) == 0 {
+	// 	return fmt.Errorf("at least one scope must be defined")
+	// }
 	
 	// Validate defaults
 	if err := c.Defaults.ValidateDefaults(); err != nil {
 		return fmt.Errorf("invalid defaults: %w", err)
 	}
 
-	// Validate scope repositories exist
-	for scopeName, scope := range c.Scopes {
-		// Check local repos
-		for _, repoName := range scope.Repos {
-			if _, exists := c.Repositories[repoName]; !exists {
-				return fmt.Errorf("scope %s references undefined repository: %s", scopeName, repoName)
-			}
-		}
-		
-		// Note: We can't validate workspace scopes until we load the child workspaces
-		// This will be done at runtime
-		
-		// Validate scope type
-		if scope.Type != "persistent" && scope.Type != "ephemeral" {
-			return fmt.Errorf("scope %s has invalid type: %s (must be 'persistent' or 'ephemeral')", scopeName, scope.Type)
-		}
-	}
+	// Scope validation removed - tree-based v3 doesn't use scopes
+	// for scopeName, scope := range c.Scopes {
+	// 	// Check local repos
+	// 	for _, repoName := range scope.Repos {
+	// 		if _, exists := c.Repositories[repoName]; !exists {
+	// 			return fmt.Errorf("scope %s references undefined repository: %s", scopeName, repoName)
+	// 		}
+	// 	}
+	// 	
+	// 	// Note: We can't validate workspace scopes until we load the child workspaces
+	// 	// This will be done at runtime
+	// 	
+	// 	// Validate scope type
+	// 	if scope.Type != "persistent" && scope.Type != "ephemeral" {
+	// 		return fmt.Errorf("scope %s has invalid type: %s (must be 'persistent' or 'ephemeral')", scopeName, scope.Type)
+	// 	}
+	// }
 
 	return nil
 }
@@ -302,14 +302,14 @@ func (c *ConfigV3) GetRepositoryV3(name string) (*RepositoryV3, error) {
 	return &repoCopy, nil
 }
 
-// GetScopeV3 returns a scope by name
-func (c *ConfigV3) GetScopeV3(name string) (*ScopeV3, error) {
-	scope, exists := c.Scopes[name]
-	if !exists {
-		return nil, fmt.Errorf("scope %s not found", name)
-	}
-	return &scope, nil
-}
+// GetScopeV3 - removed in tree-based v3 architecture
+// func (c *ConfigV3) GetScopeV3(name string) (*ScopeV3, error) {
+// 	scope, exists := c.Scopes[name]
+// 	if !exists {
+// 		return nil, fmt.Errorf("scope %s not found", name)
+// 	}
+// 	return &scope, nil
+// }
 
 // IsMetaRepo checks if a repository is a meta-repo based on patterns
 func IsMetaRepo(name string, url string, defaults Defaults) bool {
