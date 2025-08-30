@@ -1,4 +1,4 @@
-# Repo-Claude Features
+# MUNO Features
 
 ## Core Features
 
@@ -43,10 +43,10 @@ Organize repositories hierarchically:
 ### Add Repositories
 Simple repository addition:
 ```bash
-rc add https://github.com/org/repo
-rc add https://github.com/org/repo --name custom-name
-rc add https://github.com/org/repo --lazy
-rc add https://github.com/org/repo --branch develop
+muno add https://github.com/org/repo
+muno add https://github.com/org/repo --name custom-name
+muno add https://github.com/org/repo --lazy
+muno add https://github.com/org/repo --branch develop
 ```
 
 ### Remove & Manage
@@ -68,10 +68,10 @@ Efficient multi-repository operations:
 ### Recursive Operations
 Work with entire subtrees:
 ```bash
-rc pull --recursive          # Pull entire subtree
-rc push --recursive          # Push all changes
-rc status --recursive        # Check all status
-rc commit -m "msg" --recursive  # Commit everywhere
+muno pull --recursive          # Pull entire subtree
+muno push --recursive          # Push all changes
+muno status --recursive        # Check all status
+muno commit -m "msg" --recursive  # Commit everywhere
 ```
 
 ### Branch Management

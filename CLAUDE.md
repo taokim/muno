@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Repo-Claude is a multi-repository orchestration tool with a tree-based navigation system. Repositories form a navigable tree structure where every operation is based on your current position (CWD-first resolution).
+**MUNO** (문어 in Korean, meaning "octopus") is a multi-repository orchestration tool with a tree-based navigation system. Like an octopus coordinating its eight arms, MUNO orchestrates multiple repositories with intelligent coordination. The name stands for **Multi-repository UNified Orchestration**.
+
+Repositories form a navigable tree structure where every operation is based on your current position (CWD-first resolution).
 
 **Key Features:**
 - **Tree-based navigation** - Navigate repositories like a filesystem
@@ -17,33 +19,33 @@ Repo-Claude is a multi-repository orchestration tool with a tree-based navigatio
 
 ### Running the Tool
 ```bash
-# Build the binary (creates ./bin/rc)
+# Build the binary (creates ./bin/muno)
 make build
 # OR manually:
-go build -o bin/rc ./cmd/repo-claude
+go build -o bin/muno ./cmd/muno
 
 # Initialize a new workspace
-./bin/rc init <workspace-name>
+./bin/muno init <workspace-name>
 
 # Navigation
-./bin/rc use <path>              # Navigate to a node (changes CWD)
-./bin/rc current                 # Show current position
-./bin/rc tree                    # Display tree structure
-./bin/rc list                    # List child nodes
+./bin/muno use <path>              # Navigate to a node (changes CWD)
+./bin/muno current                 # Show current position
+./bin/muno tree                    # Display tree structure
+./bin/muno list                    # List child nodes
 
 # Repository Management
-./bin/rc add <repo-url> [--lazy] # Add child repository
-./bin/rc remove <name>           # Remove child repository
-./bin/rc clone [--recursive]     # Clone lazy repositories
+./bin/muno add <repo-url> [--lazy] # Add child repository
+./bin/muno remove <name>           # Remove child repository
+./bin/muno clone [--recursive]     # Clone lazy repositories
 
 # Start Claude session
-./bin/rc start [path]            # Start at current or specified node
+./bin/muno start [path]            # Start at current or specified node
 
 # Git operations
-./bin/rc pull [--recursive]      # Pull repositories
-./bin/rc push [--recursive]      # Push changes
-./bin/rc commit -m "msg"         # Commit changes
-./bin/rc status [--recursive]    # Show git status
+./bin/muno pull [--recursive]      # Pull repositories
+./bin/muno push [--recursive]      # Push changes
+./bin/muno commit -m "msg"         # Commit changes
+./bin/muno status [--recursive]    # Show git status
 ```
 
 ### Development Commands
@@ -55,12 +57,12 @@ go test ./...
 go test -v ./...
 
 # Build for different platforms
-GOOS=linux GOARCH=amd64 go build -o repo-claude-linux cmd/main.go
-GOOS=darwin GOARCH=amd64 go build -o repo-claude-darwin cmd/main.go
-GOOS=windows GOARCH=amd64 go build -o repo-claude.exe cmd/main.go
+GOOS=linux GOARCH=amd64 go build -o muno-linux cmd/main.go
+GOOS=darwin GOARCH=amd64 go build -o muno-darwin cmd/main.go
+GOOS=windows GOARCH=amd64 go build -o muno.exe cmd/main.go
 
 # Install as a Go tool
-go install ./cmd/repo-claude
+go install ./cmd/muno
 ```
 
 ## Architecture
@@ -96,8 +98,8 @@ go install ./cmd/repo-claude
 
 ```
 my-platform/
-├── repo-claude.yaml         # Configuration file
-├── .repo-claude-state.json  # Tree state tracking
+├── muno.yaml         # Configuration file
+├── .muno-state.json  # Tree state tracking
 ├── repos/                   # Tree root
 │   ├── team-backend/        # Parent node (also a git repo)
 │   │   ├── .git/
@@ -227,7 +229,7 @@ go tool cover -html=coverage.out
 # Build release binaries
 make release
 
-# Build for current platform (creates ./bin/rc)
+# Build for current platform (creates ./bin/muno)
 make build
 
 # Run linters
@@ -237,12 +239,12 @@ make lint
 make clean
 
 # Check version
-./bin/rc --version
+./bin/muno --version
 ```
 
 ### Installation
-- Local builds: `./bin/rc` (in project root)
-- Installed: `$GOPATH/bin/rc` (via `make install`)
+- Local builds: `./bin/muno` (in project root)
+- Installed: `$GOPATH/bin/muno` (via `make install`)
 
 ### Production
 - Release by tagging new version via GitHub Action

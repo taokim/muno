@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	
-	"github.com/taokim/repo-claude/internal/config"
-	"github.com/taokim/repo-claude/internal/git"
-	"github.com/taokim/repo-claude/internal/tree"
+	"github.com/taokim/muno/internal/config"
+	"github.com/taokim/muno/internal/git"
+	"github.com/taokim/muno/internal/tree"
 )
 
 // Manager is the refactored tree-based manager implementation with simplified state
@@ -43,7 +43,7 @@ func NewManager(projectPath string) (*Manager, error) {
 		TreeManager: treeMgr,
 		GitCmd:      gitCmd,
 		CmdExecutor: &RealCommandExecutor{},
-		statePath:   filepath.Join(absPath, ".repo-claude-state.json"),
+		statePath:   filepath.Join(absPath, ".muno-state.json"),
 	}, nil
 }
 
@@ -54,11 +54,11 @@ func LoadFromCurrentDir() (*Manager, error) {
 		return nil, err
 	}
 
-	// Search upwards for repo-claude.yaml
+	// Search upwards for muno.yaml
 	searchDir := cwd
 	configPath := ""
 	for {
-		candidate := filepath.Join(searchDir, "repo-claude.yaml")
+		candidate := filepath.Join(searchDir, "muno.yaml")
 		if _, err := os.Stat(candidate); err == nil {
 			configPath = candidate
 			cwd = searchDir // Update cwd to the project root
@@ -73,7 +73,7 @@ func LoadFromCurrentDir() (*Manager, error) {
 	}
 	
 	if configPath == "" {
-		return nil, fmt.Errorf("repo-claude.yaml not found in current directory or any parent")
+		return nil, fmt.Errorf("muno.yaml not found in current directory or any parent")
 	}
 	
 	// Load configuration
@@ -108,7 +108,7 @@ func (m *Manager) Initialize(name string, interactive bool) error {
 	m.Config = config.DefaultConfigTree(name)
 	
 	// Save configuration
-	configPath := filepath.Join(m.ProjectPath, "repo-claude.yaml")
+	configPath := filepath.Join(m.ProjectPath, "muno.yaml")
 	if err := m.Config.Save(configPath); err != nil {
 		return fmt.Errorf("saving configuration: %w", err)
 	}

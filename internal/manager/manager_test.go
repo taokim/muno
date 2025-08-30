@@ -31,7 +31,7 @@ func TestInitWorkspace(t *testing.T) {
 		require.NoError(t, err)
 		
 		// Check config file was saved
-		configPath := filepath.Join(tmpDir, "repo-claude.yaml")
+		configPath := filepath.Join(tmpDir, "muno.yaml")
 		assert.FileExists(t, configPath)
 		
 		// Check shared memory was created

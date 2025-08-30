@@ -32,10 +32,9 @@ vendor/
 Thumbs.db
 
 # Project specific
-repo-claude
-rc
-!cmd/repo-claude/
-.repo-claude-state.json
+muno
+!cmd/muno/
+.muno-state.json
 test-project/
 test-*/
 
@@ -50,7 +49,7 @@ test_results.log
 *.html
 
 # Development/testing workspace files (should not be in repo root)
-/repo-claude.yaml
+/muno.yaml
 /shared-memory.md
 /repos/
 

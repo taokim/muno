@@ -1,9 +1,9 @@
 #!/bin/bash
-# test-workflow.sh - Quick smoke test for repo-claude
+# test-workflow.sh - Quick smoke test for muno
 
 set -e
 
-echo "🧪 Running repo-claude smoke test..."
+echo "🧪 Running muno smoke test..."
 
 # Build
 echo "📦 Building..."
@@ -12,7 +12,7 @@ make build >/dev/null 2>&1
 
 # Create test directory
 TEST_DIR=$(mktemp -d)
-BINARY="$(pwd)/bin/rc"
+BINARY="$(pwd)/bin/muno"
 
 # Test basic workflow
 cd "$TEST_DIR"
@@ -24,7 +24,7 @@ cd test-project
 "$BINARY" status >/dev/null
 
 # Quick validation
-if [ -f "repo-claude.yaml" ] && [ -d "workspace" ]; then
+if [ -f "muno.yaml" ] && [ -d "workspace" ]; then
     echo "✅ Smoke test passed!"
     cd ../..
     rm -rf "$TEST_DIR"

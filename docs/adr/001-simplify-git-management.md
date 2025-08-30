@@ -8,12 +8,12 @@ Accepted
 
 ## Context
 
-Repo-Claude was initially built using the Android Repo tool, a repository management system created by Google for managing many Git repositories (used for Android and ChromiumOS development). While Repo is a powerful and battle-tested tool, it introduced significant complexity for our use case:
+MUNO was initially built using the Android Repo tool, a repository management system created by Google for managing many Git repositories (used for Android and ChromiumOS development). While Repo is a powerful and battle-tested tool, it introduced significant complexity for our use case:
 
-1. **Complex initialization flow**: Users had to understand manifest repositories, XML generation, and the relationship between `repo-claude.yaml` and Repo's manifest format
+1. **Complex initialization flow**: Users had to understand manifest repositories, XML generation, and the relationship between `muno.yaml` and Repo's manifest format
 2. **Python dependency**: Repo downloads ~30MB of Python scripts per workspace
 3. **Unnecessary features**: Repo's advanced features (branch management, code review upload, cherry-picking) aren't needed for AI agent orchestration
-4. **Confusing UX**: Users questioned why they needed to create manifests when they already had `repo-claude.yaml`
+4. **Confusing UX**: Users questioned why they needed to create manifests when they already had `muno.yaml`
 5. **Extra abstraction layer**: The translation between our config and Repo's manifest added complexity without clear benefit
 6. **Poor AI context flow**: AI agents need global documentation at the workspace root to understand the system context. Repo's manifest-only repositories don't support this pattern well, as they're designed purely for repository structure, not documentation
 
@@ -22,7 +22,7 @@ Repo-Claude was initially built using the Android Repo tool, a repository manage
 We decided to remove the Android Repo tool dependency and implement direct Git operations using Go's `os/exec` to call native git commands.
 
 The new implementation:
-- Uses a single configuration file (`repo-claude.yaml`)
+- Uses a single configuration file (`muno.yaml`)
 - Performs direct `git clone` and `git pull --rebase` operations
 - Maintains the same user-facing commands
 - Provides parallel operations for performance
@@ -71,10 +71,10 @@ The new architecture consists of:
 
 ## Lessons Learned
 
-While the Android Repo tool is excellent for its intended use case (managing massive projects like Android), it was overkill for repo-claude. The lesson is to carefully evaluate whether powerful tools are actually needed before adopting them. Sometimes a simpler, purpose-built solution is better than a general-purpose tool.
+While the Android Repo tool is excellent for its intended use case (managing massive projects like Android), it was overkill for muno. The lesson is to carefully evaluate whether powerful tools are actually needed before adopting them. Sometimes a simpler, purpose-built solution is better than a general-purpose tool.
 
 ## References
 
 - [Android Repo Tool](https://gerrit.googlesource.com/git-repo/)
-- [Original repo-claude design](https://github.com/yourusername/repo-claude)
+- [Original muno design](https://github.com/yourusername/muno)
 - [Git commands documentation](https://git-scm.com/docs)

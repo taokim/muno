@@ -1,12 +1,12 @@
 # Scripts Directory
 
-This directory contains various scripts for testing, demonstration, and release management of the repo-claude project.
+This directory contains various scripts for testing, demonstration, and release management of the muno project.
 
 ## Overview
 
 The scripts in this directory are organized by purpose:
 - **Testing Scripts**: Comprehensive testing frameworks and verification tools
-- **Demo Scripts**: Quick demonstrations of repo-claude capabilities
+- **Demo Scripts**: Quick demonstrations of muno capabilities
 - **Utility Scripts**: Helper scripts for development workflow
 - **Release Scripts**: Build and release automation
 
@@ -64,7 +64,7 @@ Covers:
 ### 🎯 Demo Scripts
 
 #### `quick-demo.sh`
-**Purpose**: Quick demonstration of repo-claude capabilities  
+**Purpose**: Quick demonstration of muno capabilities  
 **Usage**: `./scripts/quick-demo.sh`
 
 Demonstrates:
@@ -118,7 +118,7 @@ Scripts respect the following environment variables:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `RC_BIN` | Path to rc binary | `./bin/rc` |
+| `MUNO_BIN` | Path to muno binary | `./bin/muno` |
 | `TEST_DIR` | Base directory for tests | `/tmp` |
 | `VERBOSE` | Enable verbose output | `false` |
 | `CLEANUP` | Auto-cleanup after tests | `true` |
@@ -127,7 +127,7 @@ Scripts respect the following environment variables:
 
 ### Running a Quick Demo
 ```bash
-cd repo-claude-go
+cd muno-go
 ./scripts/quick-demo.sh
 ```
 
@@ -200,11 +200,11 @@ chmod +x scripts/*.sh
 
 **Command Not Found**
 ```bash
-# Ensure rc is built
+# Ensure muno is built
 make build
 
 # Or specify path
-RC_BIN=/path/to/rc ./scripts/script-name.sh
+MUNO_BIN=/path/to/muno ./scripts/script-name.sh
 ```
 
 **Test Failures**
@@ -226,4 +226,4 @@ Scripts require:
 
 ## License
 
-All scripts are part of the repo-claude project and follow the same license.
+All scripts are part of the muno project and follow the same license.

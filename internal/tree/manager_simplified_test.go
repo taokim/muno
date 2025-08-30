@@ -95,7 +95,7 @@ func TestStateManagement(t *testing.T) {
 	}
 	
 	// Read state file and verify it contains no filesystem paths
-	statePath := filepath.Join(tmpDir, ".repo-claude-tree.json")
+	statePath := filepath.Join(tmpDir, ".muno-tree.json")
 	data, err := os.ReadFile(statePath)
 	if err != nil {
 		t.Fatalf("Failed to read state file: %v", err)

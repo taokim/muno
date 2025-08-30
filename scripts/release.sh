@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Simple tag creation script for repo-claude
+# Simple tag creation script for muno
 set -e
 
 # Check if version argument is provided
@@ -35,4 +35,4 @@ echo "2. Build binaries for all platforms"
 echo "3. Create a GitHub release (published immediately)"
 echo "4. Update the Homebrew tap automatically"
 echo ""
-echo "Monitor progress at: https://github.com/taokim/repo-claude/actions"
+echo "Monitor progress at: https://github.com/taokim/muno/actions"

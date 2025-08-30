@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 	
-	"github.com/taokim/repo-claude/internal/git"
+	"github.com/taokim/muno/internal/git"
 )
 
 // GitOptions contains common options for git commands

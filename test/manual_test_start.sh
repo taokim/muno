@@ -1,13 +1,13 @@
 #!/bin/bash
 # Manual test script for new start command features
 
-echo "🧪 Testing improved rc start command"
+echo "🧪 Testing improved muno start command"
 echo "===================================="
 
 # Build the tool
-echo "Building repo-claude..."
+echo "Building muno..."
 cd ../
-go build -o rc ./cmd/repo-claude
+go build -o muno ./cmd/muno
 if [ $? -ne 0 ]; then
     echo "❌ Build failed"
     exit 1
@@ -22,7 +22,7 @@ cd $TEST_DIR
 
 # Initialize workspace
 echo -e "\nInitializing workspace..."
-../rc init test-project << EOF
+../muno init test-project << EOF
 Test Project
 3
 frontend
@@ -56,31 +56,31 @@ echo -e "\n📋 Test scenarios:"
 echo "=================="
 
 echo -e "\n1. Test help output:"
-echo "../rc start --help"
+echo "../muno start --help"
 
 echo -e "\n2. Test foreground mode (you'll need to Ctrl+C to exit):"
-echo "../rc start frontend-dev --foreground"
+echo "../muno start frontend-dev --foreground"
 
 echo -e "\n3. Test multiple agents:"
-echo "../rc start frontend-dev backend-dev"
+echo "../muno start frontend-dev backend-dev"
 
 echo -e "\n4. Test by repository selection:"
-echo "../rc start --repos frontend,backend"
+echo "../muno start --repos frontend,backend"
 
 echo -e "\n5. Test interactive selection:"
-echo "../rc start --interactive"
+echo "../muno start --interactive"
 
 echo -e "\n6. Test new window mode (if supported on your OS):"
-echo "../rc start frontend-dev --new-window"
+echo "../muno start frontend-dev --new-window"
 
 echo -e "\n7. Test preset (once implemented in config):"
-echo "../rc start --preset fullstack"
+echo "../muno start --preset fullstack"
 
 echo -e "\n8. Show status after starting:"
-echo "../rc status"
+echo "../muno status"
 
 echo -e "\n9. Stop all agents:"
-echo "../rc stop"
+echo "../muno stop"
 
 echo -e "\nTest workspace created at: $(pwd)"
 echo "Run the commands above to test different features"

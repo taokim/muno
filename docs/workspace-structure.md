@@ -2,14 +2,14 @@
 
 ## Overview
 
-Repo-Claude uses a tree-based workspace structure where repositories are organized in a navigable hierarchy. Each workspace contains configuration, state tracking, and a tree of repositories.
+MUNO uses a tree-based workspace structure where repositories are organized in a navigable hierarchy. Each workspace contains configuration, state tracking, and a tree of repositories.
 
 ## Directory Layout
 
 ```
 my-platform/                    # Workspace root
-├── repo-claude.yaml            # Configuration file
-├── .repo-claude-state.json     # Tree state and navigation tracking
+├── muno.yaml            # Configuration file
+├── .muno-state.json     # Tree state and navigation tracking
 ├── repos/                      # Repository tree root
 │   ├── team-backend/           # Parent node (can be a git repo)
 │   │   ├── .git/              # Optional git repository
@@ -32,7 +32,7 @@ my-platform/                    # Workspace root
 
 ## File Descriptions
 
-### `repo-claude.yaml`
+### `muno.yaml`
 
 Main configuration file defining the workspace:
 
@@ -61,7 +61,7 @@ tree:
         lazy: true
 ```
 
-### `.repo-claude-state.json`
+### `.muno-state.json`
 
 Runtime state tracking:
 
@@ -122,7 +122,7 @@ You are at: /team-backend/payment-service
 - web-app (../../team-frontend/web-app)
 
 ## Navigation
-Use `rc use <path>` to navigate the tree.
+Use `muno use <path>` to navigate the tree.
 Current directory operations affect the current node.
 ```
 
@@ -184,7 +184,7 @@ Repositories marked as lazy are not cloned initially:
 Auto-clone triggers:
 - Navigating to a lazy repository
 - Executing operations on lazy nodes
-- Manual `rc clone` command
+- Manual `muno clone` command
 
 ## Best Practices
 

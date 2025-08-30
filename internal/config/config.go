@@ -44,7 +44,7 @@ type Repository struct {
 	Lazy   *bool   `yaml:"lazy,omitempty"`  // nil = auto-detect based on patterns
 	
 	// Runtime fields (not in YAML)
-	IsWorkspace bool      `yaml:"-"` // Auto-detected: true if contains repo-claude.yaml
+	IsWorkspace bool      `yaml:"-"` // Auto-detected: true if contains muno.yaml
 	Config      *Config `yaml:"-"` // Loaded config if it's a workspace
 	Path        string    `yaml:"-"` // Local path after cloning
 }

@@ -1,7 +1,7 @@
-# Makefile for repo-claude
+# Makefile for MUNO
 
 # Variables
-BINARY_NAME=rc
+BINARY_NAME=muno
 
 # Version determination:
 # 1. If on a tagged commit, use the tag (e.g., v0.4.0)
@@ -31,7 +31,7 @@ all: clean test build
 build:
 	@echo "Building ${BINARY_NAME}..."
 	@mkdir -p $(GOBIN)
-	@go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME) ./cmd/repo-claude
+	@go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME) ./cmd/muno
 	@echo "Build complete: $(GOBIN)/$(BINARY_NAME)"
 
 clean:
@@ -148,7 +148,7 @@ install-dev: build
 		mkdir -p "$$LOCAL_BIN_DIR"; \
 		ln -sf $(GOBIN)/$(BINARY_NAME) "$$LOCAL_BIN_DIR/$(BINARY_NAME)-dev"; \
 		echo "✅ Installed to $$LOCAL_BIN_DIR/$(BINARY_NAME)-dev"; \
-		echo "Use 'rc' for production, 'rc-dev' for development"; \
+		echo "Use 'muno' for production, 'muno-dev' for development"; \
 	fi
 
 dev: build
@@ -163,11 +163,11 @@ dev: build
 build-all:
 	@echo "Building for all platforms..."
 	@mkdir -p $(GOBIN)
-	@GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-darwin-amd64 ./cmd/repo-claude
-	@GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-darwin-arm64 ./cmd/repo-claude
-	@GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-linux-amd64 ./cmd/repo-claude
-	@GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-linux-arm64 ./cmd/repo-claude
-	@GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-windows-amd64.exe ./cmd/repo-claude
+	@GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-darwin-amd64 ./cmd/muno
+	@GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-darwin-arm64 ./cmd/muno
+	@GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-linux-amd64 ./cmd/muno
+	@GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-linux-arm64 ./cmd/muno
+	@GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-windows-amd64.exe ./cmd/muno
 	@echo "Multi-platform build complete"
 
 # Release with goreleaser
@@ -209,7 +209,7 @@ update-deps:
 # Help target
 help:
 	@echo "Available targets:"
-	@echo "  make build       - Build the binary (rc)"
+	@echo "  make build       - Build the binary (muno)"
 	@echo "  make test        - Run tests"
 	@echo "  make test-short  - Run short tests"
 	@echo "  make coverage    - Generate coverage report"
@@ -217,7 +217,7 @@ help:
 	@echo "  make fmt         - Format code"
 	@echo "  make vet         - Run go vet"
 	@echo "  make install     - Install binary to GOPATH/bin"
-	@echo "  make install-dev - Install as rc-dev (for development)"
+	@echo "  make install-dev - Install as muno-dev (for development)"
 	@echo "  make dev [args]  - Run development version directly"
 	@echo "  make build-all   - Build for all platforms"
 	@echo "  make release-dry - Dry run release"

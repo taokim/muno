@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 	
-	"github.com/taokim/repo-claude/internal/git"
+	"github.com/taokim/muno/internal/git"
 )
 
 // Manager is the refactored tree manager with simplified state
@@ -335,13 +335,13 @@ func (m *Manager) saveState() error {
 		return fmt.Errorf("failed to marshal state: %w", err)
 	}
 	
-	statePath := filepath.Join(m.workspacePath, ".repo-claude-tree.json")
+	statePath := filepath.Join(m.workspacePath, ".muno-tree.json")
 	return os.WriteFile(statePath, data, 0644)
 }
 
 // loadState loads the tree state from disk
 func (m *Manager) loadState() error {
-	statePath := filepath.Join(m.workspacePath, ".repo-claude-tree.json")
+	statePath := filepath.Join(m.workspacePath, ".muno-tree.json")
 	data, err := os.ReadFile(statePath)
 	if err != nil {
 		if os.IsNotExist(err) {

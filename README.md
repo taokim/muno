@@ -1,10 +1,48 @@
-# Repo-Claude
+<div align="center">
+  <img src="assets/muno-logo.png" alt="MUNO - Multi-Repository Orchestration" width="200">
+  
+  # MUNO
 
-Transform your multi-repository development into a unified tree-based workspace with AI-powered navigation.
+  Transform your multi-repository development into a unified tree-based workspace with AI-powered navigation.
+  
+  [English](#) | [한국어](README_ko.md)
+</div>
+
+## The Name: MUNO 🐙
+
+**MUNO** originated from the need to manage Musinsa's growing number of repositories with the simplicity of a monorepo.
+
+### 🎯 Primary Meanings
+
+1. **MUsinsa moNOrepo**
+   - Born from the challenge of managing Musinsa's multi-repository architecture
+   - Brings monorepo-like convenience to multi-repo projects
+   - Unified operations while maintaining repository independence
+
+2. **MUsinsa UNO**
+   - "UNO" (one) - One tool to unify all repositories
+   - Single command interface for complex multi-repo operations
+   - One workspace, infinite possibilities
+
+3. **Multi-repository UNified Orchestration**
+   - The technical definition: orchestrating multiple repositories as a unified workspace
+   - Professional, descriptive acronym for broader adoption
+
+### 🔊 Pronunciation
+- **English**: "MOO-no" (like "mono" with a 'u')
+- **Korean**: Similar to "문어" (mun-eo), which coincidentally means "octopus"
+- Easy to pronounce in most languages
+
+### 🐙 The Octopus Symbol
+The octopus perfectly represents MUNO's capabilities:
+- **Multiple Arms**: Each repository is like an arm, working independently yet coordinated
+- **Intelligence**: Smart navigation and lazy-loading
+- **Adaptability**: Flexible structure that adapts to any project size
+- **Central Control**: One brain (MUNO) orchestrating all arms (repositories)
 
 ## Overview
 
-Repo-Claude introduces a revolutionary **tree-based architecture** that treats your entire codebase as a navigable filesystem, eliminating complexity while providing intuitive, CWD-first operations.
+MUNO introduces a revolutionary **tree-based architecture** that treats your entire codebase as a navigable filesystem, eliminating complexity while providing intuitive, CWD-first operations.
 
 ## Key Innovation: Tree-Based Navigation
 
@@ -25,17 +63,17 @@ repos/
 Commands operate based on your current location:
 ```bash
 cd repos/team-backend
-rc pull                    # Pulls backend repos (CWD-based)
-rc add https://...         # Adds repo to backend team
-rc tree                    # Shows tree from current position
+muno pull                    # Pulls backend repos (CWD-based)
+muno add https://...         # Adds repo to backend team
+muno tree                    # Shows tree from current position
 ```
 
 ### 💤 **Smart Lazy Loading**
 Repositories clone on-demand:
 ```bash
-rc use team-backend        # Auto-clones lazy repos
-rc use --no-clone frontend # Navigate without cloning
-rc clone --recursive       # Manual clone when needed
+muno use team-backend        # Auto-clones lazy repos
+muno use --no-clone frontend # Navigate without cloning
+muno clone --recursive       # Manual clone when needed
 ```
 
 ## Core Features
@@ -52,8 +90,8 @@ rc clone --recursive       # Manual clone when needed
 ### From Source
 
 ```bash
-git clone https://github.com/taokim/repo-claude.git
-cd repo-claude/repo-claude-go
+git clone https://github.com/taokim/muno.git
+cd muno
 make build
 sudo make install
 ```
@@ -63,7 +101,7 @@ sudo make install
 ### 1. Initialize Workspace
 
 ```bash
-rc init my-platform
+muno init my-platform
 cd my-platform
 ```
 
@@ -71,92 +109,92 @@ cd my-platform
 
 ```bash
 # Add team repositories (these become parent nodes)
-rc add https://github.com/org/backend-team --name team-backend
-rc add https://github.com/org/frontend-team --name team-frontend
+muno add https://github.com/org/backend-team --name team-backend
+muno add https://github.com/org/frontend-team --name team-frontend
 
 # Navigate and add child repositories
-rc use team-backend
-rc add https://github.com/org/payment-service
-rc add https://github.com/org/order-service
-rc add https://github.com/org/shared-libs --lazy  # Won't clone until needed
+muno use team-backend
+muno add https://github.com/org/payment-service
+muno add https://github.com/org/order-service
+muno add https://github.com/org/shared-libs --lazy  # Won't clone until needed
 
 # Navigate to frontend
-rc use ../team-frontend
-rc add https://github.com/org/web-app
-rc add https://github.com/org/component-lib --lazy
+muno use ../team-frontend
+muno add https://github.com/org/web-app
+muno add https://github.com/org/component-lib --lazy
 ```
 
 ### 3. Work with the Tree
 
 ```bash
 # View structure
-rc tree                    # Full tree from current position
-rc list                    # List immediate children
-rc status --recursive      # Status of entire subtree
+muno tree                    # Full tree from current position
+muno list                    # List immediate children
+muno status --recursive      # Status of entire subtree
 
 # Navigate (changes CWD)
-rc use /                   # Go to root
-rc use team-backend        # Navigate to backend (auto-clones lazy repos)
-rc use payment-service     # Go deeper
-rc use ..                  # Go up one level
-rc use -                   # Previous position
+muno use /                   # Go to root
+muno use team-backend        # Navigate to backend (auto-clones lazy repos)
+muno use payment-service     # Go deeper
+muno use ..                  # Go up one level
+muno use -                   # Previous position
 
 # Git operations (CWD-based)
-rc pull                    # Pull at current node
-rc pull --recursive        # Pull entire subtree
-rc commit -m "Update"      # Commit at current node
-rc push --recursive        # Push entire subtree
+muno pull                    # Pull at current node
+muno pull --recursive        # Pull entire subtree
+muno commit -m "Update"      # Commit at current node
+muno push --recursive        # Push entire subtree
 ```
 
 ### 4. Start Claude Session
 
 ```bash
-rc use team-backend/payment-service
-rc start                   # Claude session at payment-service
+muno use team-backend/payment-service
+muno start                   # Claude session at payment-service
 
 # Or start at specific location
-rc start team-frontend     # Start session at frontend
+muno start team-frontend     # Start session at frontend
 ```
 
 ## Command Reference
 
 ### Navigation Commands
-- `rc use <path>` - Navigate to node (changes CWD)
-- `rc current` - Show current position
-- `rc tree [--depth N]` - Display tree structure
-- `rc list [--recursive]` - List child nodes
+- `muno use <path>` - Navigate to node (changes CWD)
+- `muno current` - Show current position
+- `muno tree [--depth N]` - Display tree structure
+- `muno list [--recursive]` - List child nodes
 
 ### Repository Management
-- `rc add <url> [--name X] [--lazy]` - Add child repository
-- `rc remove <name>` - Remove child repository
-- `rc clone [--recursive]` - Clone lazy repositories
+- `muno add <url> [--name X] [--lazy]` - Add child repository
+- `muno remove <name>` - Remove child repository
+- `muno clone [--recursive]` - Clone lazy repositories
 
 ### Git Operations
 All git commands operate relative to current position:
-- `rc pull [path] [--recursive]` - Pull repositories
-- `rc push [path] [--recursive]` - Push changes
-- `rc commit -m "msg" [--recursive]` - Commit changes
-- `rc status [--recursive]` - Show git status
+- `muno pull [path] [--recursive]` - Pull repositories
+- `muno push [path] [--recursive]` - Push changes
+- `muno commit -m "msg" [--recursive]` - Commit changes
+- `muno status [--recursive]` - Show git status
 
 ### Session Management
-- `rc start [path]` - Start Claude session
-- `rc init <name>` - Initialize new workspace
+- `muno start [path]` - Start Claude session
+- `muno init <name>` - Initialize new workspace
 
 ## Target Resolution
 
 Every command clearly shows its target:
 
 ```bash
-$ rc pull
+$ muno pull
 🎯 Target: team/backend/payment (from CWD)
 Pulling 3 repositories...
 
-$ rc pull team/frontend
+$ muno pull team/frontend
 🎯 Target: team/frontend (explicit)
 Pulling 2 repositories...
 
 $ cd /tmp
-$ rc pull
+$ muno pull
 🎯 Target: team/backend (from stored current)
 ⚠️  Not in workspace, using last position
 ```
@@ -165,7 +203,7 @@ $ rc pull
 
 1. **Explicit path** - If you specify a path
 2. **CWD mapping** - Your current directory location
-3. **Stored current** - Last `rc use` position (when outside workspace)
+3. **Stored current** - Last `muno use` position (when outside workspace)
 4. **Root fallback** - Default to workspace root
 
 ## Philosophy

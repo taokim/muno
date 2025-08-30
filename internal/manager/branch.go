@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	
-	"github.com/taokim/repo-claude/internal/git"
+	"github.com/taokim/muno/internal/git"
 )
 
 // BranchCreateOptions contains options for creating branches

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Generate Test Tree Script for repo-claude
+# Generate Test Tree Script for muno
 # Creates a flat repository pool and a meta tree structure for testing
 # Usage: ./generate-test-tree.sh [num_repos] [tree_depth]
 
@@ -9,7 +9,7 @@ set -e
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-RC_BIN="${RC_BIN:-$PROJECT_DIR/bin/rc}"
+MUNO_BIN="${MUNO_BIN:-$PROJECT_DIR/bin/muno}"
 
 # Configuration - Always use /tmp
 BASE_DIR="/tmp/test-tree-$(date +%Y%m%d-%H%M%S)"
@@ -75,7 +75,7 @@ create_git_repo() {
     # Create appropriate files based on type
     case "$repo_type" in
         frontend)
-            mkdir -p src 2>/dev/null || true
+            mkdir -p smuno 2>/dev/null || true
             cat > package.json <<EOF
 {
   "name": "$repo_name",
@@ -306,7 +306,7 @@ generate_repo_pool() {
     echo -e "${GREEN}✓ Created $TOTAL_REPOS repositories in pool${NC}"
 }
 
-# Function to build actual tree using rc commands with proper depth
+# Function to build actual tree using muno commands with proper depth
 build_tree_with_rc() {
     local workspace_dir="$1"
     local pool_dir="$2"
@@ -323,7 +323,7 @@ build_tree_with_rc() {
     
     # Initialize the workspace
     echo -e "${BLUE}  → Initializing workspace...${NC}"
-    "$RC_BIN" init -n test-tree >/dev/null 2>&1 || {
+    "$MUNO_BIN" init -n test-tree >/dev/null 2>&1 || {
         echo -e "${RED}Failed to initialize workspace${NC}"
         return 1
     }
@@ -341,9 +341,9 @@ build_tree_with_rc() {
             local repo_name="repo-$((repo_index+1))"
             echo -e "      Adding $repo_name at root"
             if [ $((repo_index % 3)) -eq 0 ]; then
-                "$RC_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "$repo_name" --lazy >/dev/null 2>&1
+                "$MUNO_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "$repo_name" --lazy >/dev/null 2>&1
             else
-                "$RC_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "$repo_name" >/dev/null 2>&1
+                "$MUNO_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "$repo_name" >/dev/null 2>&1
             fi
             ((repo_index++)) || true
         done
@@ -357,7 +357,7 @@ build_tree_with_rc() {
         for group in "${groups[@]}"; do
             if [ $repo_index -lt $num_repos ]; then
                 echo -e "      Creating $group group..."
-                "$RC_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "$group" >/dev/null 2>&1
+                "$MUNO_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "$group" >/dev/null 2>&1
                 ((repo_index++)) || true
             fi
         done
@@ -367,7 +367,7 @@ build_tree_with_rc() {
         # Distribute remaining repos among groups
         for group in "${groups[@]}"; do
             if [ $repo_index -lt $num_repos ]; then
-                "$RC_BIN" use "/$group" >/dev/null 2>&1
+                "$MUNO_BIN" use "/$group" >/dev/null 2>&1
                 
                 # Add 2-3 repos to each group
                 for ((i=0; i<3 && repo_index<num_repos; i++)); do
@@ -375,9 +375,9 @@ build_tree_with_rc() {
                     echo -e "      Adding $repo_name to $group"
                     
                     if [ $((repo_index % 2)) -eq 0 ]; then
-                        "$RC_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "$repo_name" --lazy >/dev/null 2>&1
+                        "$MUNO_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "$repo_name" --lazy >/dev/null 2>&1
                     else
-                        "$RC_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "$repo_name" >/dev/null 2>&1
+                        "$MUNO_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "$repo_name" >/dev/null 2>&1
                     fi
                     ((repo_index++)) || true
                 done
@@ -391,19 +391,19 @@ build_tree_with_rc() {
         # Level 1: Create main groups
         if [ $repo_index -lt $num_repos ]; then
             echo -e "      Creating frontend..."
-            "$RC_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "frontend" >/dev/null 2>&1
+            "$MUNO_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "frontend" >/dev/null 2>&1
             ((repo_index++)) || true
         fi
         
         if [ $repo_index -lt $num_repos ]; then
             echo -e "      Creating backend..."
-            "$RC_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "backend" >/dev/null 2>&1
+            "$MUNO_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "backend" >/dev/null 2>&1
             ((repo_index++)) || true
         fi
         
         if [ $repo_index -lt $num_repos ]; then
             echo -e "      Creating shared (lazy)..."
-            "$RC_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "shared" --lazy >/dev/null 2>&1
+            "$MUNO_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "shared" --lazy >/dev/null 2>&1
             ((repo_index++)) || true
         fi
         
@@ -411,30 +411,30 @@ build_tree_with_rc() {
         echo -e "    ${CYAN}Level 2: Creating sub-groups${NC}"
         
         # Frontend sub-groups
-        "$RC_BIN" use /frontend >/dev/null 2>&1
+        "$MUNO_BIN" use /frontend >/dev/null 2>&1
         if [ $repo_index -lt $num_repos ]; then
             echo -e "      Adding web to frontend..."
-            "$RC_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "web" >/dev/null 2>&1
+            "$MUNO_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "web" >/dev/null 2>&1
             ((repo_index++)) || true
         fi
         
         if [ $repo_index -lt $num_repos ]; then
             echo -e "      Adding mobile to frontend (lazy)..."
-            "$RC_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "mobile" --lazy >/dev/null 2>&1
+            "$MUNO_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "mobile" --lazy >/dev/null 2>&1
             ((repo_index++)) || true
         fi
         
         # Backend sub-groups
-        "$RC_BIN" use /backend >/dev/null 2>&1
+        "$MUNO_BIN" use /backend >/dev/null 2>&1
         if [ $repo_index -lt $num_repos ]; then
             echo -e "      Adding api to backend..."
-            "$RC_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "api" >/dev/null 2>&1
+            "$MUNO_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "api" >/dev/null 2>&1
             ((repo_index++)) || true
         fi
         
         if [ $repo_index -lt $num_repos ]; then
             echo -e "      Adding services to backend (lazy)..."
-            "$RC_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "services" --lazy >/dev/null 2>&1
+            "$MUNO_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "services" --lazy >/dev/null 2>&1
             ((repo_index++)) || true
         fi
         
@@ -443,25 +443,25 @@ build_tree_with_rc() {
             echo -e "    ${CYAN}Level 3: Adding project repos${NC}"
             
             # Add to frontend/web
-            "$RC_BIN" use /frontend/web >/dev/null 2>&1
+            "$MUNO_BIN" use /frontend/web >/dev/null 2>&1
             for ((i=0; i<2 && repo_index<num_repos; i++)); do
                 local repo_name="app-$((i+1))"
                 echo -e "      Adding $repo_name to frontend/web"
-                "$RC_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "$repo_name" >/dev/null 2>&1
+                "$MUNO_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "$repo_name" >/dev/null 2>&1
                 ((repo_index++)) || true
             done
             
             # Add to backend/api
-            "$RC_BIN" use /backend/api >/dev/null 2>&1
+            "$MUNO_BIN" use /backend/api >/dev/null 2>&1
             while [ $repo_index -lt $num_repos ]; do
                 local api_num=$((repo_index - 8))
                 local repo_name="service-$api_num"
                 echo -e "      Adding $repo_name to backend/api"
                 
                 if [ $((repo_index % 2)) -eq 0 ]; then
-                    "$RC_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "$repo_name" >/dev/null 2>&1
+                    "$MUNO_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "$repo_name" >/dev/null 2>&1
                 else
-                    "$RC_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "$repo_name" --lazy >/dev/null 2>&1
+                    "$MUNO_BIN" add "file://$pool_dir/${repos[$repo_index]}" --name "$repo_name" --lazy >/dev/null 2>&1
                 fi
                 ((repo_index++)) || true
             done
@@ -469,7 +469,7 @@ build_tree_with_rc() {
     fi
     
     # Go back to root
-    "$RC_BIN" use / >/dev/null 2>&1
+    "$MUNO_BIN" use / >/dev/null 2>&1
     
     # Display the final tree (with depth limit to avoid clutter)
     echo
@@ -478,9 +478,9 @@ build_tree_with_rc() {
     
     # Use depth flag to limit display
     if [ $max_depth -le 3 ]; then
-        "$RC_BIN" tree -d $((max_depth + 1)) 2>/dev/null || "$RC_BIN" tree 2>/dev/null
+        "$MUNO_BIN" tree -d $((max_depth + 1)) 2>/dev/null || "$MUNO_BIN" tree 2>/dev/null
     else
-        "$RC_BIN" tree 2>/dev/null
+        "$MUNO_BIN" tree 2>/dev/null
     fi
     
     echo
@@ -490,7 +490,7 @@ build_tree_with_rc() {
     cat > "$workspace_dir/TREE_STRUCTURE.md" <<EOF
 # Generated Tree Structure
 
-This tree was automatically built using rc commands with depth $max_depth.
+This tree was automatically built using muno commands with depth $max_depth.
 
 ## Structure Overview
 
@@ -520,29 +520,29 @@ Total repositories added: $repo_index
 
 \`\`\`bash
 # Show the full tree
-rc tree
+muno tree
 
 # Navigate to different levels
-rc use frontend-main                    # Level 1
-rc use frontend-main/web-apps          # Level 2  
-rc use frontend-main/web-apps/web-project-1  # Level 3
+muno use frontend-main                    # Level 1
+muno use frontend-main/web-apps          # Level 2  
+muno use frontend-main/web-apps/web-project-1  # Level 3
 
 # Go back to root
-rc use /
+muno use /
 
 # List children at current level
-rc list
+muno list
 
 # Clone all lazy repos
-rc clone --recursive
+muno clone --recursive
 \`\`\`
 
 ## Testing Depth
 
 To verify the tree depth:
-1. Run \`rc tree\` to see the full hierarchy
-2. Navigate deep: \`rc use frontend-main/web-apps/web-project-1\`
-3. Check current location: \`rc current\`
+1. Run \`muno tree\` to see the full hierarchy
+2. Navigate deep: \`muno use frontend-main/web-apps/web-project-1\`
+3. Check current location: \`muno current\`
 EOF
 }
 
@@ -550,27 +550,27 @@ EOF
 
 # Function to create test script
 create_test_script() {
-    local script_path="$BASE_DIR/test-repo-claude.sh"
+    local script_path="$BASE_DIR/test-muno.sh"
     
     cat > "$script_path" <<EOF
 #!/bin/bash
 
-# Test script for repo-claude (tree already built)
+# Test script for muno (tree already built)
 
-# Get absolute path to rc binary
-if [ -f "$RC_BIN" ]; then
-    RC_BIN="$RC_BIN"
-elif [ -f "$PROJECT_DIR/bin/rc" ]; then
-    RC_BIN="$PROJECT_DIR/bin/rc"
+# Get absolute path to muno binary
+if [ -f "$MUNO_BIN" ]; then
+    MUNO_BIN="$MUNO_BIN"
+elif [ -f "$PROJECT_DIR/bin/muno" ]; then
+    MUNO_BIN="$PROJECT_DIR/bin/muno"
 else
-    echo "Error: rc binary not found"
-    echo "Please set RC_BIN environment variable or build with 'make build'"
+    echo "Error: muno binary not found"
+    echo "Please set MUNO_BIN environment variable or build with 'make build'"
     exit 1
 fi
 
 TEST_DIR="\$(dirname "\$0")"
 
-echo "Testing repo-claude with pre-built tree"
+echo "Testing muno with pre-built tree"
 echo "==========================================="
 echo
 
@@ -596,50 +596,50 @@ cd "\$TEST_DIR/workspace"
 
 # Test 1: Show tree structure
 echo "Test 1: Display tree structure"
-run_test "\$RC_BIN tree" "/"
+run_test "\$MUNO_BIN tree" "/"
 
 # Test 2: Navigate to frontend
 echo "Test 2: Navigate to frontend-main"
-run_test "\$RC_BIN use frontend-main" "Target"
-run_test "\$RC_BIN list" "web-"
+run_test "\$MUNO_BIN use frontend-main" "Target"
+run_test "\$MUNO_BIN list" "web-"
 
 # Test 3: Navigate deeper
 echo "Test 3: Navigate to nested repo"
 first_web=\$(ls -d frontend-main/web-* 2>/dev/null | head -1)
 if [ -n "\$first_web" ]; then
-    run_test "\$RC_BIN use \$first_web" "Target"
+    run_test "\$MUNO_BIN use \$first_web" "Target"
 fi
 
 # Test 4: Go back to root
 echo "Test 4: Navigate back to root"
-run_test "\$RC_BIN use /" "Target: /"
+run_test "\$MUNO_BIN use /" "Target: /"
 
 # Test 5: Navigate to backend
 echo "Test 5: Navigate to backend-main"
-run_test "\$RC_BIN use backend-main" "Target"
-run_test "\$RC_BIN list" "service-"
+run_test "\$MUNO_BIN use backend-main" "Target"
+run_test "\$MUNO_BIN list" "service-"
 
 # Test 6: Clone lazy repositories
 echo "Test 6: Clone lazy repositories"
-run_test "\$RC_BIN clone --recursive" "Cloning"
+run_test "\$MUNO_BIN clone --recursive" "Cloning"
 
 # Test 7: Git status at root
 echo "Test 7: Git operations"
-run_test "\$RC_BIN use /" "Target"
-run_test "\$RC_BIN status" "Status"
+run_test "\$MUNO_BIN use /" "Target"
+run_test "\$MUNO_BIN status" "Status"
 
 # Test 8: Show current position
 echo "Test 8: Show current position"
-run_test "\$RC_BIN current" "Current"
+run_test "\$MUNO_BIN current" "Current"
 
 echo "Testing complete!"
 echo
 echo "Manual exploration commands:"
 echo "  cd \$TEST_DIR/workspace"
-echo "  \$RC_BIN tree           # Show full tree"
-echo "  \$RC_BIN use <path>     # Navigate"
-echo "  \$RC_BIN list           # List children"
-echo "  \$RC_BIN current        # Show position"
+echo "  \$MUNO_BIN tree           # Show full tree"
+echo "  \$MUNO_BIN use <path>     # Navigate"
+echo "  \$MUNO_BIN list           # List children"
+echo "  \$MUNO_BIN current        # Show position"
 EOF
     
     chmod +x "$script_path"
@@ -653,39 +653,39 @@ create_performance_test() {
     cat > "$script_path" <<'EOF'
 #!/bin/bash
 
-# Performance test for repo-claude
+# Performance test for muno
 
-RC_BIN="${RC_BIN:-rc}"
+MUNO_BIN="${MUNO_BIN:-rc}"
 TEST_DIR="$(dirname "$0")"
 
-echo "Performance Testing repo-claude"
+echo "Performance Testing muno"
 echo "=================================="
 
 cd "$TEST_DIR/workspace"
 
 # Measure initialization time
 echo "1. Initialization performance:"
-time $RC_BIN init -n perf-test
+time $MUNO_BIN init -n perf-test
 
 # Measure adding many repos
 echo "2. Adding 50 repositories:"
 time for i in {1..50}; do
-    $RC_BIN add "file://$TEST_DIR/repo-pool/repo-$i" --name "repo-$i" --lazy 2>/dev/null
+    $MUNO_BIN add "file://$TEST_DIR/repo-pool/repo-$i" --name "repo-$i" --lazy 2>/dev/null
 done
 
 # Measure tree display
 echo "3. Tree display performance:"
-time $RC_BIN tree
+time $MUNO_BIN tree
 
 # Measure navigation
 echo "4. Navigation performance (10 navigations):"
 time for i in {1..10}; do
-    $RC_BIN use / 2>/dev/null
+    $MUNO_BIN use / 2>/dev/null
 done
 
 # Measure git operations
 echo "5. Git status across tree:"
-time $RC_BIN status
+time $MUNO_BIN status
 
 echo "Performance testing complete!"
 EOF
@@ -708,10 +708,10 @@ main() {
     echo -e "${YELLOW}📦 Creating repository pool...${NC}"
     generate_repo_pool "$BASE_DIR/repo-pool"
     
-    # Build actual tree with rc commands
+    # Build actual tree with muno commands
     echo
     echo -e "${YELLOW}🌳 Building tree structure with rc...${NC}"
-    build_tree_with_rc "$BASE_DIR/workspace" "$BASE_DIR/repo-pool"
+    build_tree_with_muno "$BASE_DIR/workspace" "$BASE_DIR/repo-pool"
     
     # Create test scripts
     echo -e "${YELLOW}📝 Creating test scripts...${NC}"
@@ -720,15 +720,15 @@ main() {
     
     # Create usage instructions
     cat > "$BASE_DIR/README.md" <<EOF
-# Repo-Claude Test Tree
+# MUNO Test Tree
 
-This directory contains a test environment for repo-claude.
+This directory contains a test environment for muno.
 
 ## Structure
 
 - \`repo-pool/\`: Pool of git repositories ($TOTAL_REPOS total)
-- \`workspace/\`: repo-claude workspace
-- \`test-repo-claude.sh\`: Basic test script
+- \`workspace/\`: muno workspace
+- \`test-muno.sh\`: Basic test script
 - \`performance-test.sh\`: Performance test script
 
 ## Usage
@@ -737,21 +737,21 @@ This directory contains a test environment for repo-claude.
 
 \`\`\`bash
 cd workspace
-rc init test-tree
+muno init test-tree
 
 # Add repos from pool
-rc add file://../repo-pool/frontend-root-L1-1 --name frontend
-rc add file://../repo-pool/backend-root-L1-2 --name backend --lazy
+muno add file://../repo-pool/frontend-root-L1-1 --name frontend
+muno add file://../repo-pool/backend-root-L1-2 --name backend --lazy
 
 # Navigate
-rc use frontend
-rc tree
+muno use frontend
+muno tree
 \`\`\`
 
 ### Automated Testing
 
 \`\`\`bash
-./test-repo-claude.sh
+./test-muno.sh
 \`\`\`
 
 ### Performance Testing
@@ -794,11 +794,11 @@ EOF
     echo
     echo -e "${YELLOW}🚀 Quick Start:${NC}"
     echo -e "   ${CYAN}cd $BASE_DIR/workspace${NC}"
-    echo -e "   ${CYAN}\$RC_BIN init test-tree${NC}"
-    echo -e "   ${CYAN}\$RC_BIN add file://$BASE_DIR/repo-pool/<repo-name> --name <name>${NC}"
+    echo -e "   ${CYAN}\$MUNO_BIN init test-tree${NC}"
+    echo -e "   ${CYAN}\$MUNO_BIN add file://$BASE_DIR/repo-pool/<repo-name> --name <name>${NC}"
     echo
     echo -e "${YELLOW}🧪 Run Tests:${NC}"
-    echo -e "   ${CYAN}$BASE_DIR/test-repo-claude.sh${NC}"
+    echo -e "   ${CYAN}$BASE_DIR/test-muno.sh${NC}"
     echo
     echo -e "${CYAN}────────────────────────────────────────────────────────────────${NC}"
 }

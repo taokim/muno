@@ -1,0 +1,32 @@
+{
+  "name": "muno",
+  "version": "0.6.0",
+  "description": "🐙 MUNO - Multi-repository UNified Orchestration. Manage multiple git repositories with monorepo-like convenience.",
+  "keywords": [
+    "muno",
+    "multi-repo",
+    "monorepo",
+    "git",
+    "repository-management",
+    "orchestration",
+    "developer-tools",
+    "cli",
+    "golang"
+  ],
+  "homepage": "https://github.com/taokim/muno",
+  "bugs": {
+    "url": "https://github.com/taokim/muno/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taokim/muno.git"
+  },
+  "license": "MIT",
+  "author": "Tao Kim",
+  "private": true,
+  "scripts": {
+    "build": "make build",
+    "test": "make test",
+    "install": "make install"
+  }
+}

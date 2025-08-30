@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"github.com/taokim/repo-claude/internal/manager"
+	"github.com/taokim/muno/internal/manager"
 )
 
 // App is the tree-based application
@@ -49,9 +49,9 @@ func (a *App) ExecuteWithArgs(args []string) error {
 // setupCommands initializes all commands
 func (a *App) setupCommands() {
 	a.rootCmd = &cobra.Command{
-		Use:   "rc",
+		Use:   "muno",
 		Short: "Multi-repository orchestration for Claude Code with tree-based workspaces",
-		Long: `Repo-Claude v3 orchestrates Claude Code sessions across multiple 
+		Long: `MUNO (Multi-repository UNified Orchestration) orchestrates Claude Code sessions across multiple 
 repositories with tree-based navigation and lazy loading.
 
 Features:
@@ -95,17 +95,17 @@ func (a *App) newInitCmd() *cobra.Command {
 	
 	cmd := &cobra.Command{
 		Use:   "init [project-name]",
-		Short: "Initialize a new repo-claude v3 project",
-		Long: `Initialize a new repo-claude v3 project with tree-based workspace.
+		Short: "Initialize a new MUNO project",
+		Long: `Initialize a new MUNO project with tree-based workspace.
 		
 Smart mode (default):
 - Detects existing git repositories
 - Offers to add them to workspace
 - Moves repositories to repos/ directory
-- Creates repo-claude.yaml with all repository definitions
+- Creates muno.yaml with all repository definitions
 		
 Creates:
-- repo-claude.yaml (v3 configuration with repo list)
+- muno.yaml (v3 configuration with repo list)
 - repos/ directory for tree structure
 - Root CLAUDE.md with project instructions`,
 		Args: cobra.MaximumNArgs(1),

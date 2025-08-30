@@ -1,14 +1,14 @@
 # .goreleaser.yaml
-project_name: repo-claude
+project_name: muno
 
 before:
   hooks:
     - go mod tidy
 
 builds:
-  - id: repo-claude
-    binary: rc
-    main: ./cmd/repo-claude
+  - id: muno
+    binary: muno
+    main: ./cmd/muno
     env:
       - CGO_ENABLED=0
     goos:
@@ -22,7 +22,7 @@ builds:
       - -s -w -X main.version={{.Version}} -X main.buildTime={{.Date}}
 
 archives:
-  - id: repo-claude
+  - id: muno
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -55,14 +55,14 @@ changelog:
 release:
   github:
     owner: taokim
-    name: repo-claude
+    name: muno
   draft: false
   prerelease: auto
   name_template: "{{.ProjectName}}-v{{.Version}}"
   header: |
-    ## Repo-Claude v{{.Version}}
+    ## MUNO v{{.Version}}
     
-    Multi-repository orchestration for Claude Code agents.
+    Multi-repository UNified Orchestration for Claude Code agents.
     
   footer: |
     ## Installation
@@ -70,44 +70,39 @@ release:
     ### macOS/Linux
     ```bash
     # macOS (Intel)
-    curl -L https://github.com/taokim/repo-claude/releases/download/v{{.Version}}/repo-claude_Darwin_x86_64.tar.gz | tar xz
+    curl -L https://github.com/taokim/muno/releases/download/v{{.Version}}/muno_Darwin_x86_64.tar.gz | tar xz
     
     # macOS (Apple Silicon)
-    curl -L https://github.com/taokim/repo-claude/releases/download/v{{.Version}}/repo-claude_Darwin_arm64.tar.gz | tar xz
+    curl -L https://github.com/taokim/muno/releases/download/v{{.Version}}/muno_Darwin_arm64.tar.gz | tar xz
     
     # Linux (x86_64)
-    curl -L https://github.com/taokim/repo-claude/releases/download/v{{.Version}}/repo-claude_Linux_x86_64.tar.gz | tar xz
+    curl -L https://github.com/taokim/muno/releases/download/v{{.Version}}/muno_Linux_x86_64.tar.gz | tar xz
     
     # Linux (ARM64)
-    curl -L https://github.com/taokim/repo-claude/releases/download/v{{.Version}}/repo-claude_Linux_arm64.tar.gz | tar xz
+    curl -L https://github.com/taokim/muno/releases/download/v{{.Version}}/muno_Linux_arm64.tar.gz | tar xz
     
     # Then install
-    chmod +x rc
-    sudo mv rc /usr/local/bin/
+    chmod +x muno
+    sudo mv muno /usr/local/bin/
     ```
     
     ### Homebrew
     ```bash
     brew tap taokim/tap
-    brew install repo-claude
+    brew install muno
     ```
 
 brews:
-  - name: repo-claude
-    homepage: https://github.com/taokim/repo-claude
-    description: Multi-repository orchestration for Claude Code agents
+  - name: muno
+    homepage: https://github.com/taokim/muno
+    description: Multi-repository UNified Orchestration for Claude Code agents
     license: MIT
     skip_upload: auto
+    folder: Formula
     repository:
       owner: taokim
       name: homebrew-tap
-      branch: main
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    directory: Formula
-    test: |
-      system "#{bin}/rc", "--version"
     install: |
-      bin.install "rc"
-    
-    dependencies:
-      - name: git
+      bin.install "muno"
+    test: |
+      system "#{bin}/muno", "--version"

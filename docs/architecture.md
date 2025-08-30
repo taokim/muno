@@ -1,8 +1,8 @@
-# Repo-Claude Architecture
+# MUNO Architecture
 
 ## Overview
 
-Repo-Claude is a multi-repository orchestration tool for Claude Code that provides **tree-based navigation and workspace management**. The architecture treats your entire codebase as a navigable filesystem where repositories form parent-child relationships.
+MUNO is a multi-repository orchestration tool for Claude Code that provides **tree-based navigation and workspace management**. The architecture treats your entire codebase as a navigable filesystem where repositories form parent-child relationships.
 
 ## Tree-Based Architecture
 
@@ -82,17 +82,17 @@ Handles version control:
 
 ### Initialization
 ```
-rc init → Create Workspace → Setup Tree Root → Initialize Config → Create State File
+muno init → Create Workspace → Setup Tree Root → Initialize Config → Create State File
 ```
 
 ### Tree Building
 ```
-rc add <url> → Create Node → Update Parent → Clone/Mark Lazy → Save State
+muno add <url> → Create Node → Update Parent → Clone/Mark Lazy → Save State
 ```
 
 ### Navigation
 ```
-rc use <path> → Resolve Path → Change Position → Auto-Clone Lazy → Update CWD
+muno use <path> → Resolve Path → Change Position → Auto-Clone Lazy → Update CWD
 ```
 
 ### Operations
@@ -104,8 +104,8 @@ Command → Resolve Target (CWD/Explicit) → Execute at Node → Update State �
 
 ```
 my-platform/
-├── repo-claude.yaml          # Configuration
-├── .repo-claude-state.json   # Tree state
+├── muno.yaml          # Configuration
+├── .muno-state.json   # Tree state
 ├── repos/                    # Tree root
 │   ├── team-backend/         # Parent node (git repo)
 │   │   ├── .git/
@@ -144,7 +144,7 @@ Every command shows its target clearly:
 Repositories clone on-demand:
 - Mark repositories as lazy during addition
 - Auto-clone when navigating to them
-- Manual clone with `rc clone` command
+- Manual clone with `muno clone` command
 - Recursive clone for entire subtrees
 
 ### Recursive Operations

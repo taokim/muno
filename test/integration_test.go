@@ -24,7 +24,7 @@ func TestIntegrationWorkflow(t *testing.T) {
 	// Create temporary directory
 	tmpDir := t.TempDir()
 	
-	// Build repo-claude binary
+	// Build muno binary
 	binary := buildBinary(t, tmpDir)
 	
 	// Initialize project first (required for all tests)
@@ -39,11 +39,11 @@ func TestIntegrationWorkflow(t *testing.T) {
 	
 	// Test init command results
 	t.Run("Init", func(t *testing.T) {
-		assert.Contains(t, string(output), "🚀 Initializing Repo-Claude workspace")
+		assert.Contains(t, string(output), "🚀 Initializing MUNO workspace")
 		assert.Contains(t, string(output), "✨ Workspace initialized")
 		
 		// Check created files for v2 structure
-		assert.FileExists(t, filepath.Join(projectDir, "repo-claude.yaml"))
+		assert.FileExists(t, filepath.Join(projectDir, "muno.yaml"))
 		assert.FileExists(t, filepath.Join(projectDir, "CLAUDE.md"))
 		assert.DirExists(t, filepath.Join(projectDir, "workspaces"))
 		assert.DirExists(t, filepath.Join(projectDir, "docs"))
@@ -122,7 +122,7 @@ func TestConfigValidation(t *testing.T) {
 			output, _ := cmd.CombinedOutput()
 			
 			// Should fail with config not found message
-			assert.Contains(t, string(output), "no repo-claude.yaml found")
+			assert.Contains(t, string(output), "no muno.yaml found")
 		})
 	}
 }
@@ -135,12 +135,12 @@ func checkTool(t *testing.T, tool string) {
 	}
 }
 
-// buildBinary builds the repo-claude binary
+// buildBinary builds the muno binary
 func buildBinary(t *testing.T, tmpDir string) string {
-	binary := filepath.Join(tmpDir, "repo-claude")
+	binary := filepath.Join(tmpDir, "muno")
 	
-	cmd := exec.Command("go", "build", "-o", binary, "./cmd/repo-claude")
-	cmd.Dir = filepath.Join("..") // Go up one level from test/ to repo-claude-go root
+	cmd := exec.Command("go", "build", "-o", binary, "./cmd/muno")
+	cmd.Dir = filepath.Join("..") // Go up one level from test/ to muno-go root
 	
 	var out bytes.Buffer
 	cmd.Stdout = &out

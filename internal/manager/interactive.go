@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/taokim/repo-claude/internal/config"
+	"github.com/taokim/muno/internal/config"
 )
 
 // interactiveConfig handles interactive configuration setup

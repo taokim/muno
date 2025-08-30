@@ -6,7 +6,7 @@ Date: 2024-12-27
 Accepted
 
 ## Context
-As repo-claude adoption grows, organizations need to manage 100-500+ repositories. The current flat configuration becomes unwieldy at this scale. Teams need:
+As muno adoption grows, organizations need to manage 100-500+ repositories. The current flat configuration becomes unwieldy at this scale. Teams need:
 - Autonomous workspace management
 - Natural organizational boundaries
 - Distributed documentation
@@ -14,7 +14,7 @@ As repo-claude adoption grows, organizations need to manage 100-500+ repositorie
 
 ## Decision
 Implement a recursive, tree-based workspace architecture where:
-1. Each node can be a complete repo-claude workspace
+1. Each node can be a complete muno workspace
 2. Workspaces can reference other workspaces as sub-workspaces
 3. Documentation lives with each workspace in its git repository
 4. Child workspaces are autonomous (don't need to know about parents)

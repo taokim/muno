@@ -1,4 +1,4 @@
-module github.com/taokim/repo-claude
+module github.com/taokim/muno
 
 go 1.23.0
 

@@ -7,15 +7,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/taokim/repo-claude/internal/config"
-	"github.com/taokim/repo-claude/internal/git"
+	"github.com/taokim/muno/internal/config"
+	"github.com/taokim/muno/internal/git"
 )
 
 // SmartInitWorkspace performs intelligent initialization
 // It detects existing git repos and offers to add them
 func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) error {
-	// Check if we're in an existing rc workspace
-	configPath := filepath.Join(".", "repo-claude.yaml")
+	// Check if we're in an existing muno workspace
+	configPath := filepath.Join(".", "muno.yaml")
 	
 	// Create base configuration early to get repos directory
 	cfg := &config.ConfigTree{
@@ -42,7 +42,7 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 	
 	// If config exists, ask user what to do
 	if hasConfig {
-		fmt.Println("Found existing repo-claude.yaml")
+		fmt.Println("Found existing muno.yaml")
 		
 		if !options.NonInteractive {
 			fmt.Print("Do you want to reinitialize with existing subdirectories? [Y/n]: ")
@@ -257,12 +257,12 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 	claudePath := filepath.Join(".", "CLAUDE.md")
 	if _, err := os.Stat(claudePath); os.IsNotExist(err) {
 		claudeContent := fmt.Sprintf("# %s\n\n", projectName)
-		claudeContent += "This is a repo-claude workspace with tree-based navigation.\n\n"
+		claudeContent += "This is a MUNO workspace with tree-based navigation.\n\n"
 		claudeContent += "## Commands\n\n"
-		claudeContent += "- `rc tree` - Display repository tree\n"
-		claudeContent += "- `rc use <path>` - Navigate to repository\n"
-		claudeContent += "- `rc add <url>` - Add new repository\n"
-		claudeContent += "- `rc list` - List repositories at current level\n\n"
+		claudeContent += "- `muno tree` - Display repository tree\n"
+		claudeContent += "- `muno use <path>` - Navigate to repository\n"
+		claudeContent += "- `muno add <url>` - Add new repository\n"
+		claudeContent += "- `muno list` - List repositories at current level\n\n"
 		
 		if err := os.WriteFile(claudePath, []byte(claudeContent), 0644); err != nil {
 			return fmt.Errorf("creating CLAUDE.md: %w", err)
@@ -276,7 +276,7 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 	// }
 	
 	// Initialize tree state (minimal, just runtime info)
-	treeStatePath := filepath.Join(".", ".repo-claude-tree.json")
+	treeStatePath := filepath.Join(".", ".muno-tree.json")
 	if _, err := os.Stat(treeStatePath); os.IsNotExist(err) {
 		// Tree manager will handle this
 		// For now, we just ensure the config has all repos

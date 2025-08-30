@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	
-	"github.com/taokim/repo-claude/internal/config"
+	"github.com/taokim/muno/internal/config"
 )
 
 // setupCoordination creates coordination files
@@ -28,12 +28,12 @@ func (m *Manager) setupCoordination() error {
 ## Coordination Notes
 - Agents will update this file with their progress
 - Use this for cross-repository coordination
-- All repositories managed by repo-claude
+- All repositories managed by MUNO
 
 ## Commands Available
-- ` + "`rc status`" + ` - Show status of all projects
-- ` + "`rc sync`" + ` - Sync all projects
-- ` + "`rc forall '<command>'`" + ` - Run command in all projects
+- ` + "`muno status`" + ` - Show status of all projects
+- ` + "`muno sync`" + ` - Sync all projects
+- ` + "`muno forall '<command>'`" + ` - Run command in all projects
 
 ## Decisions
 - Document architectural decisions here
@@ -111,7 +111,7 @@ func (m *Manager) createClaudeMD(project config.Project) error {
 - **Model**: %s
 
 ## Multi-Repository Management
-- **This workspace uses repo-claude for multi-repository management**
+- **This workspace uses MUNO for multi-repository management**
 - **All work happens on main branch (trunk-based development)**
 - **Workspace root**: @%s
 

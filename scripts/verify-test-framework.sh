@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Simple verification script for advanced-test-framework.sh
-# This checks that the script can create test scenarios without requiring the rc binary
+# This checks that the script can create test scenarios without requiring the muno binary
 
 set -e
 
@@ -121,7 +121,7 @@ OUTPUT=$(bash scripts/advanced-test-framework.sh 2>&1 | head -1 || true)
 if echo "$OUTPUT" | grep -q "Advanced Testing Framework"; then
     echo -e "${GREEN}✓${NC}"
 else
-    echo -e "${YELLOW}⚠ May need rc binary${NC}"
+    echo -e "${YELLOW}⚠ May need muno binary${NC}"
 fi
 
 # Cleanup
@@ -135,6 +135,6 @@ echo "• Has working helper functions"
 echo "• Can create git repositories for test scenarios"
 echo
 echo -e "${YELLOW}Note:${NC} Full functionality requires the 'rc' binary to be built."
-echo "To build: ${CYAN}make build${NC} or ${CYAN}go build -o bin/rc ./cmd/repo-claude${NC}"
+echo "To build: ${CYAN}make build${NC} or ${CYAN}go build -o bin/muno ./cmd/muno${NC}"
 echo
 echo -e "${GREEN}✅ Script verification complete!${NC}"

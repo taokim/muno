@@ -63,7 +63,7 @@ func TestSimplifiedStateIntegration(t *testing.T) {
 	
 	// Read and verify state file
 	t.Run("StateFileVerification", func(t *testing.T) {
-		statePath := filepath.Join(tmpDir, ".repo-claude-tree.json")
+		statePath := filepath.Join(tmpDir, ".muno-tree.json")
 		data, err := os.ReadFile(statePath)
 		if err != nil {
 			t.Fatalf("Failed to read state file: %v", err)
@@ -152,7 +152,7 @@ func TestSimplifiedStateIntegration(t *testing.T) {
 		}
 		
 		// Verify state file still has no filesystem paths after navigation
-		statePath := filepath.Join(tmpDir, ".repo-claude-tree.json")
+		statePath := filepath.Join(tmpDir, ".muno-tree.json")
 		data, err := os.ReadFile(statePath)
 		if err != nil {
 			t.Fatalf("Failed to read state file after navigation: %v", err)

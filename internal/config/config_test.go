@@ -205,7 +205,7 @@ func TestConfigValidation(t *testing.T) {
 
 func TestConfigYAML(t *testing.T) {
 	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "repo-claude.yaml")
+	configPath := filepath.Join(tempDir, "muno.yaml")
 	
 	yamlContent := `
 workspace:
@@ -269,7 +269,7 @@ documentation:
 // TestConfigSaveLoad tests saving and loading config
 func TestConfigSaveLoad(t *testing.T) {
 	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "repo-claude.yaml")
+	configPath := filepath.Join(tempDir, "muno.yaml")
 	
 	// Create a config
 	cfg := &Config{

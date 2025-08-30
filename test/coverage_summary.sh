@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "=== Test Coverage Summary for repo-claude-go ==="
+echo "=== Test Coverage Summary for muno-go ==="
 echo ""
 
 # Run tests with coverage

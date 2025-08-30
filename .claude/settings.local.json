@@ -48,7 +48,16 @@
       "Bash(./scripts/quick-demo.sh:*)",
       "Bash(mv:*)",
       "mcp__sequential-thinking__sequentialthinking",
-      "Bash(go mod:*)"
+      "Bash(go mod:*)",
+      "Bash(for:*)",
+      "Bash(do)",
+      "Bash(done)",
+      "Bash(if [ -f \"$f\" ])",
+      "Bash(then)",
+      "Bash(fi)",
+      "Bash(./bin/muno:*)",
+      "Bash(git remote get-url:*)",
+      "Bash(git remote set-url:*)"
     ],
     "deny": [],
     "additionalDirectories": [

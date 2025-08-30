@@ -45,7 +45,7 @@ func TestWorkspaceHierarchy(t *testing.T) {
 	rootPath := filepath.Join(tempDir, "platform")
 	require.NoError(t, os.MkdirAll(rootPath, 0755))
 	
-	configPath := filepath.Join(rootPath, "repo-claude.yaml")
+	configPath := filepath.Join(rootPath, "muno.yaml")
 	require.NoError(t, rootConfig.Save(configPath))
 	
 	// Load and verify

@@ -8,8 +8,8 @@ echo "=== Testing Simplified Tree State with Real GitHub Repositories ==="
 echo ""
 
 # Build the binary
-echo "Building repo-claude..."
-cd /Users/musinsa/ws/repo-claude/repo-claude-go
+echo "Building muno..."
+cd /Users/musinsa/ws/muno/muno-go
 make build
 
 # Create test workspace
@@ -24,7 +24,7 @@ echo ""
 echo "1. Initializing workspace..."
 mkdir -p test-real
 cd test-real
-/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc init .
+/Users/musinsa/ws/muno/muno-go/bin/muno init .
 
 # Add real repositories with nested structure
 echo ""
@@ -32,42 +32,42 @@ echo "2. Adding real GitHub repositories..."
 
 # Add a popular open-source repo (small)
 echo "   Adding spf13/cobra (CLI library)..."
-/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc add https://github.com/spf13/cobra.git
+/Users/musinsa/ws/muno/muno-go/bin/muno add https://github.com/spf13/cobra.git
 
 # Add another repo as a child (lazy)
 echo "   Adding spf13/viper as lazy child of cobra..."
-/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc use cobra
-/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc add https://github.com/spf13/viper.git --lazy
+/Users/musinsa/ws/muno/muno-go/bin/muno use cobra
+/Users/musinsa/ws/muno/muno-go/bin/muno add https://github.com/spf13/viper.git --lazy
 
 # Go back to root and add another top-level repo
 echo "   Adding google/go-github at root level..."
-/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc use /
-/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc add https://github.com/google/go-github.git --lazy
+/Users/musinsa/ws/muno/muno-go/bin/muno use /
+/Users/musinsa/ws/muno/muno-go/bin/muno add https://github.com/google/go-github.git --lazy
 
 # Show the tree structure
 echo ""
 echo "3. Tree structure:"
-/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc tree
+/Users/musinsa/ws/muno/muno-go/bin/muno tree
 
 # Show current status
 echo ""
 echo "4. Current status:"
-/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc current
+/Users/musinsa/ws/muno/muno-go/bin/muno current
 
 # Navigate to a lazy repo (should trigger clone)
 echo ""
 echo "5. Navigating to lazy repo (go-github)..."
-/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc use go-github
+/Users/musinsa/ws/muno/muno-go/bin/muno use go-github
 
 # Show updated tree
 echo ""
 echo "6. Updated tree after navigation:"
-/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc tree
+/Users/musinsa/ws/muno/muno-go/bin/muno tree
 
 # Check the state file
 echo ""
 echo "7. Verifying state file contains no filesystem paths..."
-STATE_FILE="$TEST_DIR/test-real/.repo-claude-tree.json"
+STATE_FILE="$TEST_DIR/test-real/.muno-tree.json"
 
 if [ -f "$STATE_FILE" ]; then
     echo "   State file exists: $STATE_FILE"
@@ -111,13 +111,13 @@ echo "   $TEST_DIR/test-real/repos/cobra/repos/viper"
 # Clone remaining lazy repos
 echo ""
 echo "9. Cloning all lazy repositories..."
-/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc use /
-/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc clone --recursive
+/Users/musinsa/ws/muno/muno-go/bin/muno use /
+/Users/musinsa/ws/muno/muno-go/bin/muno clone --recursive
 
 # Final tree
 echo ""
 echo "10. Final tree with all repos cloned:"
-/Users/musinsa/ws/repo-claude/repo-claude-go/bin/rc tree
+/Users/musinsa/ws/muno/muno-go/bin/muno tree
 
 # Summary
 echo ""

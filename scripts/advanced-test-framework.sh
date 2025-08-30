@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Advanced Testing Framework for repo-claude
+# Advanced Testing Framework for muno
 # Simulates real-world scenarios with complex tree structures
 
 set -e
@@ -8,7 +8,7 @@ set -e
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-RC_BIN="${RC_BIN:-$PROJECT_DIR/bin/rc}"
+MUNO_BIN="${MUNO_BIN:-$PROJECT_DIR/bin/muno}"
 TEST_BASE="${TEST_BASE:-/tmp/rc-advanced-test}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
@@ -136,10 +136,10 @@ EOF
         fi
     done
     
-    # Create repo-claude config for this scenario
+    # Create muno config for this scenario
     cat > "$base/test-config.yaml" <<EOF
 # Microservices Test Configuration
-# Use this to test repo-claude with microservices architecture
+# Use this to test muno with microservices architecture
 
 repos:
   # Core Services
@@ -452,9 +452,9 @@ run_scenario_tests() {
     mkdir -p "$workspace"
     cd "$workspace"
     
-    # Initialize repo-claude
+    # Initialize muno
     echo -e "${BLUE}  Initializing workspace...${NC}"
-    $RC_BIN init -n "$scenario_name-test" >/dev/null 2>&1 || true
+    $MUNO_BIN init -n "$scenario_name-test" >/dev/null 2>&1 || true
     
     # Change to the actual workspace directory
     cd "$workspace/$scenario_name-test"
@@ -468,14 +468,14 @@ run_scenario_tests() {
             for repo in "$scenario_dir"/{*-service,*-lib}; do
                 [ -d "$repo/.git" ] && {
                     name=$(basename "$repo")
-                    $RC_BIN add "file://$repo" --name "$name" $([ "${name##*-}" = "lib" ] && echo "" || echo "--lazy") 2>/dev/null || true
+                    $MUNO_BIN add "file://$repo" --name "$name" $([ "${name##*-}" = "lib" ] && echo "" || echo "--lazy") 2>/dev/null || true
                 }
             done
             ;;
         monorepo)
             # Add the monorepo and tools
-            $RC_BIN add "file://$scenario_dir/monorepo" --name "mono" 2>/dev/null || true
-            $RC_BIN add "file://$scenario_dir/dev-tools" --name "tools" --lazy 2>/dev/null || true
+            $MUNO_BIN add "file://$scenario_dir/monorepo" --name "mono" 2>/dev/null || true
+            $MUNO_BIN add "file://$scenario_dir/dev-tools" --name "tools" --lazy 2>/dev/null || true
             ;;
         ml_pipeline)
             # Add data and model repos
@@ -483,7 +483,7 @@ run_scenario_tests() {
                 [ -d "$repo/.git" ] && {
                     name=$(basename "$repo")
                     lazy_flag=$([ "${name%%-*}" = "raw" ] && echo "" || echo "--lazy")
-                    $RC_BIN add "file://$repo" --name "$name" $lazy_flag 2>/dev/null || true
+                    $MUNO_BIN add "file://$repo" --name "$name" $lazy_flag 2>/dev/null || true
                 }
             done
             ;;
@@ -495,7 +495,7 @@ run_scenario_tests() {
                         [ -d "$repo/.git" ] && {
                             team_name=$(basename "$team")
                             repo_name=$(basename "$repo")
-                            $RC_BIN add "file://$repo" --name "${team_name}-${repo_name}" --lazy 2>/dev/null || true
+                            $MUNO_BIN add "file://$repo" --name "${team_name}-${repo_name}" --lazy 2>/dev/null || true
                         }
                     done
                 }
@@ -508,7 +508,7 @@ run_scenario_tests() {
     
     # Test tree display
     echo -n "    Tree display: "
-    if $RC_BIN tree >/dev/null 2>&1; then
+    if $MUNO_BIN tree >/dev/null 2>&1; then
         echo -e "${GREEN}✓${NC}"
     else
         echo -e "${RED}✗${NC}"
@@ -516,7 +516,7 @@ run_scenario_tests() {
     
     # Test navigation
     echo -n "    Navigation: "
-    if $RC_BIN use / >/dev/null 2>&1; then
+    if $MUNO_BIN use / >/dev/null 2>&1; then
         echo -e "${GREEN}✓${NC}"
     else
         echo -e "${RED}✗${NC}"
@@ -524,7 +524,7 @@ run_scenario_tests() {
     
     # Test status
     echo -n "    Status check: "
-    if $RC_BIN status 2>&1 | grep -q "Status"; then
+    if $MUNO_BIN status 2>&1 | grep -q "Status"; then
         echo -e "${GREEN}✓${NC}"
     else
         echo -e "${RED}✗${NC}"
@@ -540,9 +540,9 @@ main() {
     echo -e "${MAGENTA}╚════════════════════════════════════════════════╝${NC}"
     echo
     
-    # Check if rc binary exists
-    if [ ! -f "$RC_BIN" ]; then
-        echo -e "${RED}Error: rc binary not found at $RC_BIN${NC}"
+    # Check if muno binary exists
+    if [ ! -f "$MUNO_BIN" ]; then
+        echo -e "${RED}Error: muno binary not found at $MUNO_BIN${NC}"
         echo "Please build it first: make build"
         exit 1
     fi
@@ -614,21 +614,21 @@ done)
 1. Manual testing:
    \`\`\`bash
    cd $TEST_DIR/<scenario>/rc-workspace
-   $RC_BIN tree
-   $RC_BIN use <node>
+   $MUNO_BIN tree
+   $MUNO_BIN use <node>
    \`\`\`
 
 2. Performance testing:
    \`\`\`bash
    cd $TEST_DIR/microservices/rc-workspace
-   time $RC_BIN tree
+   time $MUNO_BIN tree
    \`\`\`
 
 3. Stress testing:
    \`\`\`bash
    # Add 100+ repos
    for i in {1..100}; do
-     $RC_BIN add "file:///tmp/repo-\$i" --name "repo-\$i" --lazy
+     $MUNO_BIN add "file:///tmp/repo-\$i" --name "repo-\$i" --lazy
    done
    \`\`\`
 EOF
@@ -648,9 +648,9 @@ EOF
     echo -e "  ${CYAN}cd $TEST_DIR/monorepo${NC}"
     echo -e "  ${CYAN}cd $TEST_DIR/enterprise${NC}"
     echo
-    echo -e "${YELLOW}To test repo-claude with a scenario:${NC}"
+    echo -e "${YELLOW}To test muno with a scenario:${NC}"
     echo -e "  ${CYAN}cd $TEST_DIR/<scenario>/rc-workspace/<scenario>-test${NC}"
-    echo -e "  ${CYAN}$RC_BIN tree${NC}"
+    echo -e "  ${CYAN}$MUNO_BIN tree${NC}"
 }
 
 # Parse arguments
@@ -681,7 +681,7 @@ case "${1:-}" in
         echo
         echo -e "${YELLOW}To explore the test:${NC}"
         echo -e "  ${CYAN}cd $scenario_dir/rc-workspace/$1-test${NC}"
-        echo -e "  ${CYAN}$RC_BIN tree${NC}"
+        echo -e "  ${CYAN}$MUNO_BIN tree${NC}"
         ;;
     *)
         # Run all scenarios

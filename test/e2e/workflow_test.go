@@ -8,8 +8,8 @@ import (
 
 	// "github.com/stretchr/testify/assert"
 	// "github.com/stretchr/testify/require"
-	// "github.com/taokim/repo-claude/internal/config"
-	// "github.com/taokim/repo-claude/internal/manager"
+	// "github.com/taokim/muno/internal/config"
+	// "github.com/taokim/muno/internal/manager"
 )
 
 // TestCompleteWorkflow is commented out as it tests the old v2 config structure
@@ -38,7 +38,7 @@ func TestCompleteWorkflow(t *testing.T) {
 		
 		// Verify structure
 		assert.DirExists(t, projectPath)
-		assert.FileExists(t, filepath.Join(projectPath, "repo-claude.yaml"))
+		assert.FileExists(t, filepath.Join(projectPath, "muno.yaml"))
 		assert.DirExists(t, filepath.Join(projectPath, "workspaces"))
 		assert.DirExists(t, filepath.Join(projectPath, "docs"))
 		assert.FileExists(t, filepath.Join(projectPath, "CLAUDE.md"))
@@ -46,7 +46,7 @@ func TestCompleteWorkflow(t *testing.T) {
 	
 	// Step 2: Load and modify the config
 	t.Run("ConfigureWorkspace", func(t *testing.T) {
-		configPath := filepath.Join(projectPath, "repo-claude.yaml")
+		configPath := filepath.Join(projectPath, "muno.yaml")
 		cfg, err := config.Load(configPath)
 		require.NoError(t, err)
 		
@@ -168,7 +168,7 @@ func TestMetaRepoHeuristics(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "payments-rc suffix",
+			name:     "payments-muno suffix",
 			repoName: "payments-rc",
 			url:      "https://github.com/org/payments-rc.git",
 			expected: true,
