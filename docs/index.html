@@ -71,27 +71,29 @@
     }
     </script>
     
-    <!-- Redirect to GitHub -->
-    <meta http-equiv="refresh" content="0; url=https://github.com/taokim/muno">
+    <!-- Remove auto-redirect to allow users to read the content -->
     
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #4a90e2 0%, #764ba2 100%);
             color: white;
+            min-height: 100vh;
+            line-height: 1.6;
         }
-        .container {
+        .hero {
             text-align: center;
-            padding: 2rem;
+            padding: 4rem 2rem;
+            background: rgba(0, 0, 0, 0.2);
         }
         .logo {
-            width: 200px;
-            height: 200px;
+            width: 150px;
+            height: 150px;
             margin-bottom: 2rem;
             animation: float 3s ease-in-out infinite;
         }
@@ -100,36 +102,286 @@
             50% { transform: translateY(-20px); }
         }
         h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
+            font-size: 3.5rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
-        p {
-            font-size: 1.2rem;
+        .tagline {
+            font-size: 1.5rem;
             margin-bottom: 2rem;
-            opacity: 0.9;
+            opacity: 0.95;
         }
-        a {
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+        .section {
+            margin-bottom: 4rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 2.5rem;
+            backdrop-filter: blur(10px);
+        }
+        h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        h3 {
+            font-size: 1.8rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: #ffd700;
+        }
+        .inspiration-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        .inspiration-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1.5rem;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .inspiration-card h4 {
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+            color: #ffd700;
+        }
+        .code-block {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .code-block code {
+            color: #4fc3f7;
+            font-size: 0.95rem;
+        }
+        .comment {
+            color: #81c784;
+            font-style: italic;
+        }
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+        }
+        .button {
             color: white;
             text-decoration: none;
-            background: rgba(255, 255, 255, 0.2);
             padding: 1rem 2rem;
             border-radius: 50px;
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
             transition: all 0.3s;
+            font-size: 1.1rem;
+            font-weight: 500;
+            border: 2px solid rgba(255, 255, 255, 0.3);
         }
-        a:hover {
+        .button-primary {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .button-primary:hover {
             background: rgba(255, 255, 255, 0.3);
             transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .button-secondary {
+            background: transparent;
+        }
+        .button-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        .feature-list {
+            list-style: none;
+            margin-top: 1rem;
+        }
+        .feature-list li {
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .feature-list li:before {
+            content: "🐙";
+            font-size: 1.2rem;
+        }
+        .step-number {
+            display: inline-flex;
+            width: 30px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.5rem;
+            font-weight: bold;
+        }
+        p {
+            font-size: 1.15rem;
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
+        .highlight {
+            color: #ffd700;
+            font-weight: 600;
+        }
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; }
+            h2 { font-size: 2rem; }
+            .container { padding: 2rem 1rem; }
+            .section { padding: 1.5rem; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Hero Section -->
+    <div class="hero">
         <img src="https://raw.githubusercontent.com/taokim/muno/master/assets/muno-logo.png" alt="MUNO Logo" class="logo">
         <h1>MUNO</h1>
-        <p>🐙 Multi-repository UNified Orchestration</p>
-        <p>Redirecting to GitHub...</p>
-        <a href="https://github.com/taokim/muno">Go to MUNO on GitHub →</a>
+        <p class="tagline">🐙 Multi-repository UNified Orchestration</p>
+        <div class="button-group">
+            <a href="https://github.com/taokim/muno" class="button button-primary">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                View on GitHub
+            </a>
+            <a href="#quick-start" class="button button-secondary">Quick Start</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- The Story Section -->
+        <section class="section">
+            <h2>📖 The Story Behind MUNO</h2>
+            <p>
+                Born from the real-world challenges at <span class="highlight">Musinsa</span>, Korea's leading fashion e-commerce platform, 
+                MUNO emerged from a simple question: <em>"How can we manage 200+ repositories as easily as a monorepo?"</em>
+            </p>
+            
+            <div class="inspiration-grid">
+                <div class="inspiration-card">
+                    <h4>🏢 MUsinsa moNOrepo</h4>
+                    <p>Started as an internal tool at Musinsa to bring monorepo-like convenience to our massive multi-repo architecture. 
+                    The name itself reflects this origin - MUsinsa's approach to the moNOrepo experience.</p>
+                </div>
+                
+                <div class="inspiration-card">
+                    <h4>🎯 MUsinsa UNO</h4>
+                    <p>"UNO" meaning "one" - One tool to unify all repositories. One command interface for complex operations. 
+                    One workspace, infinite possibilities.</p>
+                </div>
+                
+                <div class="inspiration-card">
+                    <h4>🐙 The Octopus Metaphor</h4>
+                    <p>Like an octopus with its many arms working in coordination, MUNO orchestrates multiple repositories 
+                    with intelligence and adaptability. Each arm (repository) works independently yet in perfect harmony.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Start Section -->
+        <section class="section" id="quick-start">
+            <h2>🚀 Quick Start</h2>
+            <p>Get up and running with MUNO in minutes. Transform your multi-repository chaos into an organized, navigable workspace.</p>
+            
+            <h3>Installation</h3>
+            <div class="code-block">
+                <code>
+                    <span class="comment"># Clone and build MUNO</span><br>
+                    git clone https://github.com/taokim/muno.git<br>
+                    cd muno<br>
+                    make build<br>
+                    sudo make install
+                </code>
+            </div>
+
+            <h3>Your First Workspace</h3>
+            <div class="code-block">
+                <code>
+                    <span class="comment"># Initialize a new workspace</span><br>
+                    muno init my-platform<br>
+                    cd my-platform<br><br>
+                    
+                    <span class="comment"># Add your repositories as a tree structure</span><br>
+                    muno add https://github.com/org/backend-team --name team-backend<br>
+                    muno add https://github.com/org/frontend-team --name team-frontend<br><br>
+                    
+                    <span class="comment"># Navigate into backend team</span><br>
+                    muno use team-backend<br><br>
+                    
+                    <span class="comment"># Add child repositories</span><br>
+                    muno add https://github.com/org/payment-service<br>
+                    muno add https://github.com/org/order-service<br>
+                    muno add https://github.com/org/shared-libs --lazy  <span class="comment"># Won't clone until needed</span>
+                </code>
+            </div>
+
+            <h3>Navigate Your Tree</h3>
+            <div class="code-block">
+                <code>
+                    <span class="comment"># View your repository tree</span><br>
+                    muno tree<br><br>
+                    
+                    <span class="comment"># Navigate like a filesystem</span><br>
+                    muno use payment-service    <span class="comment"># Go deeper</span><br>
+                    muno use ..                 <span class="comment"># Go up one level</span><br>
+                    muno use /                  <span class="comment"># Go to root</span><br><br>
+                    
+                    <span class="comment"># Work with Git at any level</span><br>
+                    muno pull --recursive       <span class="comment"># Pull entire subtree</span><br>
+                    muno status                 <span class="comment"># Check current node status</span>
+                </code>
+            </div>
+        </section>
+
+        <!-- Key Features Section -->
+        <section class="section">
+            <h2>✨ Why MUNO?</h2>
+            <ul class="feature-list">
+                <li><strong>Tree-Based Navigation:</strong> Navigate repositories like a filesystem - intuitive and powerful</li>
+                <li><strong>Lazy Loading:</strong> Repositories clone only when you need them, saving time and space</li>
+                <li><strong>CWD-First Resolution:</strong> Your current directory determines the operation scope</li>
+                <li><strong>Clear Targeting:</strong> Every command shows exactly what it will affect</li>
+                <li><strong>Native Git Operations:</strong> All Git commands work naturally at any tree level</li>
+                <li><strong>AI-Powered Sessions:</strong> Launch Claude Code sessions at any point in your tree</li>
+                <li><strong>Single Binary:</strong> No runtime dependencies - just one fast Go binary</li>
+            </ul>
+        </section>
+
+        <!-- Call to Action -->
+        <section class="section">
+            <h2>🎯 Ready to Orchestrate?</h2>
+            <p>Join developers from companies managing dozens to hundreds of repositories. 
+            Experience the monorepo convenience without the monorepo constraints.</p>
+            
+            <div class="button-group">
+                <a href="https://github.com/taokim/muno" class="button button-primary">
+                    Get Started on GitHub
+                </a>
+                <a href="https://github.com/taokim/muno/blob/master/README.md" class="button button-secondary">
+                    Read Documentation
+                </a>
+                <a href="https://github.com/taokim/muno/issues" class="button button-secondary">
+                    Report an Issue
+                </a>
+            </div>
+        </section>
     </div>
 </body>
 </html>
