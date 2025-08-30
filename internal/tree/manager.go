@@ -4,338 +4,310 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
 	
-	"github.com/taokim/repo-claude/internal/config"
 	"github.com/taokim/repo-claude/internal/git"
 )
 
-// Manager manages the workspace tree
+// Manager is the refactored tree manager with simplified state
 type Manager struct {
-	rootPath     string
-	reposPath    string  // repos/ directory
-	rootNode     *Node
-	currentNode  *Node
-	config       *config.ConfigV3Tree
-	state        *TreeState
-	statePath    string
-	gitCmd       *git.Git
+	workspacePath string
+	state         *TreeState
+	gitCmd        git.Interface
 }
 
 // NewManager creates a new tree manager
-func NewManager(projectPath string) (*Manager, error) {
-	absPath, err := filepath.Abs(projectPath)
-	if err != nil {
-		return nil, fmt.Errorf("resolving project path: %w", err)
+func NewManager(workspacePath string, gitCmd git.Interface) (*Manager, error) {
+	m := &Manager{
+		workspacePath: workspacePath,
+		gitCmd:        gitCmd,
 	}
 	
-	return &Manager{
-		rootPath:      absPath,
-		reposPath:     filepath.Join(absPath, "repos"),
-		statePath:     filepath.Join(absPath, ".repo-claude-tree.json"),
-		gitCmd:        git.New(),
-	}, nil
+	// Try to load state, but if it doesn't exist, create a default one
+	if err := m.loadState(); err != nil {
+		// If file doesn't exist, create default state
+		if os.IsNotExist(err) {
+			m.state = &TreeState{
+				Nodes: map[string]*TreeNode{
+					"/": {
+						Name:     "root",
+						Type:     NodeTypeRoot,
+						Children: []string{},
+					},
+				},
+				CurrentPath: "/",
+				LastUpdated: time.Now(),
+			}
+		} else {
+			return nil, fmt.Errorf("failed to load state: %w", err)
+		}
+	}
+	
+	return m, nil
 }
 
-// Initialize creates a new workspace tree
-func (m *Manager) Initialize(projectName string, rootRepoURL string) error {
-	// Create repos directory
-	if err := os.MkdirAll(m.reposPath, 0755); err != nil {
-		return fmt.Errorf("creating repos directory: %w", err)
+// ComputeFilesystemPath derives filesystem path from logical path
+// This is the ONLY place that knows about the repos/ directory pattern
+func (m *Manager) ComputeFilesystemPath(logicalPath string) string {
+	if logicalPath == "/" {
+		return filepath.Join(m.workspacePath, "repos")
 	}
 	
-	// Create root node
-	m.rootNode = &Node{
-		ID:       "root",
-		Name:     projectName,
-		Path:     "/",
-		FullPath: m.reposPath,
-		Children: make(map[string]*Node),
-		Meta: NodeMeta{
-			Type:      string(NodeTypePersistent),
-			CreatedAt: time.Now(),
-		},
-	}
+	// Split path: /level1/level2/level3 -> [level1, level2, level3]
+	parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
 	
-	// If root is also a repo, clone it
-	if rootRepoURL != "" {
-		rootRepo := RepoConfig{
-			URL:   rootRepoURL,
-			Path:  m.reposPath,
-			Name:  "root",
-			Lazy:  false,
-			State: string(RepoStateMissing),
+	// Build filesystem path with repos/ subdirectories
+	// workspace/repos/level1/repos/level2/repos/level3
+	fsPath := filepath.Join(m.workspacePath, "repos")
+	for i, part := range parts {
+		fsPath = filepath.Join(fsPath, part)
+		// Add repos/ before next level (except last)
+		if i < len(parts)-1 {
+			fsPath = filepath.Join(fsPath, "repos")
 		}
-		
-		if err := m.cloneRepo(&rootRepo); err != nil {
-			return fmt.Errorf("cloning root repository: %w", err)
-		}
-		
-		m.rootNode.Repos = append(m.rootNode.Repos, rootRepo)
 	}
 	
-	// Set as current
-	m.currentNode = m.rootNode
+	return fsPath
+}
+
+// UseNode navigates to a node in the tree
+func (m *Manager) UseNode(logicalPath string) error {
+	// Normalize path
+	if logicalPath == "" {
+		logicalPath = "/"
+	}
+	if !strings.HasPrefix(logicalPath, "/") {
+		// Relative path - append to current
+		logicalPath = path.Join(m.state.CurrentPath, logicalPath)
+	}
 	
-	// Save initial state
+	node := m.state.Nodes[logicalPath]
+	if node == nil {
+		return fmt.Errorf("node not found: %s", logicalPath)
+	}
+	
+	fsPath := m.ComputeFilesystemPath(logicalPath)
+	
+	// Auto-clone if lazy
+	if node.Type == NodeTypeRepo && node.State == RepoStateMissing {
+		fmt.Printf("Auto-cloning lazy repository: %s\n", node.Name)
+		if err := m.cloneToPath(node.URL, fsPath); err != nil {
+			return fmt.Errorf("failed to clone %s: %w", node.Name, err)
+		}
+		node.State = RepoStateCloned
+		m.saveState()
+	}
+	
+	// Ensure directory exists (for root or intermediate nodes)
+	if err := os.MkdirAll(fsPath, 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+	
+	if err := os.Chdir(fsPath); err != nil {
+		return fmt.Errorf("cannot navigate to %s: %w", logicalPath, err)
+	}
+	
+	m.state.CurrentPath = logicalPath
 	return m.saveState()
 }
 
-// LoadTree loads the tree from saved state
-func (m *Manager) LoadTree() error {
-	// Load tree state
-	state, err := m.loadState()
-	if err != nil {
-		return fmt.Errorf("loading tree state: %w", err)
+// AddRepo adds a repository as a child of the current or specified parent
+func (m *Manager) AddRepo(parentPath, name, url string, lazy bool) error {
+	// Default to current path if not specified
+	if parentPath == "" {
+		parentPath = m.state.CurrentPath
 	}
 	
-	m.state = state
-	
-	// Reconstruct tree from state
-	if err := m.reconstructTree(); err != nil {
-		return fmt.Errorf("reconstructing tree: %w", err)
+	// Normalize parent path
+	if !strings.HasPrefix(parentPath, "/") {
+		parentPath = path.Join(m.state.CurrentPath, parentPath)
 	}
 	
-	// Set current node
-	if state.CurrentNodePath != "" {
-		node := m.findNodeByPath(state.CurrentNodePath)
-		if node != nil {
-			m.currentNode = node
+	parent := m.state.Nodes[parentPath]
+	if parent == nil {
+		return fmt.Errorf("parent node not found: %s", parentPath)
+	}
+	
+	// Check if child already exists
+	for _, childName := range parent.Children {
+		if childName == name {
+			return fmt.Errorf("child %s already exists in %s", name, parentPath)
 		}
 	}
 	
-	if m.currentNode == nil {
-		m.currentNode = m.rootNode
+	childPath := path.Join(parentPath, name)
+	
+	// Create new node
+	m.state.Nodes[childPath] = &TreeNode{
+		Name:     name,
+		Type:     NodeTypeRepo,
+		URL:      url,
+		Lazy:     lazy,
+		State:    RepoStateMissing,
+		Children: []string{},
 	}
 	
-	return nil
-}
-
-// ResolveTarget determines the target node based on priority rules
-func (m *Manager) ResolveTarget(explicitPath string) (*TargetResolution, error) {
-	// 1. Explicit path always wins
-	if explicitPath != "" {
-		node := m.findNodeByPath(explicitPath)
-		if node == nil {
-			return nil, fmt.Errorf("node not found: %s", explicitPath)
-		}
-		return &TargetResolution{
-			Node:   node,
-			Source: SourceExplicit,
-		}, nil
-	}
-	
-	// 2. Try CWD mapping
-	cwd, _ := os.Getwd()
-	if node := m.mapCWDToNode(cwd); node != nil {
-		return &TargetResolution{
-			Node:   node,
-			Source: SourceCWD,
-		}, nil
-	}
-	
-	// 3. Use stored current (only if outside workspace)
-	if m.currentNode != nil && !strings.HasPrefix(cwd, m.reposPath) {
-		return &TargetResolution{
-			Node:   m.currentNode,
-			Source: SourceStored,
-		}, nil
-	}
-	
-	// 4. Default to root
-	return &TargetResolution{
-		Node:   m.rootNode,
-		Source: SourceRoot,
-	}, nil
-}
-
-// UseNode navigates to a node and optionally clones lazy repos
-func (m *Manager) UseNode(path string, autoClone bool) (*Node, error) {
-	// Resolve path
-	node := m.resolvePath(path)
-	if node == nil {
-		return nil, fmt.Errorf("node not found: %s", path)
-	}
-	
-	// If this node represents a lazy repo that hasn't been cloned, we need to check parent
-	if autoClone && node.Parent != nil {
-		// Check if this node corresponds to a lazy repo in its parent
-		for i, repo := range node.Parent.Repos {
-			if repo.Name == node.Name && repo.Lazy && repo.State == string(RepoStateMissing) {
-				fmt.Printf("🔄 Cloning lazy repository %s...\n", repo.Name)
-				if err := m.cloneRepo(&node.Parent.Repos[i]); err != nil {
-					return nil, fmt.Errorf("cloning lazy repository: %w", err)
-				}
-			}
-		}
-	}
-	
-	// Change working directory
-	if err := os.Chdir(node.FullPath); err != nil {
-		return nil, fmt.Errorf("changing directory: %w", err)
-	}
-	
-	// Update previous and current
-	if m.state != nil && m.currentNode != nil {
-		m.state.PreviousNodePath = m.currentNode.Path
-	}
-	
-	m.currentNode = node
-	if m.state != nil {
-		m.state.CurrentNodePath = node.Path
-	}
-	
-	// Auto-clone lazy repos if requested
-	if autoClone {
-		cloned := 0
-		for i, repo := range node.Repos {
-			if repo.Lazy && repo.State == string(RepoStateMissing) {
-				if err := m.cloneRepo(&node.Repos[i]); err != nil {
-					fmt.Printf("⚠️  Failed to clone %s: %v\n", repo.Name, err)
-				} else {
-					cloned++
-				}
-			}
-		}
-		if cloned > 0 {
-			fmt.Printf("🔄 Auto-cloned %d lazy repositories\n", cloned)
-		}
-	}
-	
-	// Save state
-	return node, m.saveState()
-}
-
-// AddRepo adds a repository to the current node
-func (m *Manager) AddRepo(repoURL string, options AddOptions) (*RepoConfig, error) {
-	if m.currentNode == nil {
-		return nil, fmt.Errorf("no current node set")
-	}
-	
-	// Extract name from URL if not provided
-	name := options.Name
-	if name == "" {
-		name = extractRepoName(repoURL)
-	}
-	
-	// Check for duplicates
-	for _, repo := range m.currentNode.Repos {
-		if repo.Name == name {
-			return nil, fmt.Errorf("repository %s already exists", name)
-		}
-	}
-	
-	// Create repo config
-	repo := RepoConfig{
-		URL:   repoURL,
-		Path:  filepath.Join(m.currentNode.FullPath, name),
-		Name:  name,
-		Lazy:  options.Lazy,
-		State: string(RepoStateMissing),
-	}
+	// Add to parent's children
+	parent.Children = append(parent.Children, name)
 	
 	// Clone if not lazy
-	if !options.Lazy {
-		if err := m.cloneRepo(&repo); err != nil {
-			return nil, fmt.Errorf("cloning repository: %w", err)
+	if !lazy {
+		fsPath := m.ComputeFilesystemPath(childPath)
+		fmt.Printf("Cloning %s to %s\n", url, fsPath)
+		if err := m.cloneToPath(url, fsPath); err != nil {
+			// Rollback on failure
+			delete(m.state.Nodes, childPath)
+			parent.Children = parent.Children[:len(parent.Children)-1]
+			return fmt.Errorf("failed to clone: %w", err)
 		}
+		m.state.Nodes[childPath].State = RepoStateCloned
 	}
 	
-	// Add to current node
-	m.currentNode.Repos = append(m.currentNode.Repos, repo)
-	
-	// Create child node for this repo
-	childNode := &Node{
-		ID:       fmt.Sprintf("%s/%s", m.currentNode.ID, name),
-		Name:     name,
-		Path:     filepath.Join(m.currentNode.Path, name),
-		FullPath: repo.Path,
-		Parent:   m.currentNode,
-		Children: make(map[string]*Node),
-		Meta: NodeMeta{
-			Type:      string(NodeTypePersistent),
-			CreatedAt: time.Now(),
-		},
-	}
-	
-	// Initialize Children map if nil
-	if m.currentNode.Children == nil {
-		m.currentNode.Children = make(map[string]*Node)
-	}
-	m.currentNode.Children[name] = childNode
-	
-	// Save state
-	if err := m.saveState(); err != nil {
-		return nil, fmt.Errorf("saving state: %w", err)
-	}
-	
-	return &repo, nil
-}
-
-// RemoveRepo removes a repository from the current node
-func (m *Manager) RemoveRepo(name string) error {
-	if m.currentNode == nil {
-		return fmt.Errorf("no current node set")
-	}
-	
-	// Find and remove repo
-	found := false
-	newRepos := []RepoConfig{}
-	for _, repo := range m.currentNode.Repos {
-		if repo.Name != name {
-			newRepos = append(newRepos, repo)
-		} else {
-			found = true
-			// Remove from filesystem
-			if repo.State == string(RepoStateCloned) {
-				if err := os.RemoveAll(repo.Path); err != nil {
-					return fmt.Errorf("removing repository directory: %w", err)
-				}
-			}
-		}
-	}
-	
-	if !found {
-		return fmt.Errorf("repository %s not found", name)
-	}
-	
-	m.currentNode.Repos = newRepos
-	
-	// Remove child node
-	delete(m.currentNode.Children, name)
-	
-	// Save state
+	m.state.LastUpdated = time.Now()
 	return m.saveState()
 }
 
-// CloneLazy clones lazy repositories at the current node
-func (m *Manager) CloneLazy(recursive bool) error {
-	if m.currentNode == nil {
-		return fmt.Errorf("no current node set")
+// RemoveNode removes a node and its subtree
+func (m *Manager) RemoveNode(targetPath string) error {
+	if targetPath == "/" {
+		return fmt.Errorf("cannot remove root node")
 	}
 	
-	return m.cloneLazyInNode(m.currentNode, recursive)
+	// Normalize path
+	if !strings.HasPrefix(targetPath, "/") {
+		targetPath = path.Join(m.state.CurrentPath, targetPath)
+	}
+	
+	node := m.state.Nodes[targetPath]
+	if node == nil {
+		return fmt.Errorf("node not found: %s", targetPath)
+	}
+	
+	// Find parent
+	parentPath := path.Dir(targetPath)
+	parent := m.state.Nodes[parentPath]
+	if parent == nil {
+		return fmt.Errorf("parent node not found: %s", parentPath)
+	}
+	
+	// Remove from parent's children
+	newChildren := []string{}
+	for _, child := range parent.Children {
+		if child != node.Name {
+			newChildren = append(newChildren, child)
+		}
+	}
+	parent.Children = newChildren
+	
+	// Remove node and all descendants from state
+	m.removeNodeRecursive(targetPath)
+	
+	// Remove from filesystem
+	fsPath := m.ComputeFilesystemPath(targetPath)
+	if err := os.RemoveAll(fsPath); err != nil {
+		fmt.Printf("Warning: failed to remove directory %s: %v\n", fsPath, err)
+	}
+	
+	// If we removed the current node, navigate to parent
+	if strings.HasPrefix(m.state.CurrentPath, targetPath) {
+		m.UseNode(parentPath)
+	}
+	
+	m.state.LastUpdated = time.Now()
+	return m.saveState()
 }
 
-// Helper functions
+// removeNodeRecursive removes a node and all its descendants from the state
+func (m *Manager) removeNodeRecursive(logicalPath string) {
+	node := m.state.Nodes[logicalPath]
+	if node == nil {
+		return
+	}
+	
+	// Remove all children first
+	for _, childName := range node.Children {
+		childPath := path.Join(logicalPath, childName)
+		m.removeNodeRecursive(childPath)
+	}
+	
+	// Remove this node
+	delete(m.state.Nodes, logicalPath)
+}
 
-func (m *Manager) cloneLazyInNode(node *Node, recursive bool) error {
-	// Clone lazy repos in this node
-	for i, repo := range node.Repos {
-		if repo.Lazy && repo.State == string(RepoStateMissing) {
-			fmt.Printf("🔄 Cloning %s...\n", repo.Name)
-			if err := m.cloneRepo(&node.Repos[i]); err != nil {
-				return fmt.Errorf("cloning %s: %w", repo.Name, err)
-			}
+// GetCurrentPath returns the current logical path
+func (m *Manager) GetCurrentPath() string {
+	return m.state.CurrentPath
+}
+
+// GetNode returns a node by its logical path
+func (m *Manager) GetNode(logicalPath string) *TreeNode {
+	return m.state.Nodes[logicalPath]
+}
+
+// ListChildren lists the children of the current or specified node
+func (m *Manager) ListChildren(targetPath string) ([]*TreeNode, error) {
+	if targetPath == "" {
+		targetPath = m.state.CurrentPath
+	}
+	
+	if !strings.HasPrefix(targetPath, "/") {
+		targetPath = path.Join(m.state.CurrentPath, targetPath)
+	}
+	
+	node := m.state.Nodes[targetPath]
+	if node == nil {
+		return nil, fmt.Errorf("node not found: %s", targetPath)
+	}
+	
+	children := make([]*TreeNode, 0, len(node.Children))
+	for _, childName := range node.Children {
+		childPath := path.Join(targetPath, childName)
+		if child := m.state.Nodes[childPath]; child != nil {
+			children = append(children, child)
 		}
 	}
 	
-	// Recursively clone in children if requested
+	return children, nil
+}
+
+// CloneLazyRepos clones all lazy repositories in the current or specified node
+func (m *Manager) CloneLazyRepos(targetPath string, recursive bool) error {
+	if targetPath == "" {
+		targetPath = m.state.CurrentPath
+	}
+	
+	if !strings.HasPrefix(targetPath, "/") {
+		targetPath = path.Join(m.state.CurrentPath, targetPath)
+	}
+	
+	return m.cloneLazyReposRecursive(targetPath, recursive)
+}
+
+func (m *Manager) cloneLazyReposRecursive(logicalPath string, recursive bool) error {
+	node := m.state.Nodes[logicalPath]
+	if node == nil {
+		return fmt.Errorf("node not found: %s", logicalPath)
+	}
+	
+	// Clone if this is a lazy repo
+	if node.Type == NodeTypeRepo && node.State == RepoStateMissing {
+		fsPath := m.ComputeFilesystemPath(logicalPath)
+		fmt.Printf("Cloning %s to %s\n", node.URL, fsPath)
+		if err := m.cloneToPath(node.URL, fsPath); err != nil {
+			return fmt.Errorf("failed to clone %s: %w", node.Name, err)
+		}
+		node.State = RepoStateCloned
+		m.saveState()
+	}
+	
+	// Recursively clone children if requested
 	if recursive {
-		for _, child := range node.Children {
-			if err := m.cloneLazyInNode(child, true); err != nil {
+		for _, childName := range node.Children {
+			childPath := path.Join(logicalPath, childName)
+			if err := m.cloneLazyReposRecursive(childPath, true); err != nil {
 				return err
 			}
 		}
@@ -344,242 +316,50 @@ func (m *Manager) cloneLazyInNode(node *Node, recursive bool) error {
 	return nil
 }
 
-func (m *Manager) cloneRepo(repo *RepoConfig) error {
-	// Create parent directory if needed
-	parentDir := filepath.Dir(repo.Path)
+// cloneToPath clones a repository to the specified filesystem path
+func (m *Manager) cloneToPath(url, fsPath string) error {
+	// Create parent directory
+	parentDir := filepath.Dir(fsPath)
 	if err := os.MkdirAll(parentDir, 0755); err != nil {
-		return fmt.Errorf("creating parent directory: %w", err)
+		return fmt.Errorf("failed to create parent directory: %w", err)
 	}
 	
-	// Clone repository
-	if err := m.gitCmd.Clone(repo.URL, repo.Path); err != nil {
-		return err
-	}
-	
-	repo.State = string(RepoStateCloned)
-	return nil
+	// Clone the repository
+	return m.gitCmd.Clone(url, fsPath)
 }
 
-func (m *Manager) findNodeByPath(path string) *Node {
-	// Handle special paths
-	switch path {
-	case "", ".", "/", "~":
-		return m.rootNode
-	case "-":
-		if m.state != nil && m.state.PreviousNodePath != "" {
-			return m.findNodeByPath(m.state.PreviousNodePath)
-		}
-		return m.currentNode
-	}
-	
-	// Clean the path
-	path = strings.TrimPrefix(path, "/")
-	if path == "" {
-		return m.rootNode
-	}
-	
-	// Traverse the tree
-	parts := strings.Split(path, "/")
-	current := m.rootNode
-	
-	for _, part := range parts {
-		if part == ".." {
-			if current.Parent != nil {
-				current = current.Parent
-			}
-		} else if part != "." && part != "" {
-			if child, exists := current.Children[part]; exists {
-				current = child
-			} else {
-				return nil
-			}
-		}
-	}
-	
-	return current
-}
-
-func (m *Manager) resolvePath(path string) *Node {
-	// Handle relative paths
-	if strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../") {
-		// Start from current node
-		current := m.currentNode
-		if current == nil {
-			current = m.rootNode
-		}
-		
-		parts := strings.Split(path, "/")
-		for _, part := range parts {
-			switch part {
-			case ".", "":
-				// Stay at current
-			case "..":
-				if current.Parent != nil {
-					current = current.Parent
-				}
-			default:
-				if child, exists := current.Children[part]; exists {
-					current = child
-				} else {
-					return nil
-				}
-			}
-		}
-		return current
-	}
-	
-	// Absolute or special paths
-	return m.findNodeByPath(path)
-}
-
-func (m *Manager) mapCWDToNode(cwd string) *Node {
-	// Check if CWD is within workspace
-	if !strings.HasPrefix(cwd, m.reposPath) {
-		return nil
-	}
-	
-	// Get relative path from workspace root
-	relPath, err := filepath.Rel(m.reposPath, cwd)
-	if err != nil {
-		return nil
-	}
-	
-	// Find corresponding node
-	if relPath == "." {
-		return m.rootNode
-	}
-	
-	return m.findNodeByPath(relPath)
-}
-
-func (m *Manager) loadState() (*TreeState, error) {
-	if _, err := os.Stat(m.statePath); os.IsNotExist(err) {
-		return &TreeState{
-			Nodes:       make(map[string]*Node),
-			LastUpdated: time.Now(),
-		}, nil
-	}
-	
-	data, err := os.ReadFile(m.statePath)
-	if err != nil {
-		return nil, err
-	}
-	
-	var state TreeState
-	if err := json.Unmarshal(data, &state); err != nil {
-		return nil, err
-	}
-	
-	return &state, nil
-}
-
+// saveState persists the tree state to disk
 func (m *Manager) saveState() error {
-	if m.state == nil {
-		m.state = &TreeState{
-			Nodes: make(map[string]*Node),
-		}
-	}
-	
-	// Update state
-	m.state.LastUpdated = time.Now()
-	if m.currentNode != nil {
-		m.state.CurrentNodePath = m.currentNode.Path
-	}
-	
-	// Collect all nodes
-	m.state.Nodes = make(map[string]*Node)
-	m.collectNodes(m.rootNode, m.state.Nodes)
-	
-	// Save to file
 	data, err := json.MarshalIndent(m.state, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal state: %w", err)
 	}
 	
-	return os.WriteFile(m.statePath, data, 0644)
+	statePath := filepath.Join(m.workspacePath, ".repo-claude-tree.json")
+	return os.WriteFile(statePath, data, 0644)
 }
 
-func (m *Manager) collectNodes(node *Node, collection map[string]*Node) {
-	collection[node.Path] = node
-	for _, child := range node.Children {
-		m.collectNodes(child, collection)
-	}
-}
-
-func (m *Manager) reconstructTree() error {
-	// Find root node
-	rootNode, exists := m.state.Nodes["/"]
-	if !exists {
-		// Create default root if not found
-		m.rootNode = &Node{
-			ID:       "root",
-			Name:     "workspace",
-			Path:     "/",
-			FullPath: m.reposPath,
-			Children: make(map[string]*Node),
-			Meta: NodeMeta{
-				Type:      string(NodeTypePersistent),
-				CreatedAt: time.Now(),
-			},
+// loadState loads the tree state from disk
+func (m *Manager) loadState() error {
+	statePath := filepath.Join(m.workspacePath, ".repo-claude-tree.json")
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// File doesn't exist, return the error so NewManager can handle it
+			return err
 		}
-		return nil
+		return fmt.Errorf("failed to read state file: %w", err)
 	}
 	
-	m.rootNode = rootNode
-	m.rootNode.FullPath = m.reposPath
-	
-	// Ensure root has Children map
-	if m.rootNode.Children == nil {
-		m.rootNode.Children = make(map[string]*Node)
-	}
-	
-	// Reconstruct parent-child relationships
-	for path, node := range m.state.Nodes {
-		if path == "/" {
-			continue
-		}
-		
-		// Find parent path
-		parentPath := filepath.Dir(path)
-		if parentPath == "." {
-			parentPath = "/"
-		}
-		
-		parent, exists := m.state.Nodes[parentPath]
-		if exists {
-			node.Parent = parent
-			if parent.Children == nil {
-				parent.Children = make(map[string]*Node)
-			}
-			parent.Children[node.Name] = node
-		}
-		
-		// Set full path
-		node.FullPath = filepath.Join(m.reposPath, strings.TrimPrefix(path, "/"))
+	m.state = &TreeState{}
+	if err := json.Unmarshal(data, m.state); err != nil {
+		return fmt.Errorf("failed to unmarshal state: %w", err)
 	}
 	
 	return nil
 }
 
-func extractRepoName(url string) string {
-	// Remove .git suffix
-	url = strings.TrimSuffix(url, ".git")
-	
-	// Get last path component
-	parts := strings.Split(url, "/")
-	if len(parts) > 0 {
-		return parts[len(parts)-1]
-	}
-	
-	return url
-}
-
-// GetCurrentNode returns the current node
-func (m *Manager) GetCurrentNode() *Node {
-	return m.currentNode
-}
-
-// GetRootNode returns the root node
-func (m *Manager) GetRootNode() *Node {
-	return m.rootNode
+// GetState returns the current tree state
+func (m *Manager) GetState() *TreeState {
+	return m.state
 }

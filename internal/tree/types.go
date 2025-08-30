@@ -4,42 +4,43 @@ import (
 	"time"
 )
 
-// Node represents a node in the workspace tree
-type Node struct {
-	ID       string           `json:"id"`
-	Name     string           `json:"name"`
-	Path     string           `json:"path"`     // Relative path from workspace root
-	FullPath string           `json:"full_path"` // Absolute filesystem path
-	Parent   *Node            `json:"-"`
-	Children map[string]*Node `json:"children,omitempty"`
-	Repos    []RepoConfig     `json:"repos,omitempty"`
-	Meta     NodeMeta         `json:"meta"`
-}
+// NodeType represents the type of node in the tree
+type NodeType string
 
-// RepoConfig represents a repository configuration within a node
-type RepoConfig struct {
-	URL   string `json:"url"`
-	Path  string `json:"path"`
-	Name  string `json:"name"`
-	Lazy  bool   `json:"lazy"`
-	State string `json:"state"` // "missing", "cloned", "modified"
-}
+const (
+	NodeTypeRoot NodeType = "root"
+	NodeTypeRepo NodeType = "repo"
+)
 
-// NodeMeta contains metadata about a node
-type NodeMeta struct {
-	Type        string    `json:"type"` // "persistent" or "ephemeral"
-	CreatedAt   time.Time `json:"created_at"`
-	ModifiedAt  time.Time `json:"modified_at"`
-	Description string    `json:"description,omitempty"`
-	README      string    `json:"readme,omitempty"` // README.md content
+// RepoState represents the state of a repository
+type RepoState string
+
+const (
+	RepoStateMissing  RepoState = "missing"
+	RepoStateCloned   RepoState = "cloned"
+	RepoStateModified RepoState = "modified"
+)
+
+// TreeNode represents a node in the workspace tree
+// Contains ONLY logical structure and repository metadata
+// NO filesystem paths are stored
+type TreeNode struct {
+	Name     string   `json:"name"`
+	Type     NodeType `json:"type"`     // "root" or "repo"
+	Children []string `json:"children"` // Just names, not paths
+	
+	// Repository metadata (only for type="repo")
+	URL   string    `json:"url,omitempty"`
+	Lazy  bool      `json:"lazy,omitempty"`
+	State RepoState `json:"state,omitempty"` // "missing", "cloned", "modified"
 }
 
 // TreeState represents the persistent state of the tree
+// Contains ONLY logical paths and tree structure
 type TreeState struct {
-	CurrentNodePath string           `json:"current_node_path"`
-	PreviousNodePath string          `json:"previous_node_path,omitempty"`
-	Nodes          map[string]*Node `json:"nodes"`
-	LastUpdated    time.Time        `json:"last_updated"`
+	CurrentPath string                `json:"current_path"`
+	Nodes       map[string]*TreeNode  `json:"nodes"`
+	LastUpdated time.Time             `json:"last_updated"`
 }
 
 // UseOptions represents options for the Use command
@@ -57,34 +58,18 @@ type AddOptions struct {
 type ResolutionSource string
 
 const (
-	SourceExplicit ResolutionSource = "explicit"     // User provided explicit path
-	SourceCWD      ResolutionSource = "CWD"         // Resolved from current working directory
-	SourceStored   ResolutionSource = "stored"      // From stored current node
-	SourceRoot     ResolutionSource = "root"        // Fallback to root
+	SourceExplicit ResolutionSource = "explicit" // User provided explicit path
+	SourceCWD      ResolutionSource = "CWD"      // Resolved from current working directory
+	SourceStored   ResolutionSource = "stored"   // From stored current node
+	SourceRoot     ResolutionSource = "root"     // Fallback to root
 )
 
 // TargetResolution represents how a target node was resolved
 type TargetResolution struct {
-	Node   *Node
-	Source ResolutionSource
+	Path   string           // Logical path to the node
+	Node   *TreeNode        // The resolved node
+	Source ResolutionSource // How it was resolved
 }
-
-// NodeType represents the type of node
-type NodeType string
-
-const (
-	NodeTypePersistent NodeType = "persistent"
-	NodeTypeEphemeral  NodeType = "ephemeral"
-)
-
-// RepoState represents the state of a repository
-type RepoState string
-
-const (
-	RepoStateMissing  RepoState = "missing"
-	RepoStateCloned   RepoState = "cloned"
-	RepoStateModified RepoState = "modified"
-)
 
 // TreeDisplay represents options for displaying the tree
 type TreeDisplay struct {
@@ -94,54 +79,24 @@ type TreeDisplay struct {
 	ShowModified bool
 }
 
+// Helper methods for TreeNode
+
 // IsRoot returns true if this is the root node
-func (n *Node) IsRoot() bool {
-	return n.Parent == nil
+func (n *TreeNode) IsRoot() bool {
+	return n.Type == NodeTypeRoot
 }
 
 // IsLeaf returns true if this node has no children
-func (n *Node) IsLeaf() bool {
+func (n *TreeNode) IsLeaf() bool {
 	return len(n.Children) == 0
 }
 
-// GetPath returns the tree path (e.g., "/team/backend")
-func (n *Node) GetPath() string {
-	if n.IsRoot() {
-		return "/"
-	}
-	return n.Path
+// HasLazyRepos returns true if this is a lazy repo that hasn't been cloned
+func (n *TreeNode) HasLazyRepos() bool {
+	return n.Type == NodeTypeRepo && n.Lazy && n.State == RepoStateMissing
 }
 
-// GetDepth returns the depth of this node in the tree
-func (n *Node) GetDepth() int {
-	depth := 0
-	current := n
-	for current.Parent != nil {
-		depth++
-		current = current.Parent
-	}
-	return depth
-}
-
-// HasLazyRepos returns true if this node has any lazy repositories
-func (n *Node) HasLazyRepos() bool {
-	for _, repo := range n.Repos {
-		if repo.Lazy && repo.State == string(RepoStateMissing) {
-			return true
-		}
-	}
-	return false
-}
-
-// CountRepos counts the total number of repositories in this node and its subtree
-func (n *Node) CountRepos(recursive bool) int {
-	count := len(n.Repos)
-	
-	if recursive {
-		for _, child := range n.Children {
-			count += child.CountRepos(true)
-		}
-	}
-	
-	return count
+// NeedsClone returns true if this repo needs to be cloned
+func (n *TreeNode) NeedsClone() bool {
+	return n.Type == NodeTypeRepo && n.State == RepoStateMissing
 }

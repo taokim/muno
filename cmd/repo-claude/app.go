@@ -89,15 +89,23 @@ Features:
 
 // newInitCmd creates the init command
 func (a *App) newInitCmd() *cobra.Command {
-	var interactive bool
+	var force bool
+	var smart bool
+	var nonInteractive bool
 	
 	cmd := &cobra.Command{
 		Use:   "init [project-name]",
 		Short: "Initialize a new repo-claude v3 project",
 		Long: `Initialize a new repo-claude v3 project with tree-based workspace.
 		
+Smart mode (default):
+- Detects existing git repositories
+- Offers to add them to workspace
+- Moves repositories to repos/ directory
+- Creates repo-claude.yaml with all repository definitions
+		
 Creates:
-- repo-claude.yaml (v3 configuration)
+- repo-claude.yaml (v3 configuration with repo list)
 - repos/ directory for tree structure
 - Root CLAUDE.md with project instructions`,
 		Args: cobra.MaximumNArgs(1),
@@ -122,15 +130,30 @@ Creates:
 				return fmt.Errorf("creating manager: %w", err)
 			}
 			
-			if err := mgr.InitWorkspace(projectName, interactive); err != nil {
-				return fmt.Errorf("initializing workspace: %w", err)
+			// Use smart init by default
+			if smart || !cmd.Flags().Changed("no-smart") {
+				options := manager.InitOptions{
+					Force:          force,
+					NonInteractive: nonInteractive,
+				}
+				if err := mgr.SmartInitWorkspace(projectName, options); err != nil {
+					return fmt.Errorf("smart init workspace: %w", err)
+				}
+			} else {
+				// Use old init method (always interactive)
+				if err := mgr.InitializeV3(projectName, true); err != nil {
+					return fmt.Errorf("initializing workspace: %w", err)
+				}
 			}
 			
 			return nil
 		},
 	}
 	
-	cmd.Flags().BoolVarP(&interactive, "interactive", "i", false, "Interactive configuration")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force initialization even if errors occur")
+	cmd.Flags().BoolVar(&smart, "smart", true, "Smart detection of existing git repos")
+	cmd.Flags().Bool("no-smart", false, "Disable smart detection")
+	cmd.Flags().BoolVarP(&nonInteractive, "non-interactive", "n", false, "Skip all prompts and use defaults")
 	
 	return cmd
 }
@@ -155,7 +178,7 @@ Shows:
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			return mgr.ListNodes(recursive)
+			return mgr.ListNodesRecursive(recursive)
 		},
 	}
 	
@@ -187,7 +210,7 @@ The working directory will be set to the node's directory.`,
 				path = args[0]
 			}
 			
-			return mgr.StartNode(path, newWindow)
+			return mgr.StartClaude(path)
 		},
 	}
 	
@@ -249,7 +272,7 @@ func (a *App) newTreeCmd() *cobra.Command {
 				path = args[0]
 			}
 			
-			return mgr.ShowTree(path, depth)
+			return mgr.ShowTreeAtPath(path, depth)
 		},
 	}
 	
@@ -276,7 +299,7 @@ The repository will be cloned immediately unless --lazy is specified.`,
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			return mgr.AddRepo(args[0], name, lazy)
+			return mgr.AddRepoSimple(args[0], name, lazy)
 		},
 	}
 	
@@ -298,7 +321,7 @@ func (a *App) newRemoveCmd() *cobra.Command {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			return mgr.RemoveRepo(args[0])
+			return mgr.RemoveNode(args[0])
 		},
 	}
 }
@@ -318,7 +341,7 @@ func (a *App) newCloneCmd() *cobra.Command {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			return mgr.CloneLazy(recursive)
+			return mgr.CloneRepos("", recursive)
 		},
 	}
 	
@@ -353,7 +376,7 @@ Path formats:
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			return mgr.UseNode(args[0], !noClone)
+			return mgr.UseNodeWithClone(args[0], !noClone)
 		},
 	}
 	

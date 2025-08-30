@@ -11,25 +11,29 @@ import (
 	"github.com/taokim/repo-claude/internal/tree"
 )
 
-// ManagerV3 is the tree-based manager implementation
+// ManagerV3 is the refactored tree-based manager implementation with simplified state
 type ManagerV3 struct {
 	ProjectPath  string              // Project root path
 	Config       *config.ConfigV3Tree // Tree configuration
-	TreeManager  *tree.Manager       // Tree manager
+	TreeManager  *tree.Manager     // Refactored tree manager
 	GitCmd       *git.Git            // Git operations
 	CmdExecutor  CommandExecutor
 	State        *config.StateV3     // Runtime state
 	statePath    string              // Path to state file
 }
 
-// NewV3 creates a new tree-based manager
+// NewV3 creates a new tree-based manager with simplified state
 func NewV3(projectPath string) (*ManagerV3, error) {
 	absPath, err := filepath.Abs(projectPath)
 	if err != nil {
 		return nil, fmt.Errorf("resolving project path: %w", err)
 	}
 	
-	treeMgr, err := tree.NewManager(absPath)
+	// Create git command interface
+	gitCmd := git.New()
+	
+	// Create the refactored tree manager
+	treeMgr, err := tree.NewManager(absPath, gitCmd)
 	if err != nil {
 		return nil, fmt.Errorf("creating tree manager: %w", err)
 	}
@@ -37,13 +41,13 @@ func NewV3(projectPath string) (*ManagerV3, error) {
 	return &ManagerV3{
 		ProjectPath: absPath,
 		TreeManager: treeMgr,
-		GitCmd:      git.New(),
+		GitCmd:      gitCmd,
 		CmdExecutor: &RealCommandExecutor{},
 		statePath:   filepath.Join(absPath, ".repo-claude-state.json"),
 	}, nil
 }
 
-// LoadFromCurrentDirV3 loads an existing workspace
+// LoadFromCurrentDirV3 loads an existing workspace with the new manager
 func LoadFromCurrentDirV3() (*ManagerV3, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -86,497 +90,437 @@ func LoadFromCurrentDirV3() (*ManagerV3, error) {
 	
 	mgr.Config = cfg
 	
-	// Load tree
-	if err := mgr.TreeManager.LoadTree(); err != nil {
-		return nil, fmt.Errorf("loading tree: %w", err)
-	}
-	
-	// Load state
-	state, err := config.LoadStateV3(mgr.statePath)
-	if err != nil {
-		return nil, fmt.Errorf("loading state: %w", err)
-	}
-	mgr.State = state
+	// The tree manager automatically loads state in NewManagerNew
+	// No need to call LoadTree explicitly
 	
 	return mgr, nil
 }
 
-// InitWorkspace initializes a new v3 workspace
-func (m *ManagerV3) InitWorkspace(projectName string, interactive bool) error {
-	// Check if already initialized
-	configPath := filepath.Join(m.ProjectPath, "repo-claude.yaml")
-	if _, err := os.Stat(configPath); err == nil {
-		return fmt.Errorf("workspace already initialized (repo-claude.yaml exists)")
+// InitializeV3 initializes a new v3 tree workspace
+func (m *ManagerV3) InitializeV3(name string, interactive bool) error {
+	// Create workspace directory
+	reposDir := filepath.Join(m.ProjectPath, "repos")
+	if err := os.MkdirAll(reposDir, 0755); err != nil {
+		return fmt.Errorf("creating repos directory: %w", err)
 	}
 	
-	// Create project directory if needed
-	if err := os.MkdirAll(m.ProjectPath, 0755); err != nil {
-		return fmt.Errorf("creating project directory: %w", err)
-	}
-	
-	// Create configuration
-	cfg := config.DefaultConfigV3Tree(projectName)
-	
-	// Interactive configuration if requested
-	if interactive {
-		fmt.Println("🚀 Interactive workspace configuration")
-		fmt.Print("Enter root repository URL (optional): ")
-		var rootRepo string
-		fmt.Scanln(&rootRepo)
-		cfg.Workspace.RootRepo = rootRepo
-	}
+	// Create default configuration
+	m.Config = config.DefaultConfigV3Tree(name)
 	
 	// Save configuration
-	if err := cfg.Save(configPath); err != nil {
+	configPath := filepath.Join(m.ProjectPath, "repo-claude.yaml")
+	if err := m.Config.Save(configPath); err != nil {
 		return fmt.Errorf("saving configuration: %w", err)
 	}
 	
-	m.Config = cfg
-	
-	// Initialize tree
-	if err := m.TreeManager.Initialize(projectName, cfg.Workspace.RootRepo); err != nil {
-		return fmt.Errorf("initializing tree: %w", err)
-	}
+	// Initialize tree state (already done in NewManagerNew)
+	// The tree manager creates initial state with root node
 	
 	// Create shared memory file
 	sharedMemPath := filepath.Join(m.ProjectPath, "shared-memory.md")
-	sharedContent := fmt.Sprintf("# Shared Memory for %s\n\nCreated: %s\n\n## Active Nodes\n\n## Notes\n\n",
-		projectName, "2024-01-01") // Using fixed date for consistency
-	if err := os.WriteFile(sharedMemPath, []byte(sharedContent), 0644); err != nil {
+	if err := createSharedMemory(sharedMemPath); err != nil {
 		return fmt.Errorf("creating shared memory: %w", err)
 	}
 	
-	// Create CLAUDE.md
-	claudePath := filepath.Join(m.ProjectPath, "CLAUDE.md")
-	claudeContent := fmt.Sprintf(`# CLAUDE.md - %s
-
-This file provides context for Claude Code sessions in this workspace.
-
-## Workspace Structure
-
-This is a v3 tree-based workspace. Navigate using:
-- rc use <path> - Navigate to a node
-- rc tree - Display workspace structure
-- rc add <repo-url> - Add child repository
-- rc current - Show current position
-
-## Working Directory
-
-Your current position determines what repositories you're working with.
-All git operations are relative to your current node.
-
-## Shared Memory
-
-The shared-memory.md file in the project root is used for coordination
-between different Claude sessions.
-`, projectName)
-	
-	if err := os.WriteFile(claudePath, []byte(claudeContent), 0644); err != nil {
-		return fmt.Errorf("creating CLAUDE.md: %w", err)
-	}
-	
-	fmt.Println("✅ Workspace initialized successfully!")
-	fmt.Printf("📁 Project root: %s\n", m.ProjectPath)
-	fmt.Printf("🌳 Tree structure created in: repos/\n")
-	fmt.Println("\nNext steps:")
-	fmt.Println("  1. rc add <repo-url> - Add repositories")
-	fmt.Println("  2. rc tree - View structure")
-	fmt.Println("  3. rc start - Start Claude session")
+	fmt.Printf("✅ Initialized v3 tree workspace: %s\n", name)
+	fmt.Printf("📁 Project path: %s\n", m.ProjectPath)
+	fmt.Printf("🌳 Tree structure initialized with root node\n")
 	
 	return nil
 }
-
-// Navigation Commands
 
 // UseNode navigates to a node in the tree
-func (m *ManagerV3) UseNode(path string, autoClone bool) error {
-	node, err := m.TreeManager.UseNode(path, autoClone)
-	if err != nil {
-		return err
+func (m *ManagerV3) UseNode(target string) error {
+	// If target is empty, stay at current
+	if target == "" {
+		currentPath := m.TreeManager.GetCurrentPath()
+		fmt.Printf("Current node: %s\n", currentPath)
+		
+		// Display filesystem path
+		fsPath := m.TreeManager.ComputeFilesystemPath(currentPath)
+		fmt.Printf("Filesystem path: %s\n", fsPath)
+		
+		return nil
 	}
 	
-	// Display feedback
-	fmt.Printf("📍 Navigated to: %s\n", node.GetPath())
-	fmt.Printf("📂 Changed directory to: %s\n", node.FullPath)
+	// Use the tree manager's navigation
+	if err := m.TreeManager.UseNode(target); err != nil {
+		return fmt.Errorf("navigating to %s: %w", target, err)
+	}
 	
-	if autoClone && node.HasLazyRepos() {
-		// Already handled by TreeManager, just show count
-		lazyCount := 0
-		for _, repo := range node.Repos {
-			if repo.Lazy && repo.State == "cloned" {
-				lazyCount++
+	newPath := m.TreeManager.GetCurrentPath()
+	fmt.Printf("✅ Navigated to: %s\n", newPath)
+	
+	// Show filesystem path for clarity
+	fsPath := m.TreeManager.ComputeFilesystemPath(newPath)
+	fmt.Printf("📁 Filesystem path: %s\n", fsPath)
+	
+	// Show children if any
+	children, _ := m.TreeManager.ListChildren("")
+	if len(children) > 0 {
+		fmt.Printf("\nChildren:\n")
+		for _, child := range children {
+			icon := "📦"
+			if child.Type == tree.NodeTypeRepo && child.State == tree.RepoStateMissing {
+				icon = "💤"
 			}
-		}
-		if lazyCount > 0 {
-			fmt.Printf("🔄 Auto-cloned %d lazy repositories\n", lazyCount)
+			fmt.Printf("  %s %s\n", icon, child.Name)
 		}
 	}
 	
 	return nil
 }
 
-// ShowCurrent displays the current node
-func (m *ManagerV3) ShowCurrent() error {
-	resolution, err := m.TreeManager.ResolveTarget("")
-	if err != nil {
-		return err
+// AddRepo adds a repository to the current or specified node
+func (m *ManagerV3) AddRepo(parentPath, url string, options tree.AddOptions) error {
+	// Extract repo name from URL if not provided
+	name := options.Name
+	if name == "" {
+		parts := strings.Split(url, "/")
+		name = strings.TrimSuffix(parts[len(parts)-1], ".git")
 	}
 	
-	fmt.Printf("📍 Current: %s (from %s)\n", resolution.Node.GetPath(), resolution.Source)
-	
-	if resolution.Node.Meta.Description != "" {
-		fmt.Printf("   Description: %s\n", resolution.Node.Meta.Description)
+	// Add the repository
+	if err := m.TreeManager.AddRepo(parentPath, name, url, options.Lazy); err != nil {
+		return fmt.Errorf("adding repository: %w", err)
 	}
 	
-	fmt.Printf("   Repositories: %d\n", len(resolution.Node.Repos))
-	fmt.Printf("   Child nodes: %d\n", len(resolution.Node.Children))
+	fmt.Printf("✅ Added repository: %s\n", name)
+	if options.Lazy {
+		fmt.Printf("💤 Repository marked as lazy (will clone on first use)\n")
+	} else {
+		fmt.Printf("📦 Repository cloned successfully\n")
+	}
 	
 	return nil
 }
 
-// ClearCurrent clears the stored current node
-func (m *ManagerV3) ClearCurrent() error {
-	if m.State != nil {
-		m.State.SetCurrentNode("")
-		if err := m.State.SaveStateV3(m.statePath); err != nil {
-			return fmt.Errorf("saving state: %w", err)
-		}
+// RemoveNode removes a node from the tree
+func (m *ManagerV3) RemoveNode(target string) error {
+	if target == "" {
+		return fmt.Errorf("target path required")
 	}
-	fmt.Println("✅ Cleared current node")
+	
+	// Confirm before removing
+	fmt.Printf("⚠️  This will remove the node and all its children\n")
+	fmt.Printf("Are you sure you want to remove %s? (y/N): ", target)
+	
+	var response string
+	fmt.Scanln(&response)
+	if response != "y" && response != "Y" {
+		fmt.Println("Cancelled")
+		return nil
+	}
+	
+	if err := m.TreeManager.RemoveNode(target); err != nil {
+		return fmt.Errorf("removing node: %w", err)
+	}
+	
+	fmt.Printf("✅ Removed node: %s\n", target)
 	return nil
 }
-
-// Display Commands
 
 // ShowTree displays the tree structure
-func (m *ManagerV3) ShowTree(path string, depth int) error {
-	resolution, err := m.TreeManager.ResolveTarget(path)
-	if err != nil {
-		return err
+func (m *ManagerV3) ShowTree(maxDepth int) error {
+	var output string
+	if maxDepth > 0 {
+		output = m.TreeManager.DisplayTreeWithDepth(maxDepth)
+	} else {
+		output = m.TreeManager.DisplayTree()
 	}
 	
-	fmt.Printf("🎯 Target: %s (from %s)\n", resolution.Node.GetPath(), resolution.Source)
+	fmt.Print(output)
+	return nil
+}
+
+// ShowStatus displays the current status
+func (m *ManagerV3) ShowStatus() error {
+	fmt.Print(m.TreeManager.DisplayStatus())
+	return nil
+}
+
+// ShowCurrent displays the current node information
+func (m *ManagerV3) ShowCurrent() error {
+	currentPath := m.TreeManager.GetCurrentPath()
+	fmt.Printf("Current node: %s\n", currentPath)
+	
+	// Show filesystem path
+	fsPath := m.TreeManager.ComputeFilesystemPath(currentPath)
+	fmt.Printf("Filesystem path: %s\n", fsPath)
+	
+	// Show path from root
+	fmt.Printf("Path: %s\n", m.TreeManager.DisplayPath())
+	
+	// Show children
+	fmt.Printf("\n%s\n", m.TreeManager.DisplayChildren())
+	
+	return nil
+}
+
+// ListNodes lists children of current or specified node
+func (m *ManagerV3) ListNodes(target string) error {
+	children, err := m.TreeManager.ListChildren(target)
+	if err != nil {
+		return fmt.Errorf("listing children: %w", err)
+	}
+	
+	if len(children) == 0 {
+		fmt.Println("No children")
+		return nil
+	}
+	
+	targetPath := target
+	if targetPath == "" {
+		targetPath = m.TreeManager.GetCurrentPath()
+	}
+	
+	fmt.Printf("Children of %s:\n", targetPath)
+	for _, child := range children {
+		status := ""
+		if child.Type == tree.NodeTypeRepo {
+			switch child.State {
+			case tree.RepoStateMissing:
+				status = " (lazy)"
+			case tree.RepoStateModified:
+				status = " (modified)"
+			}
+		}
+		fmt.Printf("  - %s%s\n", child.Name, status)
+	}
+	
+	return nil
+}
+
+// CloneRepos clones lazy repositories
+func (m *ManagerV3) CloneRepos(target string, recursive bool) error {
+	if target == "" {
+		target = m.TreeManager.GetCurrentPath()
+	}
+	
+	fmt.Printf("Cloning lazy repositories in %s", target)
+	if recursive {
+		fmt.Printf(" (recursive)")
+	}
 	fmt.Println()
 	
-	options := tree.TreeDisplay{
-		MaxDepth:     depth,
-		ShowRepos:    true,
-		ShowLazy:     true,
-		ShowModified: true,
+	if err := m.TreeManager.CloneLazyRepos(target, recursive); err != nil {
+		return fmt.Errorf("cloning repositories: %w", err)
 	}
 	
-	output := m.TreeManager.DisplayTree(resolution.Node, options)
-	fmt.Print(output)
+	fmt.Println("✅ All lazy repositories cloned")
+	return nil
+}
+
+// StartClaude starts Claude Code at the current or specified node
+func (m *ManagerV3) StartClaude(target string) error {
+	targetPath := target
+	if targetPath == "" {
+		targetPath = m.TreeManager.GetCurrentPath()
+	}
+	
+	// Navigate to the target node first
+	if targetPath != m.TreeManager.GetCurrentPath() {
+		if err := m.TreeManager.UseNode(targetPath); err != nil {
+			return fmt.Errorf("navigating to %s: %w", targetPath, err)
+		}
+	}
+	
+	// Get filesystem path
+	fsPath := m.TreeManager.ComputeFilesystemPath(targetPath)
+	
+	fmt.Printf("Starting Claude Code at: %s\n", targetPath)
+	fmt.Printf("Filesystem path: %s\n", fsPath)
+	
+	// Change to the directory
+	if err := os.Chdir(fsPath); err != nil {
+		return fmt.Errorf("changing directory: %w", err)
+	}
+	
+	// Execute claude command
+	cmd := m.CmdExecutor.Command("claude")
+	cmd.SetDir(fsPath)
+	
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("starting Claude: %w", err)
+	}
 	
 	return nil
 }
 
-// ListNodes lists child nodes
-func (m *ManagerV3) ListNodes(recursive bool) error {
-	resolution, err := m.TreeManager.ResolveTarget("")
-	if err != nil {
-		return err
+// Helper function to create shared memory file
+func createSharedMemory(path string) error {
+	content := `# Shared Memory
+
+This file serves as a shared memory space for coordination across the repository tree.
+
+## Current Focus
+- Tree-based navigation system
+- Simplified state management
+- CWD-first resolution
+
+## Notes
+- Each node in the tree can contain repositories
+- Navigation changes the current working directory
+- Lazy repositories are cloned on first access
+`
+	return os.WriteFile(path, []byte(content), 0644)
+}
+
+// InitWorkspace initializes a new workspace (compatibility method)
+func (m *ManagerV3) InitWorkspace(projectName string, interactive bool) error {
+	return m.InitializeV3(projectName, interactive)
+}
+
+// UseNodeWithClone navigates with optional auto-clone (compatibility method)
+func (m *ManagerV3) UseNodeWithClone(path string, autoClone bool) error {
+	// For now, always auto-clone if needed
+	return m.UseNode(path)
+}
+
+// ClearCurrent clears the current node position
+func (m *ManagerV3) ClearCurrent() error {
+	// Reset to root
+	if err := m.TreeManager.UseNode("/"); err != nil {
+		return fmt.Errorf("resetting to root: %w", err)
 	}
-	
-	fmt.Printf("🎯 Target: %s (from %s)\n", resolution.Node.GetPath(), resolution.Source)
-	
-	output := m.TreeManager.DisplayList(resolution.Node, recursive)
-	fmt.Print(output)
-	
+	fmt.Println("Current position cleared (reset to root)")
 	return nil
 }
 
-// StatusNode shows node status
+// ShowTreeAtPath shows tree at a specific path (compatibility method)
+func (m *ManagerV3) ShowTreeAtPath(path string, depth int) error {
+	// Navigate to path first if specified
+	if path != "" {
+		if err := m.TreeManager.UseNode(path); err != nil {
+			return fmt.Errorf("navigating to %s: %w", path, err)
+		}
+	}
+	return m.ShowTree(depth)
+}
+
+// ListNodesRecursive lists nodes with recursive option (compatibility method)
+func (m *ManagerV3) ListNodesRecursive(recursive bool) error {
+	// List from current position
+	return m.ListNodes("")
+}
+
+// StatusNode shows status of a node
 func (m *ManagerV3) StatusNode(path string, recursive bool) error {
-	resolution, err := m.TreeManager.ResolveTarget(path)
-	if err != nil {
-		return err
+	if path != "" {
+		if err := m.TreeManager.UseNode(path); err != nil {
+			return fmt.Errorf("navigating to %s: %w", path, err)
+		}
 	}
-	
-	fmt.Printf("🎯 Target: %s (from %s)\n", resolution.Node.GetPath(), resolution.Source)
-	fmt.Println()
-	
-	output := m.TreeManager.DisplayStatus(resolution.Node, recursive)
-	fmt.Print(output)
-	
-	return nil
+	return m.ShowStatus()
 }
 
-// Repository Management
-
-// AddRepo adds a repository to the current node
-func (m *ManagerV3) AddRepo(repoURL, name string, lazy bool) error {
-	resolution, err := m.TreeManager.ResolveTarget("")
-	if err != nil {
-		return err
-	}
-	
-	fmt.Printf("🎯 Target: %s (from %s)\n", resolution.Node.GetPath(), resolution.Source)
-	
+// AddRepoSimple adds repo with individual parameters (compatibility method)
+func (m *ManagerV3) AddRepoSimple(repoURL, name string, lazy bool) error {
 	options := tree.AddOptions{
 		Name: name,
 		Lazy: lazy,
 	}
-	
-	repo, err := m.TreeManager.AddRepo(repoURL, options)
-	if err != nil {
-		return err
-	}
-	
-	if lazy {
-		fmt.Printf("📦 Added %s (lazy - will clone on use)\n", repo.Name)
-	} else {
-		fmt.Printf("✅ Added and cloned %s\n", repo.Name)
-	}
-	
-	return nil
+	return m.AddRepo("", repoURL, options)
 }
 
-// RemoveRepo removes a repository from the current node
+// RemoveRepo removes a repository (compatibility method)
 func (m *ManagerV3) RemoveRepo(name string) error {
-	resolution, err := m.TreeManager.ResolveTarget("")
-	if err != nil {
-		return err
-	}
-	
-	fmt.Printf("🎯 Target: %s (from %s)\n", resolution.Node.GetPath(), resolution.Source)
-	
-	if err := m.TreeManager.RemoveRepo(name); err != nil {
-		return err
-	}
-	
-	fmt.Printf("✅ Removed %s\n", name)
-	return nil
+	return m.RemoveNode(name)
 }
 
 // CloneLazy clones lazy repositories
 func (m *ManagerV3) CloneLazy(recursive bool) error {
-	resolution, err := m.TreeManager.ResolveTarget("")
-	if err != nil {
-		return err
-	}
-	
-	fmt.Printf("🎯 Target: %s (from %s)\n", resolution.Node.GetPath(), resolution.Source)
-	
-	if recursive {
-		fmt.Printf("🔄 Cloning lazy repositories recursively...\n")
-	} else {
-		fmt.Printf("🔄 Cloning lazy repositories...\n")
-	}
-	
-	if err := m.TreeManager.CloneLazy(recursive); err != nil {
-		return err
-	}
-	
-	fmt.Println("✅ Clone complete")
-	return nil
+	return m.CloneRepos("", recursive)
 }
-
-// Git Operations
 
 // PullNode pulls repositories at a node
 func (m *ManagerV3) PullNode(path string, recursive bool) error {
-	resolution, err := m.TreeManager.ResolveTarget(path)
-	if err != nil {
-		return err
-	}
-	
-	fmt.Printf("🎯 Target: %s (from %s)\n", resolution.Node.GetPath(), resolution.Source)
-	
-	if recursive {
-		count := resolution.Node.CountRepos(true)
-		fmt.Printf("🔄 Recursive: will pull %d repositories\n", count)
-		fmt.Print("Proceed? [Y/n] ")
-		
-		var response string
-		fmt.Scanln(&response)
-		if strings.ToLower(response) == "n" {
-			fmt.Println("❌ Cancelled")
-			return nil
+	if path != "" {
+		if err := m.TreeManager.UseNode(path); err != nil {
+			return fmt.Errorf("navigating to %s: %w", path, err)
 		}
 	}
 	
-	// Pull repos at this node
-	return m.pullNodeRepos(resolution.Node, recursive)
+	currentPath := m.TreeManager.GetCurrentPath()
+	fsPath := m.TreeManager.ComputeFilesystemPath(currentPath)
+	
+	fmt.Printf("Pulling repositories at %s\n", currentPath)
+	
+	// Pull in the current directory
+	if err := m.GitCmd.Pull(fsPath); err != nil {
+		return fmt.Errorf("pulling at %s: %w", currentPath, err)
+	}
+	
+	if recursive {
+		// TODO: Implement recursive pull
+		fmt.Println("Recursive pull not yet implemented")
+	}
+	
+	fmt.Printf("✅ Pulled repositories at %s\n", currentPath)
+	return nil
 }
 
 // CommitNode commits changes at a node
 func (m *ManagerV3) CommitNode(path string, message string, recursive bool) error {
-	resolution, err := m.TreeManager.ResolveTarget(path)
-	if err != nil {
-		return err
+	if path != "" {
+		if err := m.TreeManager.UseNode(path); err != nil {
+			return fmt.Errorf("navigating to %s: %w", path, err)
+		}
 	}
 	
-	fmt.Printf("🎯 Target: %s (from %s)\n", resolution.Node.GetPath(), resolution.Source)
+	currentPath := m.TreeManager.GetCurrentPath()
+	fsPath := m.TreeManager.ComputeFilesystemPath(currentPath)
+	
+	fmt.Printf("Committing changes at %s\n", currentPath)
+	
+	// Add all changes
+	if err := m.GitCmd.Add(fsPath, "."); err != nil {
+		return fmt.Errorf("staging changes at %s: %w", currentPath, err)
+	}
+	
+	// Commit
+	if err := m.GitCmd.Commit(fsPath, message); err != nil {
+		return fmt.Errorf("committing at %s: %w", currentPath, err)
+	}
 	
 	if recursive {
-		count := resolution.Node.CountRepos(true)
-		fmt.Printf("🔄 Recursive: will commit in %d repositories\n", count)
+		// TODO: Implement recursive commit
+		fmt.Println("Recursive commit not yet implemented")
 	}
 	
-	return m.commitNodeRepos(resolution.Node, message, recursive)
+	fmt.Printf("✅ Committed changes at %s\n", currentPath)
+	return nil
 }
 
 // PushNode pushes changes from a node
 func (m *ManagerV3) PushNode(path string, recursive bool) error {
-	resolution, err := m.TreeManager.ResolveTarget(path)
-	if err != nil {
-		return err
+	if path != "" {
+		if err := m.TreeManager.UseNode(path); err != nil {
+			return fmt.Errorf("navigating to %s: %w", path, err)
+		}
 	}
 	
-	fmt.Printf("🎯 Target: %s (from %s)\n", resolution.Node.GetPath(), resolution.Source)
+	currentPath := m.TreeManager.GetCurrentPath()
+	fsPath := m.TreeManager.ComputeFilesystemPath(currentPath)
+	
+	fmt.Printf("Pushing changes from %s\n", currentPath)
+	
+	// Push
+	if err := m.GitCmd.Push(fsPath); err != nil {
+		return fmt.Errorf("pushing from %s: %w", currentPath, err)
+		}
 	
 	if recursive {
-		count := resolution.Node.CountRepos(true)
-		fmt.Printf("🔄 Recursive: will push %d repositories\n", count)
+		// TODO: Implement recursive push
+		fmt.Println("Recursive push not yet implemented")
 	}
 	
-	return m.pushNodeRepos(resolution.Node, recursive)
+	fmt.Printf("✅ Pushed changes from %s\n", currentPath)
+	return nil
 }
 
-// Session Management
-
-// StartNode starts a Claude session at a node
+// StartNode starts Claude at a node
 func (m *ManagerV3) StartNode(path string, newWindow bool) error {
-	resolution, err := m.TreeManager.ResolveTarget(path)
-	if err != nil {
-		return err
-	}
-	
-	fmt.Printf("🎯 Starting session at: %s (from %s)\n", resolution.Node.GetPath(), resolution.Source)
-	
-	// Generate CLAUDE.md for the node
-	claudePath := filepath.Join(resolution.Node.FullPath, "CLAUDE.md")
-	claudeContent := fmt.Sprintf(`# CLAUDE.md - %s
-
-This Claude Code session is working at: %s
-
-## Current Node
-- Path: %s
-- Repositories: %d
-- Children: %d
-
-## Available Repositories
-`, resolution.Node.Name, resolution.Node.GetPath(), resolution.Node.GetPath(), 
-		len(resolution.Node.Repos), len(resolution.Node.Children))
-	
-	for _, repo := range resolution.Node.Repos {
-		claudeContent += fmt.Sprintf("- %s (%s)\n", repo.Name, repo.State)
-	}
-	
-	claudeContent += "\n## Navigation\nUse 'rc use <path>' to navigate the tree.\n"
-	
-	if err := os.WriteFile(claudePath, []byte(claudeContent), 0644); err != nil {
-		return fmt.Errorf("creating CLAUDE.md: %w", err)
-	}
-	
-	// Start Claude session
-	cmd := m.CmdExecutor.Command("claude", "--local-dir", resolution.Node.FullPath)
-	cmd.SetDir(resolution.Node.FullPath)
-	
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("starting Claude session: %w", err)
-	}
-	
-	// Update state
-	if m.State != nil {
-		m.State.AddSession(resolution.Node.GetPath(), 0) // PID would be set if we tracked it
-		m.State.SaveStateV3(m.statePath)
-	}
-	
-	fmt.Printf("✅ Started Claude session at %s\n", resolution.Node.GetPath())
-	return nil
-}
-
-// Helper functions
-
-func (m *ManagerV3) pullNodeRepos(node *tree.Node, recursive bool) error {
-	// Pull repos at this node
-	for _, repo := range node.Repos {
-		if repo.State == "cloned" || repo.State == "modified" {
-			fmt.Printf("  Pulling %s...\n", repo.Name)
-			if err := m.GitCmd.Pull(repo.Path); err != nil {
-				fmt.Printf("  ⚠️  Failed to pull %s: %v\n", repo.Name, err)
-			} else {
-				fmt.Printf("  ✅ %s\n", repo.Name)
-			}
-		}
-	}
-	
-	// Recursively pull children if requested
-	if recursive {
-		for _, child := range node.Children {
-			fmt.Printf("\n📁 %s:\n", child.Name)
-			if err := m.pullNodeRepos(child, true); err != nil {
-				return err
-			}
-		}
-	}
-	
-	return nil
-}
-
-func (m *ManagerV3) commitNodeRepos(node *tree.Node, message string, recursive bool) error {
-	// Commit in repos at this node
-	for _, repo := range node.Repos {
-		if repo.State == "cloned" || repo.State == "modified" {
-			fmt.Printf("  Committing in %s...\n", repo.Name)
-			
-			// Add all changes
-			if err := m.GitCmd.Add(repo.Path, "."); err != nil {
-				fmt.Printf("  ⚠️  Failed to add changes in %s: %v\n", repo.Name, err)
-				continue
-			}
-			
-			// Commit
-			if err := m.GitCmd.Commit(repo.Path, message); err != nil {
-				// Check if it's because there's nothing to commit
-				if strings.Contains(err.Error(), "nothing to commit") {
-					fmt.Printf("  ℹ️  %s: no changes to commit\n", repo.Name)
-				} else {
-					fmt.Printf("  ⚠️  Failed to commit in %s: %v\n", repo.Name, err)
-				}
-			} else {
-				fmt.Printf("  ✅ %s\n", repo.Name)
-			}
-		}
-	}
-	
-	// Recursively commit in children if requested
-	if recursive {
-		for _, child := range node.Children {
-			fmt.Printf("\n📁 %s:\n", child.Name)
-			if err := m.commitNodeRepos(child, message, true); err != nil {
-				return err
-			}
-		}
-	}
-	
-	return nil
-}
-
-func (m *ManagerV3) pushNodeRepos(node *tree.Node, recursive bool) error {
-	// Push repos at this node
-	for _, repo := range node.Repos {
-		if repo.State == "cloned" || repo.State == "modified" {
-			fmt.Printf("  Pushing %s...\n", repo.Name)
-			if err := m.GitCmd.Push(repo.Path); err != nil {
-				fmt.Printf("  ⚠️  Failed to push %s: %v\n", repo.Name, err)
-			} else {
-				fmt.Printf("  ✅ %s\n", repo.Name)
-			}
-		}
-	}
-	
-	// Recursively push children if requested
-	if recursive {
-		for _, child := range node.Children {
-			fmt.Printf("\n📁 %s:\n", child.Name)
-			if err := m.pushNodeRepos(child, true); err != nil {
-				return err
-			}
-		}
-	}
-	
-	return nil
+	// Use StartClaude internally
+	return m.StartClaude(path)
 }
