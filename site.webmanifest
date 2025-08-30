@@ -1,0 +1,42 @@
+{
+    "name": "MUNO - Multi-repository Orchestration",
+    "short_name": "MUNO",
+    "description": "Manage multiple git repositories with monorepo-like convenience",
+    "start_url": "https://github.com/taokim/muno",
+    "display": "browser",
+    "background_color": "#ffffff",
+    "theme_color": "#4a90e2",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/assets/favicon-16x16.png",
+            "sizes": "16x16",
+            "type": "image/png"
+        },
+        {
+            "src": "/assets/favicon-32x32.png",
+            "sizes": "32x32",
+            "type": "image/png"
+        },
+        {
+            "src": "/assets/android-chrome-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/assets/android-chrome-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "/assets/muno-logo.png",
+            "sizes": "1024x1024",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["developer", "productivity", "utilities"],
+    "lang": "en-US",
+    "dir": "ltr",
+    "prefer_related_applications": false
+}

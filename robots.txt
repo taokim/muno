@@ -1,0 +1,11 @@
+# Robots.txt for MUNO
+# https://github.com/taokim/muno
+
+User-agent: *
+Allow: /
+
+# GitHub Pages
+Sitemap: https://taokim.github.io/muno/sitemap.xml
+
+# Direct users to main repository
+Host: github.com/taokim/muno

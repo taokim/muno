@@ -57,7 +57,11 @@
       "Bash(fi)",
       "Bash(./bin/muno:*)",
       "Bash(git remote get-url:*)",
-      "Bash(git remote set-url:*)"
+      "Bash(git remote set-url:*)",
+      "Bash(gh auth:*)",
+      "Bash(gh repo rename:*)",
+      "Bash(gh repo edit:*)",
+      "Bash(gh repo view:*)"
     ],
     "deny": [],
     "additionalDirectories": [
