@@ -10,7 +10,6 @@ import (
 
 // ConfigTree represents the tree-based configuration
 type ConfigTree struct {
-	Version      int              `yaml:"version"`
 	Workspace    WorkspaceTree  `yaml:"workspace"`
 	Repositories []RepoDefinition `yaml:"repositories,omitempty"`
 	
@@ -61,7 +60,6 @@ type TreeState struct {
 // DefaultConfigTree returns the default tree configuration
 func DefaultConfigTree(projectName string) *ConfigTree {
 	return &ConfigTree{
-		Version: 3,
 		Workspace: WorkspaceTree{
 			Name:     projectName,
 			RootRepo: "", // Can be set if root is a repo
@@ -83,9 +81,6 @@ func LoadTree(path string) (*ConfigTree, error) {
 	}
 
 	// Apply defaults
-	if cfg.Version == 0 {
-		cfg.Version = 3
-	}
 	if cfg.Workspace.ReposDir == "" {
 		cfg.Workspace.ReposDir = "repos"
 	}
@@ -123,10 +118,6 @@ func (c *ConfigTree) Save(path string) error {
 
 // Validate validates the tree configuration
 func (c *ConfigTree) Validate() error {
-	if c.Version != 3 {
-		return fmt.Errorf("invalid version: %d (expected 3)", c.Version)
-	}
-	
 	if c.Workspace.Name == "" {
 		return fmt.Errorf("workspace name is required")
 	}

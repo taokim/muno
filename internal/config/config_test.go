@@ -137,7 +137,6 @@ func TestConfigValidation(t *testing.T) {
 		{
 			name: "valid config",
 			config: &Config{
-				Version: 3,
 				Workspace: WorkspaceConfig{
 					Name: "test",
 				},
@@ -152,7 +151,6 @@ func TestConfigValidation(t *testing.T) {
 		{
 			name: "missing workspace name",
 			config: &Config{
-				Version:   3,
 				Workspace: WorkspaceConfig{},
 				Repositories: map[string]Repository{
 					"repo1": {URL: "https://github.com/test/repo1.git"},
@@ -164,7 +162,6 @@ func TestConfigValidation(t *testing.T) {
 		{
 			name: "no repositories",
 			config: &Config{
-				Version: 3,
 				Workspace: WorkspaceConfig{
 					Name: "test",
 				},
@@ -176,7 +173,6 @@ func TestConfigValidation(t *testing.T) {
 		{
 			name: "invalid regex pattern",
 			config: &Config{
-				Version: 3,
 				Workspace: WorkspaceConfig{
 					Name: "test",
 				},
@@ -212,11 +208,8 @@ func TestConfigYAML(t *testing.T) {
 	configPath := filepath.Join(tempDir, "repo-claude.yaml")
 	
 	yamlContent := `
-version: 3
 workspace:
   name: test-platform
-  isolation_mode: true
-  base_path: workspaces
 
 defaults:
   lazy: true
@@ -258,7 +251,7 @@ documentation:
 	cfg, err := Load(configPath)
 	require.NoError(t, err)
 	
-	assert.Equal(t, 3, cfg.Version)
+	// Version field removed
 	assert.Equal(t, "test-platform", cfg.Workspace.Name)
 	assert.Len(t, cfg.Repositories, 3)
 	
@@ -280,7 +273,6 @@ func TestConfigSaveLoad(t *testing.T) {
 	
 	// Create a config
 	cfg := &Config{
-		Version: 3,
 		Workspace: WorkspaceConfig{
 			Name:     "test-project",
 			RootPath: "repos",
@@ -313,7 +305,7 @@ func TestConfigSaveLoad(t *testing.T) {
 	require.NoError(t, err)
 	
 	// Verify loaded config matches original
-	assert.Equal(t, cfg.Version, loaded.Version)
+	// Version field removed
 	assert.Equal(t, cfg.Workspace.Name, loaded.Workspace.Name)
 	assert.Equal(t, cfg.Workspace.RootPath, loaded.Workspace.RootPath)
 	
@@ -332,7 +324,6 @@ func TestConfigSaveLoad(t *testing.T) {
 // TestRecursiveWorkspaceDetection tests detecting nested workspaces
 func TestRecursiveWorkspaceDetection(t *testing.T) {
 	cfg := &Config{
-		Version: 3,
 		Workspace: WorkspaceConfig{
 			Name: "root",
 		},

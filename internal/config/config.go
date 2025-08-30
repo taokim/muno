@@ -13,9 +13,8 @@ import (
 // DefaultMetaRepoPattern is the default regex pattern to detect meta-repos
 const DefaultMetaRepoPattern = `(?i)(-(repo|monorepo|rc|meta)$)`
 
-// Config represents the simplified configuration structure (version 3)
+// Config represents the simplified configuration structure
 type Config struct {
-	Version       int                      `yaml:"version"`
 	Workspace     WorkspaceConfig          `yaml:"workspace"`
 	Defaults      Defaults                 `yaml:"defaults,omitempty"`
 	Repositories  map[string]Repository  `yaml:"repositories"`
@@ -71,7 +70,6 @@ func DefaultDefaults() Defaults {
 // DefaultConfig returns the default configuration template
 func DefaultConfig(projectName string) *Config {
 	return &Config{
-		Version: 3,
 		Workspace: WorkspaceConfig{
 			Name:     projectName,
 			RootPath: "repos",
@@ -202,9 +200,6 @@ func Load(path string) (*Config, error) {
 	}
 
 	// Apply defaults
-	if cfg.Version == 0 {
-		cfg.Version = 3
-	}
 	
 	// Set default workspace settings
 	if cfg.Workspace.RootPath == "" {

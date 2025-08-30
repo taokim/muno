@@ -37,7 +37,6 @@ my-platform/                    # Workspace root
 Main configuration file defining the workspace:
 
 ```yaml
-version: 3
 workspace:
   name: my-platform
   root_path: repos

@@ -19,7 +19,6 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 	
 	// Create base configuration early to get repos directory
 	cfg := &config.ConfigTree{
-		Version: 3,
 		Workspace: config.WorkspaceTree{
 			Name:     projectName,
 			ReposDir: "repos", // Default value

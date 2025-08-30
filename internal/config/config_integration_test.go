@@ -16,7 +16,6 @@ func TestWorkspaceHierarchy(t *testing.T) {
 	
 	// Create root workspace config
 	rootConfig := &Config{
-		Version: 3,
 		Workspace: WorkspaceConfig{
 			Name:     "platform",
 			RootPath: "repos",
@@ -69,7 +68,6 @@ func TestWorkspaceHierarchy(t *testing.T) {
 // TestRecursiveScopes tests scopes that reference sub-workspace scopes
 func TestRecursiveScopes(t *testing.T) {
 	cfg := &Config{
-		Version: 3,
 		Workspace: WorkspaceConfig{
 			Name: "root",
 		},
@@ -173,7 +171,6 @@ func TestSmartLoading(t *testing.T) {
 func TestPerformanceOptimization(t *testing.T) {
 	// Create a large workspace config
 	cfg := &Config{
-		Version: 3,
 		Workspace: WorkspaceConfig{
 			Name: "enterprise",
 		},
