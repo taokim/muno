@@ -10,6 +10,7 @@ An Architecture Decision Record captures an important architectural decision mad
 
 - [ADR-001](001-simplify-git-management.md) - Simplify Git Management by Removing Android Repo Tool Dependency (2024-08-15)
 - [ADR-002](002-tree-based-architecture.md) - Tree-Based Architecture (2024-12-27)
+- [ADR-003](003-manager-interface-abstraction.md) - Manager Interface Abstraction for Testability and Plugin Architecture (2024-12)
 
 ## ADR Template
 
