@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -115,7 +116,8 @@ Creates:
 			
 			if len(args) > 0 {
 				projectName = args[0]
-				projectPath = projectName
+				// For init, we always use current directory
+				projectPath = "."
 			} else {
 				// Use current directory name
 				cwd, err := os.Getwd()
@@ -125,7 +127,10 @@ Creates:
 				projectName = filepath.Base(cwd)
 			}
 			
-			mgr, err := manager.NewManager(projectPath)
+			// For init command, create Manager without loading config
+			// since we're about to create it
+			
+			mgr, err := manager.NewManagerForInit(projectPath)
 			if err != nil {
 				return fmt.Errorf("creating manager: %w", err)
 			}
@@ -140,8 +145,9 @@ Creates:
 					return fmt.Errorf("smart init workspace: %w", err)
 				}
 			} else {
-				// Use old init method (always interactive)
-				if err := mgr.Initialize(projectName, true); err != nil {
+				// Use basic init method
+				ctx := context.Background()
+				if err := mgr.Initialize(ctx, projectPath); err != nil {
 					return fmt.Errorf("initializing workspace: %w", err)
 				}
 			}
@@ -173,7 +179,7 @@ Shows:
 - Lazy/cloned state`,
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV2()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -200,7 +206,7 @@ If no path is provided, starts at the current node based on CWD.
 The working directory will be set to the node's directory.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV2()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -233,7 +239,7 @@ func (a *App) newStatusCmd() *cobra.Command {
 - Uncommitted changes`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV2()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -262,7 +268,7 @@ func (a *App) newTreeCmd() *cobra.Command {
 		Long:  `Display the tree structure of the workspace from current or specified node.`,
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV2()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -294,7 +300,7 @@ func (a *App) newAddCmd() *cobra.Command {
 The repository will be cloned immediately unless --lazy is specified.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV2()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -316,7 +322,7 @@ func (a *App) newRemoveCmd() *cobra.Command {
 		Short: "Remove a child repository",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV2()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -336,7 +342,7 @@ func (a *App) newCloneCmd() *cobra.Command {
 		Long:  `Clone repositories marked as lazy that haven't been cloned yet.`,
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV2()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -371,7 +377,7 @@ Path formats:
 - Root: ~ or /`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV2()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -395,7 +401,7 @@ func (a *App) newCurrentCmd() *cobra.Command {
 		Long:  `Display the current node path in the workspace tree.`,
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV2()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -429,7 +435,7 @@ Target is determined by:
 4. Root node`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV2()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -463,7 +469,7 @@ func (a *App) newCommitCmd() *cobra.Command {
 				return fmt.Errorf("commit message is required")
 			}
 			
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV2()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -494,7 +500,7 @@ func (a *App) newPushCmd() *cobra.Command {
 		Long: `Push committed changes from repositories at the current node.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
+			mgr, err := manager.LoadFromCurrentDirV2()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}

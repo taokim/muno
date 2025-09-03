@@ -10,11 +10,11 @@ import (
 
 // ConfigTree represents the tree-based configuration
 type ConfigTree struct {
-	Workspace    WorkspaceTree  `yaml:"workspace"`
-	Repositories []RepoDefinition `yaml:"repositories,omitempty"`
+	Workspace WorkspaceTree    `yaml:"workspace"`
+	Nodes     []NodeDefinition `yaml:"nodes"`  // Flat list of direct children only
 	
 	// Runtime fields (not in YAML)
-	Path     string `yaml:"-"`
+	Path string `yaml:"-"`  // Path to this config file
 }
 
 // WorkspaceTree represents workspace configuration for v3
@@ -24,11 +24,15 @@ type WorkspaceTree struct {
 	ReposDir string `yaml:"repos_dir,omitempty"` // Directory for repositories (default: "repos")
 }
 
-// RepoDefinition represents a repository definition in config
-type RepoDefinition struct {
-	URL  string `yaml:"url"`
-	Name string `yaml:"name"`
-	Lazy bool   `yaml:"lazy,omitempty"`
+// NodeDefinition represents a node in the distributed tree
+// Node type is determined by field presence (mutually exclusive):
+// - URL only: Git repository (may auto-discover muno.yaml)
+// - Config only: Pure config delegation (no repository)
+type NodeDefinition struct {
+	Name   string `yaml:"name"`
+	URL    string `yaml:"url,omitempty"`     // Git repository URL
+	Config string `yaml:"config,omitempty"`  // Path to sub-configuration
+	Lazy   bool   `yaml:"lazy,omitempty"`    // Clone on-demand
 }
 
 // NodeMeta represents metadata for a tree node
@@ -50,12 +54,7 @@ type RepoConfig struct {
 	State string `json:"state"` // "missing", "cloned", "modified"
 }
 
-// TreeState represents the current state of the tree
-type TreeState struct {
-	CurrentNodePath string              `json:"current_node_path"`
-	Nodes          map[string]NodeMeta `json:"nodes"`
-	LastUpdated    string              `json:"last_updated"`
-}
+// TreeState is deprecated - we now derive state from filesystem
 
 // DefaultConfigTree returns the default tree configuration
 func DefaultConfigTree(projectName string) *ConfigTree {
@@ -65,6 +64,7 @@ func DefaultConfigTree(projectName string) *ConfigTree {
 			RootRepo: "", // Can be set if root is a repo
 			ReposDir: "repos", // Default repos directory
 		},
+		Nodes: []NodeDefinition{}, // Empty nodes list
 	}
 }
 
@@ -121,6 +121,25 @@ func (c *ConfigTree) Validate() error {
 	if c.Workspace.Name == "" {
 		return fmt.Errorf("workspace name is required")
 	}
+	
+	// Validate each node
+	for _, node := range c.Nodes {
+		if node.Name == "" {
+			return fmt.Errorf("node name is required")
+		}
+		
+		// Ensure node has either URL or Config, not both
+		hasURL := node.URL != ""
+		hasConfig := node.Config != ""
+		
+		if hasURL && hasConfig {
+			return fmt.Errorf("node %s cannot have both URL and config fields", node.Name)
+		}
+		
+		if !hasURL && !hasConfig {
+			return fmt.Errorf("node %s must have either URL or config field", node.Name)
+		}
+	}
 
 	return nil
 }
@@ -133,14 +152,4 @@ func (c *ConfigTree) GetReposDir() string {
 	return c.Workspace.ReposDir
 }
 
-// LoadTreeState loads the tree state from JSON
-func LoadTreeState(path string) (*TreeState, error) {
-	// Implementation will be in tree package
-	return nil, fmt.Errorf("not implemented")
-}
-
-// SaveTreeState saves the tree state to JSON
-func SaveTreeState(state *TreeState, path string) error {
-	// Implementation will be in tree package
-	return fmt.Errorf("not implemented")
-}
+// State management functions removed - now stateless operation

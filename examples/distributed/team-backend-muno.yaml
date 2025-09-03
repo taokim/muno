@@ -1,0 +1,29 @@
+# Example: Auto-discovered config in cloned repository
+# Place this as muno.yaml in the team-backend repository root
+
+workspace:
+  name: team-backend
+  repos_dir: services  # Local convention for this team
+
+nodes:
+  # Microservices managed by backend team
+  - name: payment-service
+    url: https://github.com/myorg/payment-service.git
+    lazy: true  # Heavy service, clone on demand
+    
+  - name: order-service
+    url: https://github.com/myorg/order-service.git
+    lazy: true
+    
+  - name: notification-service
+    url: https://github.com/myorg/notification-service.git
+    lazy: true
+    
+  # Shared libraries - eager load
+  - name: backend-common
+    url: https://github.com/myorg/backend-common.git
+    lazy: false  # Always needed
+    
+  # Another config delegation
+  - name: legacy-services
+    config: legacy/services.yaml  # Further delegation

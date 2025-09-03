@@ -15,8 +15,8 @@ import (
 	"github.com/taokim/muno/internal/mocks"
 )
 
-// TestManagerV2_StartClaude tests the StartClaude function
-func TestManagerV2_StartClaude(t *testing.T) {
+// TestManager_StartClaude tests the StartClaude function
+func TestManager_StartClaude(t *testing.T) {
 	tests := []struct {
 		name           string
 		path           string
@@ -121,7 +121,7 @@ func TestManagerV2_StartClaude(t *testing.T) {
 				}
 			}
 
-			m := &ManagerV2{
+			m := &Manager{
 				initialized:     tt.initialized,
 				workspace:       "/workspace",
 				treeProvider:    mockTree,
@@ -165,8 +165,8 @@ func (m *MockProcessProviderWithResult) ExecuteShell(ctx context.Context, comman
 	}, nil
 }
 
-// TestManagerV2_Close tests the Close function
-func TestManagerV2_Close_Extended(t *testing.T) {
+// TestManager_Close tests the Close function
+func TestManager_Close_Extended(t *testing.T) {
 	tests := []struct {
 		name           string
 		hasPlugins     bool
@@ -208,7 +208,7 @@ func TestManagerV2_Close_Extended(t *testing.T) {
 				flushError: tt.metricsError,
 			}
 
-			m := &ManagerV2{
+			m := &Manager{
 				logProvider:     NewDefaultLogProvider(false),
 				metricsProvider: metricsProvider,
 			}
@@ -231,7 +231,7 @@ func TestManagerV2_Close_Extended(t *testing.T) {
 
 	// Test with nil providers
 	t.Run("nil providers", func(t *testing.T) {
-		m := &ManagerV2{
+		m := &Manager{
 			logProvider:     nil,
 			metricsProvider: nil,
 			pluginManager:   nil,
@@ -331,8 +331,8 @@ func (m *MockMetricsProviderWithError) Flush() error {
 	return m.flushError
 }
 
-// TestManagerV2_ClearCurrent tests the ClearCurrent function
-func TestManagerV2_ClearCurrent(t *testing.T) {
+// TestManager_ClearCurrent tests the ClearCurrent function
+func TestManager_ClearCurrent(t *testing.T) {
 	tests := []struct {
 		name        string
 		initialized bool
@@ -366,7 +366,7 @@ func TestManagerV2_ClearCurrent(t *testing.T) {
 				mockTree.SetError("SetPath", "/", tt.setPathErr)
 			}
 
-			m := &ManagerV2{
+			m := &Manager{
 				initialized:  tt.initialized,
 				treeProvider: mockTree,
 			}
@@ -384,8 +384,8 @@ func TestManagerV2_ClearCurrent(t *testing.T) {
 	}
 }
 
-// TestManagerV2_InitializeWithConfig tests the InitializeWithConfig function
-func TestManagerV2_InitializeWithConfig_Extended(t *testing.T) {
+// TestManager_InitializeWithConfig tests the InitializeWithConfig function
+func TestManager_InitializeWithConfig_Extended(t *testing.T) {
 	tests := []struct {
 		name          string
 		workspace     string
@@ -441,7 +441,7 @@ func TestManagerV2_InitializeWithConfig_Extended(t *testing.T) {
 			// Setup filesystem mock
 			mockFS.SetExists(tt.workspace, true)
 
-			m := &ManagerV2{
+			m := &Manager{
 				treeProvider:    mockTree,
 				fsProvider:      mockFS,
 				configProvider:  mockConfig,
@@ -449,7 +449,7 @@ func TestManagerV2_InitializeWithConfig_Extended(t *testing.T) {
 				uiProvider:      mockUI,
 				logProvider:     NewDefaultLogProvider(false),
 				metricsProvider: NewNoOpMetricsProvider(),
-				opts: ManagerOptionsV2{
+				opts: ManagerOptions{
 					AutoLoadConfig: false,
 				},
 			}
@@ -470,8 +470,8 @@ func TestManagerV2_InitializeWithConfig_Extended(t *testing.T) {
 	}
 }
 
-// TestManagerV2_SmartInitWorkspace tests the SmartInitWorkspace function
-func TestManagerV2_SmartInitWorkspace_Extended(t *testing.T) {
+// TestManager_SmartInitWorkspace tests the SmartInitWorkspace function
+func TestManager_SmartInitWorkspace_Extended(t *testing.T) {
 	tests := []struct {
 		name        string
 		projectName string
@@ -552,7 +552,7 @@ func TestManagerV2_SmartInitWorkspace_Extended(t *testing.T) {
 			// Setup UI mock for confirmations
 			mockUI.SetConfirmResponse(true)
 
-			m := &ManagerV2{
+			m := &Manager{
 				workspace:       tmpDir,
 				initialized:     false,
 				treeProvider:    mockTree,

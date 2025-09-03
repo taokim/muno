@@ -385,10 +385,12 @@ func TestPushWithOptions(t *testing.T) {
 	mgr := NewManager(tmpDir, repos)
 	
 	// Push will fail (no remote) but tests the function
-	_, err = mgr.PushWithOptions("origin", "main", ExecutorOptions{
+	results, err := mgr.PushWithOptions("origin", "main", ExecutorOptions{
 		Parallel:  false,
 	})
-	assert.Error(t, err)
+	assert.NoError(t, err) // No error returned for batch operations
+	assert.NotEmpty(t, results)
+	assert.False(t, results[0].Success) // But the operation should fail
 }
 
 func TestPull(t *testing.T) {
@@ -412,18 +414,18 @@ func TestPull(t *testing.T) {
 
 func TestPullWithOptions(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	// Create a fake git repo
 	repoPath := filepath.Join(tmpDir, "repo1")
 	err := os.MkdirAll(repoPath, 0755)
 	require.NoError(t, err)
-	
+
 	// Initialize git repo
 	cmd := exec.Command("git", "init")
 	cmd.Dir = repoPath
 	err = cmd.Run()
 	require.NoError(t, err)
-	
+
 	repos := []Repository{
 		{
 			Name:   "repo1",
@@ -432,14 +434,16 @@ func TestPullWithOptions(t *testing.T) {
 			Branch: "main",
 		},
 	}
-	
+
 	mgr := NewManager(tmpDir, repos)
-	
+
 	// Pull will fail (no remote) but tests the function
-	_, err = mgr.PullWithOptions("", "", false, ExecutorOptions{
+	results, err := mgr.PullWithOptions("", "", false, ExecutorOptions{
 		Parallel:  false,
 	})
-	assert.Error(t, err)
+	assert.NoError(t, err) // No error returned for batch operations
+	assert.NotEmpty(t, results)
+	assert.False(t, results[0].Success) // But the operation should fail
 }
 
 func TestFetch(t *testing.T) {
@@ -463,18 +467,18 @@ func TestFetch(t *testing.T) {
 
 func TestFetchWithOptions(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	// Create a fake git repo
 	repoPath := filepath.Join(tmpDir, "repo1")
 	err := os.MkdirAll(repoPath, 0755)
 	require.NoError(t, err)
-	
+
 	// Initialize git repo
 	cmd := exec.Command("git", "init")
 	cmd.Dir = repoPath
 	err = cmd.Run()
 	require.NoError(t, err)
-	
+
 	repos := []Repository{
 		{
 			Name:   "repo1",
@@ -483,12 +487,15 @@ func TestFetchWithOptions(t *testing.T) {
 			Branch: "main",
 		},
 	}
-	
+
 	mgr := NewManager(tmpDir, repos)
-	
-	// Fetch will fail (no remote) but tests the function
-	_, err = mgr.FetchWithOptions("", true, false, ExecutorOptions{
+
+	// Fetch will succeed (even with no remote, git fetch --all returns 0)
+	results, err := mgr.FetchWithOptions("", true, false, ExecutorOptions{
 		Parallel:  false,
 	})
-	assert.Error(t, err)
+	assert.NoError(t, err) // No error returned for batch operations
+	assert.NotEmpty(t, results)
+	// git fetch --all succeeds even without remotes (returns exit code 0)
+	assert.True(t, results[0].Success)
 }

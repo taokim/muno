@@ -363,3 +363,8 @@ func (m *Manager) loadState() error {
 func (m *Manager) GetState() *TreeState {
 	return m.state
 }
+
+// SaveState saves the current tree state to disk
+func (m *Manager) SaveState() error {
+	return m.saveState()
+}

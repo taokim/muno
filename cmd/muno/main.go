@@ -5,12 +5,12 @@ import (
 	"os"
 )
 
-// Build-time variables (set via ldflags)
+// Build-time variables set via ldflags
 var (
 	version   = "dev"
-	buildTime = "unknown"
 	gitCommit = "unknown"
 	gitBranch = "unknown"
+	buildTime = "unknown"
 )
 
 func main() {

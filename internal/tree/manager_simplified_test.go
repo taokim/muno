@@ -1,10 +1,11 @@
 package tree
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+	
+	"github.com/taokim/muno/internal/config"
 )
 
 // MockGitInterface for testing
@@ -69,52 +70,44 @@ func TestComputeFilesystemPath(t *testing.T) {
 
 func TestStateManagement(t *testing.T) {
 	tmpDir := t.TempDir()
+	
+	// Create a test configuration
+	cfg := &config.ConfigTree{
+		Workspace: config.WorkspaceTree{
+			Name:     "test-workspace",
+			ReposDir: "repos",
+		},
+		Nodes: []config.NodeDefinition{
+			{Name: "repo1", URL: "https://github.com/test/repo1.git", Lazy: true},
+		},
+	}
+	
+	// Save config
+	configPath := filepath.Join(tmpDir, "muno.yaml")
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Failed to save config: %v", err)
+	}
+	
 	mockGit := &MockGitInterface{}
 	
-	mgr, err := NewManager(tmpDir, mockGit)
+	// Create stateless manager
+	mgr, err := NewStatelessManager(tmpDir, mockGit)
 	if err != nil {
-		t.Fatalf("Failed to create manager: %v", err)
+		t.Fatalf("Failed to create stateless manager: %v", err)
 	}
 	
-	// Verify initial state
-	if mgr.state.CurrentPath != "/" {
-		t.Errorf("Initial current path = %s, want /", mgr.state.CurrentPath)
+	// Verify manager was created
+	if mgr == nil {
+		t.Fatal("Manager is nil")
 	}
 	
-	if len(mgr.state.Nodes) != 1 {
-		t.Errorf("Initial nodes count = %d, want 1", len(mgr.state.Nodes))
+	// Verify current path
+	if mgr.GetCurrentPath() != "/" {
+		t.Errorf("Initial current path = %s, want /", mgr.GetCurrentPath())
 	}
 	
-	root := mgr.state.Nodes["/"]
-	if root == nil {
-		t.Fatal("Root node not found")
-	}
-	
-	if root.Type != NodeTypeRoot {
-		t.Errorf("Root type = %s, want %s", root.Type, NodeTypeRoot)
-	}
-	
-	// Read state file and verify it contains no filesystem paths
-	statePath := filepath.Join(tmpDir, ".muno-tree.json")
-	data, err := os.ReadFile(statePath)
-	if err != nil {
-		t.Fatalf("Failed to read state file: %v", err)
-	}
-	
-	var state TreeState
-	if err := json.Unmarshal(data, &state); err != nil {
-		t.Fatalf("Failed to unmarshal state: %v", err)
-	}
-	
-	// Verify state contains only logical paths
-	stateStr := string(data)
-	if contains(stateStr, tmpDir) {
-		t.Errorf("State file contains filesystem path: %s", tmpDir)
-	}
-	
-	if !contains(stateStr, `"current_path": "/"`) {
-		t.Error("State file doesn't contain logical current_path")
-	}
+	// Since we're stateless, there's no state file to check
+	// All state is derived from filesystem and config
 }
 
 func TestAddRepo(t *testing.T) {

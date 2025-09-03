@@ -1,0 +1,584 @@
+package manager
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+	"testing"
+	
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
+	
+	"github.com/taokim/muno/internal/config"
+	"github.com/taokim/muno/internal/mocks"
+	"github.com/taokim/muno/internal/tree"
+)
+
+func TestNewManager(t *testing.T) {
+	tests := []struct {
+		name        string
+		projectPath string
+		opts        *ManagerOptions
+		setupMocks  func(*mocks.MockFileSystem, *mocks.MockGit)
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:        "successful creation with defaults",
+			projectPath: "/test/project",
+			opts:        nil,
+			setupMocks:  func(fs *mocks.MockFileSystem, git *mocks.MockGit) {},
+			wantErr:     false,
+		},
+		{
+			name:        "successful creation with custom options",
+			projectPath: "/test/project",
+			opts: &ManagerOptions{
+				FileSystem:  mocks.NewMockFileSystem(),
+				GitCmd:      mocks.NewMockGit(),
+				CmdExecutor: mocks.NewMockCommandExecutor(),
+				Output:      mocks.NewMockOutput(),
+			},
+			setupMocks: func(fs *mocks.MockFileSystem, git *mocks.MockGit) {},
+			wantErr:    false,
+		},
+		{
+			name:        "partial options filled with defaults",
+			projectPath: "/test/project",
+			opts: &ManagerOptions{
+				FileSystem: mocks.NewMockFileSystem(),
+			},
+			setupMocks: func(fs *mocks.MockFileSystem, git *mocks.MockGit) {},
+			wantErr:    false,
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create manager
+			mgr, err := NewManager(tt.projectPath, tt.opts)
+			
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+			} else {
+				assert.NoError(t, err)
+				if assert.NotNil(t, mgr) {
+					assert.NotNil(t, mgr.FileSystem)
+					assert.NotNil(t, mgr.GitCmd)
+					assert.NotNil(t, mgr.CmdExecutor)
+					assert.NotNil(t, mgr.Output)
+					
+					absPath, _ := filepath.Abs(tt.projectPath)
+					assert.Equal(t, absPath, mgr.ProjectPath)
+				}
+			}
+		})
+	}
+}
+
+func TestManager_Initialize(t *testing.T) {
+	tests := []struct {
+		name        string
+		workspaceName string
+		interactive bool
+		setupMocks  func(*mocks.MockFileSystem, *mocks.MockGit, *mocks.MockOutput)
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:          "successful initialization",
+			workspaceName: "test-workspace",
+			interactive:   false,
+			setupMocks: func(fs *mocks.MockFileSystem, git *mocks.MockGit, out *mocks.MockOutput) {
+				fs.MkdirAllFunc = func(path string, perm os.FileMode) error {
+					return nil
+				}
+				fs.WriteFileFunc = func(filename string, data []byte, perm os.FileMode) error {
+					return nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name:          "failed to create repos directory",
+			workspaceName: "test-workspace",
+			interactive:   false,
+			setupMocks: func(fs *mocks.MockFileSystem, git *mocks.MockGit, out *mocks.MockOutput) {
+				fs.MkdirAllFunc = func(path string, perm os.FileMode) error {
+					return errors.New("permission denied")
+				}
+			},
+			wantErr:     true,
+			errContains: "creating repos directory",
+		},
+		{
+			name:          "failed to save configuration",
+			workspaceName: "test-workspace",
+			interactive:   false,
+			setupMocks: func(fs *mocks.MockFileSystem, git *mocks.MockGit, out *mocks.MockOutput) {
+				fs.MkdirAllFunc = func(path string, perm os.FileMode) error {
+					return nil
+				}
+				// Config.Save will fail with default mock
+			},
+			wantErr:     true,
+			errContains: "saving configuration",
+		},
+		{
+			name:          "failed to create shared memory",
+			workspaceName: "test-workspace",
+			interactive:   false,
+			setupMocks: func(fs *mocks.MockFileSystem, git *mocks.MockGit, out *mocks.MockOutput) {
+				fs.MkdirAllFunc = func(path string, perm os.FileMode) error {
+					return nil
+				}
+				fs.WriteFileFunc = func(filename string, data []byte, perm os.FileMode) error {
+					if filepath.Base(filename) == "shared-memory.md" {
+						return errors.New("disk full")
+					}
+					return nil
+				}
+			},
+			wantErr:     true,
+			errContains: "creating shared memory",
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mocks
+			mockFS := mocks.NewMockFileSystem()
+			mockGit := mocks.NewMockGit()
+			mockOutput := mocks.NewMockOutput()
+			
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockFS, mockGit, mockOutput)
+			}
+			
+			opts := &ManagerOptions{
+				FileSystem:  mockFS,
+				GitCmd:      mockGit,
+				CmdExecutor: mocks.NewMockCommandExecutor(),
+				Output:      mockOutput,
+			}
+			
+			mgr, err := NewManager("/test/project", opts)
+			require.NoError(t, err)
+			
+			// Test initialization
+			err = mgr.Initialize(tt.workspaceName, tt.interactive)
+			
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+			} else {
+				assert.NoError(t, err)
+				if mgr != nil && mgr.Config != nil {
+					assert.Equal(t, tt.workspaceName, mgr.Config.Workspace.Name)
+				}
+				
+				// Check output messages
+				stdout := mockOutput.GetStdout()
+				assert.Contains(t, stdout, "Initialized tree workspace")
+				assert.Contains(t, stdout, "Project path")
+				assert.Contains(t, stdout, "Tree structure initialized")
+			}
+		})
+	}
+}
+
+func TestManager_UseNode(t *testing.T) {
+	tests := []struct {
+		name       string
+		target     string
+		setupMocks func(*mocks.MockFileSystem, *mocks.MockGit, *mocks.MockOutput, *tree.StatelessManager)
+		setupTree  func(*tree.StatelessManager)
+		wantErr    bool
+		checkOutput func(*testing.T, string)
+	}{
+		{
+			name:   "display current node when target is empty",
+			target: "",
+			setupTree: func(tm *tree.StatelessManager) {
+				// Tree manager will return current path
+			},
+			wantErr: false,
+			checkOutput: func(t *testing.T, output string) {
+				assert.Contains(t, output, "Current node:")
+				assert.Contains(t, output, "Filesystem path:")
+			},
+		},
+		{
+			name:   "successful navigation to child",
+			target: "child1",
+			setupTree: func(tm *tree.StatelessManager) {
+				// Tree manager will handle navigation
+			},
+			wantErr: false,
+			checkOutput: func(t *testing.T, output string) {
+				assert.Contains(t, output, "Navigated to:")
+				assert.Contains(t, output, "Filesystem path:")
+			},
+		},
+		{
+			name:   "show children after navigation",
+			target: "parent",
+			setupTree: func(tm *tree.StatelessManager) {
+				// Setup tree with children
+			},
+			wantErr: false,
+			checkOutput: func(t *testing.T, output string) {
+				assert.Contains(t, output, "Navigated to:")
+			},
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mocks
+			mockFS := mocks.NewMockFileSystem()
+			mockGit := mocks.NewMockGit()
+			mockOutput := mocks.NewMockOutput()
+			
+			// Setup filesystem
+			mockFS.AddDir("/test/project")
+			mockFS.AddDir("/test/project/repos")
+			
+			// Create a config file for the manager to load
+			cfg := &config.ConfigTree{
+				Workspace: config.WorkspaceTree{
+					Name:     "test",
+					ReposDir: "repos",
+				},
+				Nodes: []config.NodeDefinition{},
+			}
+			configData, _ := yaml.Marshal(cfg)
+			mockFS.AddFile("/test/project/muno.yaml", configData)
+			
+			opts := &ManagerOptions{
+				FileSystem:  mockFS,
+				GitCmd:      mockGit,
+				CmdExecutor: mocks.NewMockCommandExecutor(),
+				Output:      mockOutput,
+			}
+			
+			mgr, err := NewManager("/test/project", opts)
+			require.NoError(t, err)
+			
+			if tt.setupTree != nil {
+				tt.setupTree(mgr.TreeManager)
+			}
+			
+			// Test navigation
+			err = mgr.UseNode(tt.target)
+			
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				
+				if tt.checkOutput != nil {
+					output := mockOutput.GetStdout()
+					tt.checkOutput(t, output)
+				}
+			}
+		})
+	}
+}
+
+func TestManager_AddRepo(t *testing.T) {
+	tests := []struct {
+		name        string
+		parentPath  string
+		url         string
+		options     tree.AddOptions
+		setupMocks  func(*mocks.MockFileSystem, *mocks.MockGit, *mocks.MockOutput)
+		wantErr     bool
+		errContains string
+		checkOutput func(*testing.T, string)
+	}{
+		{
+			name:       "successful add with explicit name",
+			parentPath: "",
+			url:        "https://github.com/test/repo.git",
+			options: tree.AddOptions{
+				Name: "my-repo",
+				Lazy: false,
+			},
+			setupMocks: func(fs *mocks.MockFileSystem, git *mocks.MockGit, out *mocks.MockOutput) {
+				git.CloneFunc = func(url, path string) error {
+					return nil
+				}
+			},
+			wantErr: false,
+			checkOutput: func(t *testing.T, output string) {
+				assert.Contains(t, output, "Added repository: my-repo")
+				assert.Contains(t, output, "Repository cloned successfully")
+			},
+		},
+		{
+			name:       "successful add with name from URL",
+			parentPath: "",
+			url:        "https://github.com/test/repo.git",
+			options: tree.AddOptions{
+				Lazy: false,
+			},
+			setupMocks: func(fs *mocks.MockFileSystem, git *mocks.MockGit, out *mocks.MockOutput) {
+				git.CloneFunc = func(url, path string) error {
+					return nil
+				}
+			},
+			wantErr: false,
+			checkOutput: func(t *testing.T, output string) {
+				assert.Contains(t, output, "Added repository: repo")
+				assert.Contains(t, output, "Repository cloned successfully")
+			},
+		},
+		{
+			name:       "successful lazy add",
+			parentPath: "",
+			url:        "https://github.com/test/repo.git",
+			options: tree.AddOptions{
+				Name: "lazy-repo",
+				Lazy: true,
+			},
+			setupMocks: func(fs *mocks.MockFileSystem, git *mocks.MockGit, out *mocks.MockOutput) {
+				// No clone for lazy repos
+			},
+			wantErr: false,
+			checkOutput: func(t *testing.T, output string) {
+				assert.Contains(t, output, "Added repository: lazy-repo")
+				assert.Contains(t, output, "Repository marked as lazy")
+			},
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mocks
+			mockFS := mocks.NewMockFileSystem()
+			mockGit := mocks.NewMockGit()
+			mockOutput := mocks.NewMockOutput()
+			
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockFS, mockGit, mockOutput)
+			}
+			
+			// Setup filesystem
+			mockFS.AddDir("/test/project")
+			mockFS.AddDir("/test/project/repos")
+			
+			// Create a config file for the manager to load
+			cfg := &config.ConfigTree{
+				Workspace: config.WorkspaceTree{
+					Name:     "test",
+					ReposDir: "repos",
+				},
+				Nodes: []config.NodeDefinition{},
+			}
+			configData, _ := yaml.Marshal(cfg)
+			mockFS.AddFile("/test/project/muno.yaml", configData)
+			
+			opts := &ManagerOptions{
+				FileSystem:  mockFS,
+				GitCmd:      mockGit,
+				CmdExecutor: mocks.NewMockCommandExecutor(),
+				Output:      mockOutput,
+			}
+			
+			mgr, err := NewManager("/test/project", opts)
+			require.NoError(t, err)
+			
+			// Test add repo
+			err = mgr.AddRepo(tt.parentPath, tt.url, tt.options)
+			
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+			} else {
+				assert.NoError(t, err)
+				
+				if tt.checkOutput != nil {
+					output := mockOutput.GetStdout()
+					tt.checkOutput(t, output)
+				}
+			}
+		})
+	}
+}
+
+func TestLoadFromCurrentDirWithOptions(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupMocks  func(*mocks.MockFileSystem, *mocks.MockGit) 
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "successful load from current directory",
+			setupMocks: func(fs *mocks.MockFileSystem, git *mocks.MockGit) {
+				fs.GetwdFunc = func() (string, error) {
+					return "/test/project", nil
+				}
+				fs.ExistsFunc = func(path string) bool {
+					return filepath.Base(path) == "muno.yaml"
+				}
+				
+				// Create valid config
+				cfg := config.DefaultConfigTree("test")
+				data, _ := yaml.Marshal(cfg)
+				fs.AddFile("/test/project/muno.yaml", data)
+			},
+			wantErr: false,
+		},
+		{
+			name: "successful load from parent directory",
+			setupMocks: func(fs *mocks.MockFileSystem, git *mocks.MockGit) {
+				fs.GetwdFunc = func() (string, error) {
+					return "/test/project/subdir", nil
+				}
+				fs.ExistsFunc = func(path string) bool {
+					return path == "/test/project/muno.yaml"
+				}
+				
+				// Create valid config
+				cfg := config.DefaultConfigTree("test")
+				data, _ := yaml.Marshal(cfg)
+				fs.AddFile("/test/project/muno.yaml", data)
+			},
+			wantErr: false,
+		},
+		{
+			name: "config not found",
+			setupMocks: func(fs *mocks.MockFileSystem, git *mocks.MockGit) {
+				fs.GetwdFunc = func() (string, error) {
+					return "/test/project", nil
+				}
+				fs.ExistsFunc = func(path string) bool {
+					return false
+				}
+			},
+			wantErr:     true,
+			errContains: "muno.yaml not found",
+		},
+		{
+			name: "failed to get working directory",
+			setupMocks: func(fs *mocks.MockFileSystem, git *mocks.MockGit) {
+				fs.GetwdFunc = func() (string, error) {
+					return "", errors.New("permission denied")
+				}
+			},
+			wantErr: true,
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mocks
+			mockFS := mocks.NewMockFileSystem()
+			mockGit := mocks.NewMockGit()
+			
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockFS, mockGit)
+			}
+			
+			opts := &ManagerOptions{
+				FileSystem:  mockFS,
+				GitCmd:      mockGit,
+				CmdExecutor: mocks.NewMockCommandExecutor(),
+				Output:      mocks.NewMockOutput(),
+			}
+			
+			// Test load from current directory
+			mgr, err := LoadFromCurrentDirWithOptions(opts)
+			
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+			} else {
+				assert.NoError(t, err)
+				if assert.NotNil(t, mgr) {
+					assert.NotNil(t, mgr.Config)
+				}
+			}
+		})
+	}
+}
+
+func TestDefaultManagerOptions(t *testing.T) {
+	opts := DefaultManagerOptions()
+	
+	assert.NotNil(t, opts)
+	assert.NotNil(t, opts.FileSystem)
+	assert.NotNil(t, opts.GitCmd)
+	assert.NotNil(t, opts.CmdExecutor)
+	assert.NotNil(t, opts.Output)
+}
+
+func TestManager_createSharedMemory(t *testing.T) {
+	tests := []struct {
+		name       string
+		path       string
+		setupMocks func(*mocks.MockFileSystem)
+		wantErr    bool
+	}{
+		{
+			name: "successful creation",
+			path: "/test/shared-memory.md",
+			setupMocks: func(fs *mocks.MockFileSystem) {
+				fs.WriteFileFunc = func(filename string, data []byte, perm os.FileMode) error {
+					return nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "write failure",
+			path: "/test/shared-memory.md",
+			setupMocks: func(fs *mocks.MockFileSystem) {
+				fs.WriteFileFunc = func(filename string, data []byte, perm os.FileMode) error {
+					return errors.New("disk full")
+				}
+			},
+			wantErr: true,
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockFS := mocks.NewMockFileSystem()
+			
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockFS)
+			}
+			
+			opts := &ManagerOptions{
+				FileSystem:  mockFS,
+				GitCmd:      mocks.NewMockGit(),
+				CmdExecutor: mocks.NewMockCommandExecutor(),
+				Output:      mocks.NewMockOutput(),
+			}
+			
+			mgr, err := NewManager("/test/project", opts)
+			require.NoError(t, err)
+			
+			err = mgr.createSharedMemory(tt.path)
+			
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

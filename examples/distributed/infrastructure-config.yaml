@@ -1,0 +1,29 @@
+# Example: Config-only delegation (no repository at this level)
+# Referenced by root config via "config: infra-muno.yaml"
+
+workspace:
+  name: infrastructure
+  repos_dir: deployments
+
+nodes:
+  # Infrastructure repositories
+  - name: terraform-modules
+    url: https://github.com/myorg/terraform-modules.git
+    lazy: false  # Needed for all deployments
+    
+  - name: kubernetes-configs
+    url: https://github.com/myorg/k8s-configs.git
+    lazy: false
+    
+  - name: monitoring-stack
+    url: https://github.com/myorg/monitoring.git
+    
+  - name: ci-cd-pipelines
+    url: https://github.com/myorg/pipelines.git
+    
+  # Environment-specific configs
+  - name: production
+    config: envs/prod.yaml
+    
+  - name: staging
+    config: envs/staging.yaml

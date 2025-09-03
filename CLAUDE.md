@@ -249,3 +249,4 @@ make clean
 ### Production
 - Release by tagging new version via GitHub Action
 - Verify releases with GitHub API
+- IGNORE all backward compatibility and migration, even rollout strategy if the version is lower than 1.0 (based on git tag)

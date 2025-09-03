@@ -1,0 +1,29 @@
+# Example: Root workspace configuration with distributed configs
+# This demonstrates the new distributed configuration system
+
+workspace:
+  name: my-platform
+  repos_dir: repos  # Where repositories live
+
+nodes:
+  # Repository nodes - have URL
+  - name: team-backend
+    url: https://github.com/myorg/team-backend.git
+    # No lazy field = smart default (false for meta-repos)
+  
+  - name: team-frontend  
+    url: https://github.com/myorg/team-frontend.git
+    
+  # Config delegation node - no URL, just config reference
+  - name: infrastructure
+    config: infra-muno.yaml  # Delegates to another config file
+    
+  # Explicit lazy control
+  - name: heavy-data-service
+    url: https://github.com/myorg/heavy-data.git
+    lazy: true  # Clone only when accessed
+    
+  # Meta-repository pattern (auto eager)
+  - name: platform-monorepo
+    url: https://github.com/myorg/platform-monorepo.git
+    # Name ends with -monorepo, automatically lazy: false
