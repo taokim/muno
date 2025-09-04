@@ -94,6 +94,13 @@ muno clone --recursive       # Manual clone when needed
 
 ## Installation
 
+### Homebrew (macOS/Linux)
+
+```bash
+brew tap taokim/muno
+brew install muno
+```
+
 ### From Source
 
 ```bash
@@ -102,6 +109,16 @@ cd muno
 make build
 sudo make install
 ```
+
+### Go Install
+
+```bash
+go install github.com/taokim/muno/cmd/muno@latest
+```
+
+### Download Binary
+
+Download pre-built binaries from the [releases page](https://github.com/taokim/muno/releases).
 
 ## Quick Start
 

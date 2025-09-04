@@ -62,6 +62,13 @@ MUNO는 [Google의 Repo 도구](https://gerrit.googlesource.com/git-repo)에서 
 
 ## 설치
 
+### Homebrew (macOS/Linux)
+
+```bash
+brew tap taokim/muno
+brew install muno
+```
+
 ### 소스에서 빌드
 
 ```bash
@@ -70,6 +77,16 @@ cd muno
 make build
 sudo make install
 ```
+
+### Go 설치
+
+```bash
+go install github.com/taokim/muno/cmd/muno@latest
+```
+
+### 바이너리 다운로드
+
+[릴리스 페이지](https://github.com/taokim/muno/releases)에서 사전 빌드된 바이너리를 다운로드하세요.
 
 ## 빠른 시작
 
