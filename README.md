@@ -223,6 +223,65 @@ $ muno pull
 - **Lazy by default**: Clone only what you need
 - **Simple commands**: One `add` command for everything
 
+## Roadmap
+
+### 🚀 Upcoming Features
+
+#### API & Schema Management (v1.0)
+*Currently exploring implementation as core feature vs. plugin system*
+
+**Unified API Signature Management**
+- Store and manage OpenAPI specifications for REST APIs
+- Support Protocol Buffer definitions for gRPC services
+- Track API versions across the repository tree
+- Generate API documentation from tree structure
+
+**Message Schema Registry**
+- Centralized schema management for each repository
+- Support for Protocol Buffers and Apache Avro schemas
+- Schema evolution tracking and compatibility checking
+- Cross-repository schema dependencies visualization
+
+**Tree-Level Organization**
+- Define API contracts at any tree level (org/team/service)
+- Inherit and override schemas through tree hierarchy
+- Validate inter-service compatibility within subtrees
+- Generate dependency graphs from API relationships
+
+**Example Structure**
+```
+my-platform/
+├── muno.yaml
+├── schemas/                    # Organization-wide schemas
+│   └── common.proto
+├── team-backend/
+│   ├── api-specs/             # Team-level API definitions
+│   │   └── openapi.yaml
+│   ├── payment-service/
+│   │   ├── api/              # Service-specific APIs
+│   │   │   └── payment.proto
+│   │   └── schemas/
+│   │       └── events.avro
+│   └── order-service/
+│       └── api/
+│           └── order.proto
+```
+
+**Potential Commands**
+```bash
+muno schema validate           # Validate all schemas in tree
+muno api generate-docs         # Generate API documentation
+muno schema check-compat       # Check schema compatibility
+muno api visualize             # Visualize API dependencies
+```
+
+### 🔮 Future Considerations
+- Plugin architecture for extensibility
+- Integration with API gateways
+- Service mesh configuration generation
+- Automated API testing across tree
+- Contract-first development workflow
+
 ## License
 
 MIT

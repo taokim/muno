@@ -142,6 +142,65 @@ muno agent gemini           # Gemini CLI 시작
 - **기본적으로 지연**: 필요한 것만 복제
 - **간단한 명령**: 모든 것을 위한 하나의 `add` 명령
 
+## 로드맵
+
+### 🚀 예정된 기능
+
+#### API & 스키마 관리 (v1.0)
+*현재 핵심 기능 vs. 플러그인 시스템으로 구현 방식 검토 중*
+
+**통합 API 시그니처 관리**
+- REST API용 OpenAPI 명세 저장 및 관리
+- gRPC 서비스용 Protocol Buffer 정의 지원
+- 저장소 트리 전체의 API 버전 추적
+- 트리 구조에서 API 문서 자동 생성
+
+**메시지 스키마 레지스트리**
+- 각 저장소의 중앙화된 스키마 관리
+- Protocol Buffers 및 Apache Avro 스키마 지원
+- 스키마 진화 추적 및 호환성 검사
+- 저장소 간 스키마 의존성 시각화
+
+**트리 레벨 조직화**
+- 모든 트리 레벨(조직/팀/서비스)에서 API 계약 정의
+- 트리 계층을 통한 스키마 상속 및 오버라이드
+- 서브트리 내 서비스 간 호환성 검증
+- API 관계에서 의존성 그래프 생성
+
+**구조 예시**
+```
+my-platform/
+├── muno.yaml
+├── schemas/                    # 조직 전체 스키마
+│   └── common.proto
+├── team-backend/
+│   ├── api-specs/             # 팀 레벨 API 정의
+│   │   └── openapi.yaml
+│   ├── payment-service/
+│   │   ├── api/              # 서비스별 API
+│   │   │   └── payment.proto
+│   │   └── schemas/
+│   │       └── events.avro
+│   └── order-service/
+│       └── api/
+│           └── order.proto
+```
+
+**예상 명령어**
+```bash
+muno schema validate           # 트리의 모든 스키마 검증
+muno api generate-docs         # API 문서 생성
+muno schema check-compat       # 스키마 호환성 검사
+muno api visualize             # API 의존성 시각화
+```
+
+### 🔮 향후 고려사항
+- 확장성을 위한 플러그인 아키텍처
+- API 게이트웨이와의 통합
+- 서비스 메시 구성 자동 생성
+- 트리 전체의 자동화된 API 테스팅
+- 계약 우선 개발 워크플로우
+
 ## 라이선스
 
 MIT

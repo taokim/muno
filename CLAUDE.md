@@ -258,3 +258,29 @@ make clean
 - Release by tagging new version via GitHub Action
 - Verify releases with GitHub API
 - IGNORE all backward compatibility and migration, even rollout strategy if the version is lower than 1.0 (based on git tag)
+
+## Roadmap - API & Schema Management (v1.0)
+
+MUNO is planning to evolve beyond repository orchestration to become a comprehensive platform for managing API contracts and message schemas across the entire repository tree.
+
+### Planned Features
+
+**API Signature Management**:
+- OpenAPI specifications for REST APIs at any tree level
+- Protocol Buffer definitions for gRPC services
+- API versioning and evolution tracking
+- Automatic API documentation generation from tree structure
+
+**Message Schema Registry**:
+- Protocol Buffers and Apache Avro schema management
+- Schema evolution and compatibility checking
+- Cross-repository schema dependency tracking
+- Schema inheritance through tree hierarchy
+
+**Implementation Considerations**:
+- Exploring whether to implement as core feature or plugin system
+- Commands like `muno schema validate`, `muno api generate-docs`
+- Tree-level schema organization (org → team → service)
+- Integration with existing API gateways and service meshes
+
+This will enable teams to manage not just code repositories but also the contracts and interfaces between services in a hierarchical, organized manner.
