@@ -102,6 +102,7 @@ brews:
     repository:
       owner: taokim
       name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     install: |
       bin.install "muno"
     test: |
