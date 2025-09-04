@@ -11,7 +11,7 @@ The core innovation is organizing repositories in a tree structure with filesyst
 ```
 Workspace Root
     ↓
-Repository Tree (repos/)
+Repository Tree (nodes/)
     ↓  
 Node Level (team/service/component)
 ```
@@ -106,7 +106,7 @@ Command → Resolve Target (CWD/Explicit) → Execute at Node → Update State �
 my-platform/
 ├── muno.yaml          # Configuration
 ├── .muno-state.json   # Tree state
-├── repos/                    # Tree root
+├── nodes/                    # Tree root
 │   ├── team-backend/         # Parent node (git repo)
 │   │   ├── .git/
 │   │   ├── payment-service/  # Child repo

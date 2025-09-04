@@ -155,7 +155,7 @@ func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig("test-project")
 	
 	assert.Equal(t, "test-project", cfg.Workspace.Name)
-	assert.Equal(t, "repos", cfg.Workspace.RootPath)
+	assert.Equal(t, "nodes", cfg.Workspace.RootPath)
 	assert.NotNil(t, cfg.Repositories)
 	assert.NotEmpty(t, cfg.Repositories)
 	

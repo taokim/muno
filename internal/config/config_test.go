@@ -275,7 +275,7 @@ func TestConfigSaveLoad(t *testing.T) {
 	cfg := &Config{
 		Workspace: WorkspaceConfig{
 			Name:     "test-project",
-			RootPath: "repos",
+			RootPath: "nodes",
 		},
 		Defaults: DefaultDefaults(),
 		Repositories: map[string]Repository{

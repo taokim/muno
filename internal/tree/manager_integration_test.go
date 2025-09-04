@@ -44,12 +44,12 @@ func TestSimplifiedStateIntegration(t *testing.T) {
 		logical  string
 		expected string
 	}{
-		{"/", filepath.Join(tmpDir, "repos")},
-		{"/level1", filepath.Join(tmpDir, "repos", "level1")},
-		{"/level1/level2", filepath.Join(tmpDir, "repos", "level1", "repos", "level2")},
-		{"/level1/level2/level3", filepath.Join(tmpDir, "repos", "level1", "repos", "level2", "repos", "level3")},
-		{"/shared", filepath.Join(tmpDir, "repos", "shared")},
-		{"/level1/sibling", filepath.Join(tmpDir, "repos", "level1", "repos", "sibling")},
+		{"/", filepath.Join(tmpDir, "nodes")},
+		{"/level1", filepath.Join(tmpDir, "nodes", "level1")},
+		{"/level1/level2", filepath.Join(tmpDir, "nodes", "level1", "nodes", "level2")},
+		{"/level1/level2/level3", filepath.Join(tmpDir, "nodes", "level1", "nodes", "level2", "nodes", "level3")},
+		{"/shared", filepath.Join(tmpDir, "nodes", "shared")},
+		{"/level1/sibling", filepath.Join(tmpDir, "nodes", "level1", "nodes", "sibling")},
 	}
 	
 	t.Run("FilesystemPathComputation", func(t *testing.T) {
@@ -83,8 +83,8 @@ func TestSimplifiedStateIntegration(t *testing.T) {
 			t.Logf("State content:\n%s", stateStr)
 		}
 		
-		if strings.Contains(stateStr, "repos/") {
-			t.Errorf("State file contains filesystem directory structure 'repos/'")
+		if strings.Contains(stateStr, "nodes/") {
+			t.Errorf("State file contains filesystem directory structure 'nodes/'")
 		}
 		
 		// Verify logical paths ARE present

@@ -20,7 +20,7 @@ func TestStatelessManager_MoreMethods(t *testing.T) {
 	cfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "test-workspace",
-			ReposDir: "repos",
+			ReposDir: "nodes",
 		},
 		Nodes: []config.NodeDefinition{
 			{
@@ -40,7 +40,7 @@ func TestStatelessManager_MoreMethods(t *testing.T) {
 	require.NoError(t, err)
 	
 	// Create repos directory
-	os.MkdirAll(filepath.Join(tmpDir, "repos"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "nodes"), 0755)
 	
 	gitCmd := &git.MockGit{
 		StatusFunc: func(path string) (string, error) {
@@ -99,7 +99,7 @@ func TestStatelessManager_MoreMethods(t *testing.T) {
 	
 	t.Run("RemoveNode removes from filesystem", func(t *testing.T) {
 		// Create a directory to remove
-		testDir := filepath.Join(tmpDir, "repos", "test-remove")
+		testDir := filepath.Join(tmpDir, "nodes", "test-remove")
 		os.MkdirAll(testDir, 0755)
 		
 		// Add to config
@@ -136,7 +136,7 @@ func TestStatelessManager_MoreMethods(t *testing.T) {
 	
 	t.Run("DisplayStatus with various states", func(t *testing.T) {
 		// Create .git directories to simulate different states
-		repo1Git := filepath.Join(tmpDir, "repos", "repo1", ".git")
+		repo1Git := filepath.Join(tmpDir, "nodes", "repo1", ".git")
 		os.MkdirAll(repo1Git, 0755)
 		
 		result := mgr.DisplayStatus()
@@ -146,7 +146,7 @@ func TestStatelessManager_MoreMethods(t *testing.T) {
 	
 	t.Run("DisplayTree with modified repos", func(t *testing.T) {
 		// Create .git directory for repo1
-		repo1Git := filepath.Join(tmpDir, "repos", "repo1", ".git")
+		repo1Git := filepath.Join(tmpDir, "nodes", "repo1", ".git")
 		os.MkdirAll(repo1Git, 0755)
 		
 		result := mgr.DisplayTree()

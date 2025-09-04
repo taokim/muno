@@ -230,53 +230,53 @@ func TestAutoDiscoverConfig(t *testing.T) {
 	}{
 		{
 			name:     "discovers muno.yaml",
-			repoPath: filepath.Join(tmpDir, "repos", "test"),
+			repoPath: filepath.Join(tmpDir, "nodes", "test"),
 			setup: func() {
-				configPath := filepath.Join(tmpDir, "repos", "test", "muno.yaml")
+				configPath := filepath.Join(tmpDir, "nodes", "test", "muno.yaml")
 				os.MkdirAll(filepath.Dir(configPath), 0755)
 				os.WriteFile(configPath, []byte("test"), 0644)
 			},
-			expectedPath: filepath.Join(tmpDir, "repos", "test", "muno.yaml"),
+			expectedPath: filepath.Join(tmpDir, "nodes", "test", "muno.yaml"),
 			expectedOk:   true,
 		},
 		{
 			name:     "discovers .muno.yaml",
-			repoPath: filepath.Join(tmpDir, "repos", "test2"),
+			repoPath: filepath.Join(tmpDir, "nodes", "test2"),
 			setup: func() {
-				configPath := filepath.Join(tmpDir, "repos", "test2", ".muno.yaml")
+				configPath := filepath.Join(tmpDir, "nodes", "test2", ".muno.yaml")
 				os.MkdirAll(filepath.Dir(configPath), 0755)
 				os.WriteFile(configPath, []byte("test"), 0644)
 			},
-			expectedPath: filepath.Join(tmpDir, "repos", "test2", ".muno.yaml"),
+			expectedPath: filepath.Join(tmpDir, "nodes", "test2", ".muno.yaml"),
 			expectedOk:   true,
 		},
 		{
 			name:     "discovers muno.yml",
-			repoPath: filepath.Join(tmpDir, "repos", "test3"),
+			repoPath: filepath.Join(tmpDir, "nodes", "test3"),
 			setup: func() {
-				configPath := filepath.Join(tmpDir, "repos", "test3", "muno.yml")
+				configPath := filepath.Join(tmpDir, "nodes", "test3", "muno.yml")
 				os.MkdirAll(filepath.Dir(configPath), 0755)
 				os.WriteFile(configPath, []byte("test"), 0644)
 			},
-			expectedPath: filepath.Join(tmpDir, "repos", "test3", "muno.yml"),
+			expectedPath: filepath.Join(tmpDir, "nodes", "test3", "muno.yml"),
 			expectedOk:   true,
 		},
 		{
 			name:     "discovers .muno.yml",
-			repoPath: filepath.Join(tmpDir, "repos", "test4"),
+			repoPath: filepath.Join(tmpDir, "nodes", "test4"),
 			setup: func() {
-				configPath := filepath.Join(tmpDir, "repos", "test4", ".muno.yml")
+				configPath := filepath.Join(tmpDir, "nodes", "test4", ".muno.yml")
 				os.MkdirAll(filepath.Dir(configPath), 0755)
 				os.WriteFile(configPath, []byte("test"), 0644)
 			},
-			expectedPath: filepath.Join(tmpDir, "repos", "test4", ".muno.yml"),
+			expectedPath: filepath.Join(tmpDir, "nodes", "test4", ".muno.yml"),
 			expectedOk:   true,
 		},
 		{
 			name:     "no config file found",
-			repoPath: filepath.Join(tmpDir, "repos", "test5"),
+			repoPath: filepath.Join(tmpDir, "nodes", "test5"),
 			setup: func() {
-				os.MkdirAll(filepath.Join(tmpDir, "repos", "test5"), 0755)
+				os.MkdirAll(filepath.Join(tmpDir, "nodes", "test5"), 0755)
 			},
 			expectedPath: "",
 			expectedOk:   false,
@@ -290,16 +290,16 @@ func TestAutoDiscoverConfig(t *testing.T) {
 		},
 		{
 			name:     "prefers muno.yaml over other formats",
-			repoPath: filepath.Join(tmpDir, "repos", "test6"),
+			repoPath: filepath.Join(tmpDir, "nodes", "test6"),
 			setup: func() {
-				dir := filepath.Join(tmpDir, "repos", "test6")
+				dir := filepath.Join(tmpDir, "nodes", "test6")
 				os.MkdirAll(dir, 0755)
 				// Create multiple config files
 				os.WriteFile(filepath.Join(dir, "muno.yaml"), []byte("test"), 0644)
 				os.WriteFile(filepath.Join(dir, ".muno.yaml"), []byte("test"), 0644)
 				os.WriteFile(filepath.Join(dir, "muno.yml"), []byte("test"), 0644)
 			},
-			expectedPath: filepath.Join(tmpDir, "repos", "test6", "muno.yaml"),
+			expectedPath: filepath.Join(tmpDir, "nodes", "test6", "muno.yaml"),
 			expectedOk:   true,
 		},
 		{
@@ -314,7 +314,7 @@ func TestAutoDiscoverConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clean up before each test
-			os.RemoveAll(filepath.Join(tmpDir, "repos"))
+			os.RemoveAll(filepath.Join(tmpDir, "nodes"))
 
 			if tt.setup != nil {
 				tt.setup()

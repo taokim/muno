@@ -108,7 +108,7 @@ go install ./cmd/muno
 my-platform/
 ├── muno.yaml         # Configuration file
 ├── .muno-state.json  # Tree state tracking
-├── repos/                   # Tree root
+├── nodes/                   # Tree root
 │   ├── team-backend/        # Parent node (also a git repo)
 │   │   ├── .git/
 │   │   ├── payment-service/ # Child repository

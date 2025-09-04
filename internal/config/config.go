@@ -72,7 +72,7 @@ func DefaultConfig(projectName string) *Config {
 	return &Config{
 		Workspace: WorkspaceConfig{
 			Name:     projectName,
-			RootPath: "repos",
+			RootPath: "nodes",
 		},
 		Defaults: DefaultDefaults(),
 		Repositories: map[string]Repository{
@@ -203,7 +203,7 @@ func Load(path string) (*Config, error) {
 	
 	// Set default workspace settings
 	if cfg.Workspace.RootPath == "" {
-		cfg.Workspace.RootPath = "repos"
+		cfg.Workspace.RootPath = "nodes"
 	}
 	
 	// Set default repository loading settings

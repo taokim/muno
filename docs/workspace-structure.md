@@ -10,7 +10,7 @@ MUNO uses a tree-based workspace structure where repositories are organized in a
 my-platform/                    # Workspace root
 ├── muno.yaml            # Configuration file
 ├── .muno-state.json     # Tree state and navigation tracking
-├── repos/                      # Repository tree root
+├── nodes/                      # Repository tree root
 │   ├── team-backend/           # Parent node (can be a git repo)
 │   │   ├── .git/              # Optional git repository
 │   │   ├── payment-service/   # Child repository
@@ -95,7 +95,7 @@ Runtime state tracking:
 }
 ```
 
-### `repos/` Directory
+### `nodes/` Directory
 
 The repository tree root where all repositories are organized:
 

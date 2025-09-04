@@ -52,7 +52,7 @@ Each configuration only declares its direct children:
 ```
 my-platform/                    # Root workspace
 ├── muno.yaml                   # Root configuration
-├── repos/
+├── nodes/
 │   ├── team-backend/          # Repository with auto-discovered config
 │   │   ├── .git/
 │   │   ├── muno.yaml          # Auto-discovered, declares children

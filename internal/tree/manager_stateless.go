@@ -54,13 +54,13 @@ func (m *StatelessManager) ComputeFilesystemPath(logicalPath string) string {
 	// Split path: /level1/level2 -> [level1, level2]
 	parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
 	
-	// Build filesystem path with repos/ subdirectories
+	// Build filesystem path with nodes/ subdirectories
 	fsPath := filepath.Join(m.workspacePath, m.config.GetReposDir())
 	for i, part := range parts {
 		fsPath = filepath.Join(fsPath, part)
-		// Add repos/ before next level (except last)
+		// Add nodes/ before next level (except last)
 		if i < len(parts)-1 {
-			fsPath = filepath.Join(fsPath, "repos")
+			fsPath = filepath.Join(fsPath, "nodes")
 		}
 	}
 	

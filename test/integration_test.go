@@ -43,7 +43,7 @@ func TestIntegrationWorkflow(t *testing.T) {
 		// Check created files - init creates in current dir, not subdirectory
 		assert.FileExists(t, filepath.Join(tmpDir, "muno.yaml"))
 		assert.FileExists(t, filepath.Join(tmpDir, "CLAUDE.md"))
-		assert.DirExists(t, filepath.Join(tmpDir, "repos"))
+		assert.DirExists(t, filepath.Join(tmpDir, "nodes"))
 	})
 	
 	// Test list command

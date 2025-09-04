@@ -18,7 +18,7 @@ func TestWorkspaceHierarchy(t *testing.T) {
 	rootConfig := &Config{
 		Workspace: WorkspaceConfig{
 			Name:     "platform",
-			RootPath: "repos",
+			RootPath: "nodes",
 		},
 		Defaults: DefaultDefaults(),
 		Repositories: map[string]Repository{

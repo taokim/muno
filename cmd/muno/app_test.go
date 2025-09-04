@@ -66,7 +66,7 @@ func TestInitCommand(t *testing.T) {
 	
 	// Check files created
 	assert.FileExists(t, filepath.Join(tmpDir, "muno.yaml"))
-	assert.DirExists(t, filepath.Join(tmpDir, "repos"))
+	assert.DirExists(t, filepath.Join(tmpDir, "nodes"))
 }
 
 func TestTreeCommand(t *testing.T) {

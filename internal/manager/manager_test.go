@@ -523,7 +523,7 @@ func TestManager_InitializeWithConfig(t *testing.T) {
 	existingConfig := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "existing-workspace",
-			ReposDir: "repos",
+			ReposDir: "nodes",
 		},
 	}
 	mockConfig.SetConfig("/test/workspace/muno.yaml", existingConfig)
@@ -653,7 +653,7 @@ func TestManager_SaveConfig(t *testing.T) {
 	existingConfig := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "test-workspace",
-			ReposDir: "repos",
+			ReposDir: "nodes",
 		},
 	}
 	mockConfig.SetConfig("/test/workspace/muno.yaml", existingConfig)
@@ -792,7 +792,7 @@ func TestManager_HandlePluginActionNavigation(t *testing.T) {
 	existingConfig := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "test-workspace",
-			ReposDir: "repos",
+			ReposDir: "nodes",
 		},
 	}
 	mockConfig.SetConfig("/test/workspace/muno.yaml", existingConfig)

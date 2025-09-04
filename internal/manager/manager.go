@@ -672,20 +672,20 @@ func extractRepoName(url string) string {
 // This replicates the logic from tree.Manager.ComputeFilesystemPath
 func (m *Manager) computeFilesystemPath(logicalPath string) string {
 	if logicalPath == "/" {
-		return filepath.Join(m.workspace, "repos")
+		return filepath.Join(m.workspace, "nodes")
 	}
 	
 	// Split path: /level1/level2/level3 -> [level1, level2, level3]
 	parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
 	
-	// Build filesystem path with repos/ subdirectories
-	// workspace/repos/level1/repos/level2/repos/level3
-	fsPath := filepath.Join(m.workspace, "repos")
+	// Build filesystem path with nodes/ subdirectories
+	// workspace/nodes/level1/nodes/level2/nodes/level3
+	fsPath := filepath.Join(m.workspace, "nodes")
 	for i, part := range parts {
 		fsPath = filepath.Join(fsPath, part)
-		// Add repos/ before next level (except last)
+		// Add nodes/ before next level (except last)
 		if i < len(parts)-1 {
-			fsPath = filepath.Join(fsPath, "repos")
+			fsPath = filepath.Join(fsPath, "nodes")
 		}
 	}
 	
@@ -1053,7 +1053,7 @@ func (m *Manager) StartClaude(path string) error {
 	}
 	
 	// Start Claude session using process provider
-	// Compute filesystem path with repos/ directory pattern
+	// Compute filesystem path with nodes/ directory pattern
 	fullPath := m.computeFilesystemPath(node.Path)
 	m.logProvider.Info("Starting Claude session")
 	m.logProvider.Info(fmt.Sprintf("  Tree path: %s", node.Path))
@@ -1097,7 +1097,7 @@ func (m *Manager) StartAgent(agentName string, path string, agentArgs []string) 
 	}
 	
 	// Start agent session using process provider
-	// Compute filesystem path with repos/ directory pattern
+	// Compute filesystem path with nodes/ directory pattern
 	fullPath := m.computeFilesystemPath(node.Path)
 	m.logProvider.Info(fmt.Sprintf("Starting %s session", agentName))
 	m.logProvider.Info(fmt.Sprintf("  Tree path: %s", node.Path))
@@ -1142,7 +1142,7 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 	m.logProvider.Info(fmt.Sprintf("Found %d repositories", len(repos)))
 	
 	// Create repos directory
-	reposDir := filepath.Join(m.workspace, "repos")
+	reposDir := filepath.Join(m.workspace, "nodes")
 	if err := m.fsProvider.MkdirAll(reposDir, 0755); err != nil {
 		return fmt.Errorf("creating repos directory: %w", err)
 	}
@@ -1157,7 +1157,7 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 		}
 		
 		// Check if it's already in repos directory
-		if strings.HasPrefix(repo.Path, "repos/") {
+		if strings.HasPrefix(repo.Path, "nodes/") {
 			// Add to configuration
 			m.logProvider.Info(fmt.Sprintf("Adding existing repo: %s", repoName))
 			if err := m.Add(ctx, repo.RemoteURL, AddOptions{
@@ -1205,7 +1205,7 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 	m.config = &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     projectName,
-			ReposDir: "repos",
+			ReposDir: "nodes",
 		},
 		Nodes: []config.NodeDefinition{},
 		Path:  filepath.Join(m.workspace, "muno.yaml"),

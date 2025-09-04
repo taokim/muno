@@ -28,7 +28,7 @@ Generated: 2025-09-04
 **Failed Test**: `TestManager_StartAgent`
 - **Issue**: Path construction mismatch
 - **Expected**: `/workspace/test/repo`
-- **Actual**: `/workspace/repos/test/repos/repo`
+- **Actual**: `/workspace/nodes/test/nodes/repo`
 - **Root Cause**: The test expects a different directory structure than what's being generated
 
 ### 2. Tree Package (`internal/tree`)

@@ -21,7 +21,7 @@ type ConfigTree struct {
 type WorkspaceTree struct {
 	Name     string `yaml:"name"`
 	RootRepo string `yaml:"root_repo,omitempty"` // Root is also a git repo
-	ReposDir string `yaml:"repos_dir,omitempty"` // Directory for repositories (default: "repos")
+	ReposDir string `yaml:"repos_dir,omitempty"` // Directory for repositories (default: "nodes")
 }
 
 // NodeDefinition represents a node in the distributed tree
@@ -62,7 +62,7 @@ func DefaultConfigTree(projectName string) *ConfigTree {
 		Workspace: WorkspaceTree{
 			Name:     projectName,
 			RootRepo: "", // Can be set if root is a repo
-			ReposDir: "repos", // Default repos directory
+			ReposDir: "nodes", // Default nodes directory
 		},
 		Nodes: []NodeDefinition{}, // Empty nodes list
 	}
@@ -82,7 +82,7 @@ func LoadTree(path string) (*ConfigTree, error) {
 
 	// Apply defaults
 	if cfg.Workspace.ReposDir == "" {
-		cfg.Workspace.ReposDir = "repos"
+		cfg.Workspace.ReposDir = "nodes"
 	}
 	
 	// Store the path
@@ -147,7 +147,7 @@ func (c *ConfigTree) Validate() error {
 // GetReposDir returns the configured repos directory name
 func (c *ConfigTree) GetReposDir() string {
 	if c.Workspace.ReposDir == "" {
-		return "repos"
+		return "nodes"
 	}
 	return c.Workspace.ReposDir
 }

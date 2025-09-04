@@ -50,23 +50,23 @@ func NewManager(workspacePath string, gitCmd git.Interface) (*Manager, error) {
 }
 
 // ComputeFilesystemPath derives filesystem path from logical path
-// This is the ONLY place that knows about the repos/ directory pattern
+// This is the ONLY place that knows about the nodes/ directory pattern
 func (m *Manager) ComputeFilesystemPath(logicalPath string) string {
 	if logicalPath == "/" {
-		return filepath.Join(m.workspacePath, "repos")
+		return filepath.Join(m.workspacePath, "nodes")
 	}
 	
 	// Split path: /level1/level2/level3 -> [level1, level2, level3]
 	parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
 	
-	// Build filesystem path with repos/ subdirectories
-	// workspace/repos/level1/repos/level2/repos/level3
-	fsPath := filepath.Join(m.workspacePath, "repos")
+	// Build filesystem path with nodes/ subdirectories
+	// workspace/nodes/level1/nodes/level2/nodes/level3
+	fsPath := filepath.Join(m.workspacePath, "nodes")
 	for i, part := range parts {
 		fsPath = filepath.Join(fsPath, part)
-		// Add repos/ before next level (except last)
+		// Add nodes/ before next level (except last)
 		if i < len(parts)-1 {
-			fsPath = filepath.Join(fsPath, "repos")
+			fsPath = filepath.Join(fsPath, "nodes")
 		}
 	}
 	

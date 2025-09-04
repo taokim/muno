@@ -40,11 +40,11 @@ func TestManager_EdgeCases(t *testing.T) {
 	t.Run("ComputeFilesystemPath edge cases", func(t *testing.T) {
 		// Root path
 		fsPath := mgr.ComputeFilesystemPath("/")
-		assert.Equal(t, filepath.Join(tmpDir, "repos"), fsPath)
+		assert.Equal(t, filepath.Join(tmpDir, "nodes"), fsPath)
 		
 		// Deep nested path
 		fsPath = mgr.ComputeFilesystemPath("/a/b/c/d")
-		expected := filepath.Join(tmpDir, "repos", "a", "repos", "b", "repos", "c", "repos", "d")
+		expected := filepath.Join(tmpDir, "nodes", "a", "nodes", "b", "nodes", "c", "nodes", "d")
 		assert.Equal(t, expected, fsPath)
 	})
 	
@@ -219,7 +219,7 @@ func TestStatelessManager_EdgeCases(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "muno.yaml")
 	configContent := `workspace:
   name: test-workspace
-  repos_dir: repos
+  repos_dir: nodes
 `
 	err := os.WriteFile(configPath, []byte(configContent), 0644)
 	require.NoError(t, err)
@@ -291,16 +291,16 @@ func TestStatelessManager_EdgeCases(t *testing.T) {
 	t.Run("ComputeFilesystemPath with various inputs", func(t *testing.T) {
 		// Empty string
 		fsPath := mgr.ComputeFilesystemPath("")
-		assert.Equal(t, filepath.Join(tmpDir, "repos"), fsPath)
+		assert.Equal(t, filepath.Join(tmpDir, "nodes"), fsPath)
 		
 		// Multiple levels
 		fsPath = mgr.ComputeFilesystemPath("/a/b/c")
-		expected := filepath.Join(tmpDir, "repos", "a", "repos", "b", "repos", "c")
+		expected := filepath.Join(tmpDir, "nodes", "a", "nodes", "b", "nodes", "c")
 		assert.Equal(t, expected, fsPath)
 		
 		// Relative path (though not typical usage)
 		fsPath = mgr.ComputeFilesystemPath("relative")
-		assert.Equal(t, filepath.Join(tmpDir, "repos", "relative"), fsPath)
+		assert.Equal(t, filepath.Join(tmpDir, "nodes", "relative"), fsPath)
 	})
 	
 	t.Run("CloneLazyRepos with config nodes", func(t *testing.T) {
@@ -360,13 +360,13 @@ func TestConfigResolver(t *testing.T) {
 	
 	t.Run("LoadNodeConfig with valid config", func(t *testing.T) {
 		// Create a config file
-		configDir := filepath.Join(tmpDir, "repos", "test")
+		configDir := filepath.Join(tmpDir, "nodes", "test")
 		os.MkdirAll(configDir, 0755)
 		
 		cfg := &config.ConfigTree{
 			Workspace: config.WorkspaceTree{
 				Name:     "test-sub",
-				ReposDir: "repos",
+				ReposDir: "nodes",
 			},
 			Nodes: []config.NodeDefinition{
 				{

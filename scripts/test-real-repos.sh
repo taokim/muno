@@ -103,10 +103,10 @@ echo "   Logical path '/' maps to:"
 ls -la "$TEST_DIR/test-real/repos" 2>/dev/null | head -5
 
 echo "   Logical path '/cobra' maps to:"
-ls -la "$TEST_DIR/test-real/repos/cobra" 2>/dev/null | head -5
+ls -la "$TEST_DIR/test-real/nodes/cobra" 2>/dev/null | head -5
 
 echo "   Logical path '/cobra/viper' would map to:"
-echo "   $TEST_DIR/test-real/repos/cobra/repos/viper"
+echo "   $TEST_DIR/test-real/nodes/cobra/nodes/viper"
 
 # Clone remaining lazy repos
 echo ""

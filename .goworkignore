@@ -1,5 +1,5 @@
-repos/
+nodes/
 test-tree*/
 muno-test/
 test-full/
-test-repos/
+test-nodes/

@@ -15,14 +15,14 @@ func setupTestManager(t *testing.T) (*StatelessManager, string) {
 	tmpDir := t.TempDir()
 	
 	// Create config directory structure
-	reposDir := filepath.Join(tmpDir, "repos")
+	reposDir := filepath.Join(tmpDir, "nodes")
 	os.MkdirAll(reposDir, 0755)
 	
 	// Create a basic config
 	cfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "test-workspace",
-			ReposDir: "repos",
+			ReposDir: "nodes",
 		},
 		Nodes: []config.NodeDefinition{
 			{
@@ -52,7 +52,7 @@ func setupTestManager(t *testing.T) (*StatelessManager, string) {
 	parentCfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "parent-workspace",
-			ReposDir: "repos",
+			ReposDir: "nodes",
 		},
 		Nodes: []config.NodeDefinition{
 			{
@@ -89,27 +89,27 @@ func TestStatelessManager_ComputeFilesystemPath(t *testing.T) {
 		{
 			name:         "root path",
 			logicalPath:  "/",
-			expectedPath: filepath.Join(tmpDir, "repos"),
+			expectedPath: filepath.Join(tmpDir, "nodes"),
 		},
 		{
 			name:         "empty path defaults to root",
 			logicalPath:  "",
-			expectedPath: filepath.Join(tmpDir, "repos"),
+			expectedPath: filepath.Join(tmpDir, "nodes"),
 		},
 		{
 			name:         "child path",
 			logicalPath:  "/child1",
-			expectedPath: filepath.Join(tmpDir, "repos", "child1"),
+			expectedPath: filepath.Join(tmpDir, "nodes", "child1"),
 		},
 		{
 			name:         "nested path",
 			logicalPath:  "/parent/nested1",
-			expectedPath: filepath.Join(tmpDir, "repos", "parent", "repos", "nested1"),
+			expectedPath: filepath.Join(tmpDir, "nodes", "parent", "nodes", "nested1"),
 		},
 		{
 			name:         "relative path",
 			logicalPath:  "child1",
-			expectedPath: filepath.Join(tmpDir, "repos", "child1"),
+			expectedPath: filepath.Join(tmpDir, "nodes", "child1"),
 		},
 	}
 	
@@ -184,8 +184,8 @@ func TestStatelessManager_UseNode(t *testing.T) {
 	mgr, tmpDir := setupTestManager(t)
 	
 	// Create directories for navigation
-	os.MkdirAll(filepath.Join(tmpDir, "repos", "child1"), 0755)
-	os.MkdirAll(filepath.Join(tmpDir, "repos", "parent", "repos", "nested1"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "nodes", "child1"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "nodes", "parent", "nodes", "nested1"), 0755)
 	
 	tests := []struct {
 		name            string
@@ -239,7 +239,7 @@ func TestStatelessManager_AddRepo(t *testing.T) {
 	mgr, tmpDir := setupTestManager(t)
 	
 	// Create repos directory
-	os.MkdirAll(filepath.Join(tmpDir, "repos"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "nodes"), 0755)
 	
 	tests := []struct {
 		name       string
@@ -293,8 +293,8 @@ func TestStatelessManager_RemoveNode(t *testing.T) {
 	mgr, tmpDir := setupTestManager(t)
 	
 	// Create directories
-	os.MkdirAll(filepath.Join(tmpDir, "repos", "child1"), 0755)
-	os.MkdirAll(filepath.Join(tmpDir, "repos", "child2"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "nodes", "child1"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "nodes", "child2"), 0755)
 	
 	tests := []struct {
 		name       string
@@ -415,7 +415,7 @@ func TestStatelessManager_CloneLazyRepos(t *testing.T) {
 			mgr, tmpDir := setupTestManager(t)
 			
 			// Create parent directory
-			os.MkdirAll(filepath.Join(tmpDir, "repos", "parent"), 0755)
+			os.MkdirAll(filepath.Join(tmpDir, "nodes", "parent"), 0755)
 			
 			// Set up git mock to track clone calls
 			gitMock := mgr.gitCmd.(*git.MockGit)
@@ -441,8 +441,8 @@ func TestStatelessManager_DisplayMethods(t *testing.T) {
 	mgr, tmpDir := setupTestManager(t)
 	
 	// Create some directories to simulate cloned repos
-	os.MkdirAll(filepath.Join(tmpDir, "repos", "child1", ".git"), 0755)
-	os.MkdirAll(filepath.Join(tmpDir, "repos", "parent"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "nodes", "child1", ".git"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "nodes", "parent"), 0755)
 	
 	t.Run("DisplayTree", func(t *testing.T) {
 		result := mgr.DisplayTree()

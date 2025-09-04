@@ -12,7 +12,7 @@ func TestDefaultConfigTree(t *testing.T) {
 	cfg := DefaultConfigTree("test-workspace")
 	
 	assert.Equal(t, "test-workspace", cfg.Workspace.Name)
-	assert.Equal(t, "repos", cfg.Workspace.ReposDir)
+	assert.Equal(t, "nodes", cfg.Workspace.ReposDir)
 	assert.Empty(t, cfg.Nodes)
 }
 
@@ -24,7 +24,7 @@ func TestConfigTreeLoadSave(t *testing.T) {
 	cfg := &ConfigTree{
 		Workspace: WorkspaceTree{
 			Name:     "test",
-			ReposDir: "repos",
+			ReposDir: "nodes",
 		},
 		Nodes: []NodeDefinition{
 			{
@@ -64,7 +64,7 @@ func TestConfigTreeValidate(t *testing.T) {
 			cfg: &ConfigTree{
 				Workspace: WorkspaceTree{
 					Name:     "valid",
-					ReposDir: "repos",
+					ReposDir: "nodes",
 				},
 				Nodes: []NodeDefinition{
 					{Name: "repo1", URL: "https://github.com/test/repo1.git"},
@@ -77,7 +77,7 @@ func TestConfigTreeValidate(t *testing.T) {
 			cfg: &ConfigTree{
 				Workspace: WorkspaceTree{
 					Name:     "",
-					ReposDir: "repos",
+					ReposDir: "nodes",
 				},
 			},
 			wantError: true,
@@ -91,14 +91,14 @@ func TestConfigTreeValidate(t *testing.T) {
 					ReposDir: "",
 				},
 			},
-			wantError: false, // Empty repos dir is valid, defaults to "repos"
+			wantError: false, // Empty repos dir is valid, defaults to "nodes"
 		},
 		{
 			name: "node with both URL and Config",
 			cfg: &ConfigTree{
 				Workspace: WorkspaceTree{
 					Name:     "test",
-					ReposDir: "repos",
+					ReposDir: "nodes",
 				},
 				Nodes: []NodeDefinition{
 					{
@@ -116,7 +116,7 @@ func TestConfigTreeValidate(t *testing.T) {
 			cfg: &ConfigTree{
 				Workspace: WorkspaceTree{
 					Name:     "test",
-					ReposDir: "repos",
+					ReposDir: "nodes",
 				},
 				Nodes: []NodeDefinition{
 					{Name: "invalid"},
@@ -130,7 +130,7 @@ func TestConfigTreeValidate(t *testing.T) {
 			cfg: &ConfigTree{
 				Workspace: WorkspaceTree{
 					Name:     "test",
-					ReposDir: "repos",
+					ReposDir: "nodes",
 				},
 				Nodes: []NodeDefinition{
 					{URL: "https://github.com/test/repo.git"},
@@ -144,7 +144,7 @@ func TestConfigTreeValidate(t *testing.T) {
 			cfg: &ConfigTree{
 				Workspace: WorkspaceTree{
 					Name:     "test",
-					ReposDir: "repos",
+					ReposDir: "nodes",
 				},
 				Nodes: []NodeDefinition{
 					{Name: "dup", URL: "https://github.com/test/repo1.git"},
@@ -179,7 +179,7 @@ func TestGetReposDir(t *testing.T) {
 	assert.Equal(t, "custom-repos", cfg.GetReposDir())
 	
 	cfg.Workspace.ReposDir = ""
-	assert.Equal(t, "repos", cfg.GetReposDir())
+	assert.Equal(t, "nodes", cfg.GetReposDir())
 }
 
 func TestLoadTreeWithInvalidFile(t *testing.T) {

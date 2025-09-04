@@ -56,7 +56,7 @@ MUNO was inspired by [Google's Repo tool](https://gerrit.googlesource.com/git-re
 ### 🌳 **Workspace as a Tree**
 Your repositories form a natural tree structure:
 ```
-repos/
+nodes/
 ├── team-backend/           # Also a git repo
 │   ├── payment-service/    # Child repo
 │   ├── order-service/      # Child repo
@@ -69,7 +69,7 @@ repos/
 ### 📍 **CWD-First Resolution**
 Commands operate based on your current location:
 ```bash
-cd repos/team-backend
+cd nodes/team-backend
 muno pull                    # Pulls backend repos (CWD-based)
 muno add https://...         # Adds repo to backend team
 muno tree                    # Shows tree from current position

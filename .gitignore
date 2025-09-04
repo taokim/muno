@@ -52,7 +52,7 @@ test_*.html
 # Development/testing workspace files (should not be in repo root)
 /muno.yaml
 /shared-memory.md
-/repos/
+/nodes/
 
 # Development directories
 .conductor/

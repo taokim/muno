@@ -84,12 +84,12 @@ echo
 echo -e "${CYAN}Step 3: Verifying results${NC}"
 
 # Check if repos were moved
-echo -n "  Checking if repos were moved to repos/: "
-if [ -d "repos/auth-service" ] && [ -d "repos/user-service" ]; then
+echo -n "  Checking if repos were moved to nodes/: "
+if [ -d "nodes/auth-service" ] && [ -d "nodes/user-service" ]; then
     echo -e "${GREEN}✓${NC}"
 else
     echo -e "${RED}✗${NC}"
-    ls -la repos/ 2>/dev/null || echo "    repos/ directory not found"
+    ls -la nodes/ 2>/dev/null || echo "    nodes/ directory not found"
 fi
 
 # Check muno.yaml
@@ -157,7 +157,7 @@ echo "Test directory: $TEST_DIR"
 echo
 echo "Key features tested:"
 echo "✓ Smart detection of existing git repositories"
-echo "✓ Moving repositories to repos/ directory"
+echo "✓ Moving repositories to nodes/ directory"
 echo "✓ Storing repository definitions in muno.yaml"
 echo "✓ Loading workspace from config"
 echo "✓ Adding new repos updates config"

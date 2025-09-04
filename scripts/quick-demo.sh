@@ -47,7 +47,7 @@ mkdir -p "$DEMO_DIR/workspace"
 create_demo_repo() {
     local name="$1"
     local type="$2"
-    local path="$DEMO_DIR/repos/$name"
+    local path="$DEMO_DIR/nodes/$name"
     
     echo -e "${GREEN}  Creating $name ($type)...${NC}"
     
@@ -151,17 +151,17 @@ echo -e "${BLUE}Step 3: Building tree structure${NC}"
 
 # Add root level repos
 echo -e "${YELLOW}  Adding frontend applications...${NC}"
-$MUNO_BIN add "file://$DEMO_DIR/repos/web-app" --name web
-$MUNO_BIN add "file://$DEMO_DIR/repos/mobile-app" --name mobile --lazy
+$MUNO_BIN add "file://$DEMO_DIR/nodes/web-app" --name web
+$MUNO_BIN add "file://$DEMO_DIR/nodes/mobile-app" --name mobile --lazy
 
 echo -e "${YELLOW}  Adding backend services...${NC}"
-$MUNO_BIN add "file://$DEMO_DIR/repos/api-gateway" --name gateway
-$MUNO_BIN add "file://$DEMO_DIR/repos/auth-service" --name auth --lazy
-$MUNO_BIN add "file://$DEMO_DIR/repos/user-service" --name users --lazy
+$MUNO_BIN add "file://$DEMO_DIR/nodes/api-gateway" --name gateway
+$MUNO_BIN add "file://$DEMO_DIR/nodes/auth-service" --name auth --lazy
+$MUNO_BIN add "file://$DEMO_DIR/nodes/user-service" --name users --lazy
 
 echo -e "${YELLOW}  Adding shared libraries...${NC}"
-$MUNO_BIN add "file://$DEMO_DIR/repos/shared-utils" --name utils
-$MUNO_BIN add "file://$DEMO_DIR/repos/ui-components" --name components --lazy
+$MUNO_BIN add "file://$DEMO_DIR/nodes/shared-utils" --name utils
+$MUNO_BIN add "file://$DEMO_DIR/nodes/ui-components" --name components --lazy
 
 echo
 echo -e "${BLUE}Step 4: Demonstrating navigation${NC}"
@@ -233,7 +233,7 @@ Created: $(date)
 
 \`\`\`
 $DEMO_DIR/
-├── repos/          # Git repositories (source)
+├── nodes/          # Git repositories (source)
 │   ├── web-app/
 │   ├── mobile-app/
 │   ├── api-gateway/
@@ -243,7 +243,7 @@ $DEMO_DIR/
 │   └── ui-components/
 └── workspace/      # Repo-claude workspace
     └── demo-project/    # Project directory
-        ├── repos/      # Cloned repositories
+        ├── nodes/      # Cloned repositories
         ├── muno.yaml
         └── shared-memory.md
 \`\`\`

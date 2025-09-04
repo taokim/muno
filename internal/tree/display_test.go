@@ -17,7 +17,7 @@ func TestDisplayMethods(t *testing.T) {
 	cfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "test-workspace",
-			ReposDir: "repos",
+			ReposDir: "nodes",
 		},
 		Nodes: []config.NodeDefinition{},
 	}
@@ -27,7 +27,7 @@ func TestDisplayMethods(t *testing.T) {
 	}
 	
 	// Create repos directory
-	os.MkdirAll(filepath.Join(tmpDir, "repos"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "nodes"), 0755)
 	
 	mockGit := &git.MockGit{}
 	
