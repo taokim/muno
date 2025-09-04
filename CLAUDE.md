@@ -121,6 +121,33 @@ my-platform/
 └── CLAUDE.md                # This file
 ```
 
+### Node Types and Configuration
+
+MUNO supports two primary node types:
+
+1. **Git Repository Nodes** (`url` field):
+   ```yaml
+   nodes:
+     - name: payment-service
+       url: https://github.com/org/payment.git
+       lazy: true
+   ```
+   - Clone and manage standard git repositories
+   - Can contain muno.yaml for child definitions (hybrid nodes)
+
+2. **Config Reference Nodes** (`config` field):
+   ```yaml
+   nodes:
+     - name: team-frontend
+       config: ../frontend/muno.yaml  # Local config delegation
+     - name: infrastructure
+       config: https://config.company.com/infra.yaml  # Remote config
+   ```
+   - Delegate subtree management to external configurations
+   - Enable distributed, team-based configuration management
+
+**Important**: A node must have EITHER `url` OR `config`, never both.
+
 ### Key Design Patterns
 
 1. **Tree-Based Navigation**: Repositories organized in parent-child hierarchy
@@ -128,6 +155,7 @@ my-platform/
 3. **Lazy Loading**: Repositories clone only when accessed
 4. **Clear Targeting**: Every operation shows what it will affect
 5. **Direct Git Management**: Native git operations with tree awareness
+6. **Distributed Configuration**: Config references enable team autonomy
 
 ### Data Flow
 

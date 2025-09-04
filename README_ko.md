@@ -82,6 +82,10 @@ cd my-platform
 
 ### 2. 트리 구축
 
+MUNO는 두 가지 노드 타입을 지원합니다:
+- **Git 저장소 노드**: 표준 git 저장소
+- **구성 참조 노드**: 외부 muno.yaml 구성에 위임
+
 ```bash
 # 팀 저장소 추가 (부모 노드가 됨)
 muno add https://github.com/org/backend-team --name team-backend
@@ -98,6 +102,32 @@ muno use ../team-frontend
 muno add https://github.com/org/web-app
 muno add https://github.com/org/component-lib --lazy
 ```
+
+#### 고급: 구성 참조 노드
+
+대규모 조직의 경우, 외부 구성으로 서브트리 관리를 위임할 수 있습니다:
+
+```yaml
+# 루트 muno.yaml에서
+workspace:
+  name: enterprise-platform
+  repos_dir: nodes
+
+nodes:
+  - name: team-backend
+    url: https://github.com/org/backend-meta.git  # 자체 muno.yaml 보유
+    
+  - name: team-frontend  
+    config: ../frontend-workspace/muno.yaml  # 외부 구성 참조
+    
+  - name: shared-services
+    config: https://config.company.com/shared.yaml  # 원격 구성
+```
+
+이를 통해 가능한 것:
+- **분산 관리**: 각 팀이 자체 muno.yaml 관리
+- **구성**: 단순한 서브트리로부터 복잡한 트리 구축
+- **관심사 분리**: 인프라 팀은 최상위 관리, 각 팀은 서비스 관리
 
 ### 3. 트리 작업
 
@@ -133,6 +163,49 @@ muno claude team-frontend    # 프론트엔드에서 Claude 시작
 # 다른 AI 에이전트 사용
 muno agent gemini           # Gemini CLI 시작
 ```
+
+## 노드 타입
+
+MUNO는 조직의 요구사항에 맞는 유연한 노드 구성을 지원합니다:
+
+### Git 저장소 노드
+복제 및 관리 가능한 표준 git 저장소:
+```yaml
+nodes:
+  - name: payment-service
+    url: https://github.com/org/payment.git
+    lazy: true  # 필요 시 복제
+```
+
+### 구성 참조 노드  
+외부 구성으로 서브트리 관리 위임:
+```yaml
+nodes:
+  - name: team-frontend
+    config: ../frontend/muno.yaml  # 로컬 구성
+  - name: infrastructure
+    config: https://config.company.com/infra.yaml  # 원격 구성
+```
+
+### 하이브리드 노드
+자식을 위한 muno.yaml을 포함하는 저장소:
+```yaml
+nodes:
+  - name: backend-monorepo
+    url: https://github.com/org/backend.git
+    # 이 저장소의 muno.yaml이 자식 서비스를 정의
+```
+
+### 노드 해석
+MUNO가 노드를 만나면:
+1. **URL만**: 저장소 복제, 내부 muno.yaml 확인
+2. **구성만**: 서브트리용 외부 구성 로드
+3. **둘 다**: 잘못된 구성 (둘 중 하나만 가능)
+
+이 유연성이 가능하게 하는 것:
+- **점진적 마이그레이션**: 단순하게 시작, 복잡한 구조로 진화
+- **팀 자율성**: 각 팀이 자체 서브트리 구성 관리  
+- **엔터프라이즈 규모**: 분산 구성으로 대규모 트리 구성
 
 ## 철학
 

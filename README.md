@@ -114,6 +114,10 @@ cd my-platform
 
 ### 2. Build Your Tree
 
+MUNO supports two types of nodes:
+- **Git Repository Nodes**: Standard git repositories
+- **Config Reference Nodes**: Delegate to external muno.yaml configurations
+
 ```bash
 # Add team repositories (these become parent nodes)
 muno add https://github.com/org/backend-team --name team-backend
@@ -130,6 +134,32 @@ muno use ../team-frontend
 muno add https://github.com/org/web-app
 muno add https://github.com/org/component-lib --lazy
 ```
+
+#### Advanced: Config Reference Nodes
+
+For large organizations, you can delegate subtree management to external configurations:
+
+```yaml
+# In your root muno.yaml
+workspace:
+  name: enterprise-platform
+  repos_dir: nodes
+
+nodes:
+  - name: team-backend
+    url: https://github.com/org/backend-meta.git  # Has its own muno.yaml
+    
+  - name: team-frontend  
+    config: ../frontend-workspace/muno.yaml  # Reference external config
+    
+  - name: shared-services
+    config: https://config.company.com/shared.yaml  # Remote config
+```
+
+This enables:
+- **Distributed Management**: Each team manages their own muno.yaml
+- **Composition**: Build complex trees from simpler subtrees
+- **Separation of Concerns**: Infrastructure team can manage top-level while teams manage their services
 
 ### 3. Work with the Tree
 
@@ -214,6 +244,49 @@ $ muno pull
 2. **CWD mapping** - Your current directory location
 3. **Stored current** - Last `muno use` position (when outside workspace)
 4. **Root fallback** - Default to workspace root
+
+## Node Types
+
+MUNO supports flexible node configurations to match your organization's needs:
+
+### Git Repository Nodes
+Standard git repositories that can be cloned and managed:
+```yaml
+nodes:
+  - name: payment-service
+    url: https://github.com/org/payment.git
+    lazy: true  # Clone on-demand
+```
+
+### Config Reference Nodes  
+Delegate subtree management to external configurations:
+```yaml
+nodes:
+  - name: team-frontend
+    config: ../frontend/muno.yaml  # Local config
+  - name: infrastructure
+    config: https://config.company.com/infra.yaml  # Remote config
+```
+
+### Hybrid Nodes
+Repositories that also contain muno.yaml for their children:
+```yaml
+nodes:
+  - name: backend-monorepo
+    url: https://github.com/org/backend.git
+    # This repo's muno.yaml defines its child services
+```
+
+### Node Resolution
+When MUNO encounters a node:
+1. **URL only**: Clone repository, check for muno.yaml inside
+2. **Config only**: Load external configuration for subtree
+3. **Both**: Invalid configuration (must be one or the other)
+
+This flexibility enables:
+- **Gradual Migration**: Start simple, evolve to complex structures
+- **Team Autonomy**: Each team manages their subtree configuration  
+- **Enterprise Scale**: Compose massive trees from distributed configs
 
 ## Philosophy
 
