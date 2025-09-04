@@ -65,7 +65,7 @@ MUNO는 [Google의 Repo 도구](https://gerrit.googlesource.com/git-repo)에서 
 ### Homebrew (macOS/Linux)
 
 ```bash
-brew tap taokim/muno
+brew tap taokim/tap
 brew install muno
 ```
 

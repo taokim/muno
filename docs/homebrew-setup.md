@@ -4,10 +4,10 @@ This document describes how to set up and maintain the Homebrew tap for MUNO.
 
 ## Creating the Tap Repository
 
-1. Create a new GitHub repository named `homebrew-muno`
+1. Create a new GitHub repository named `homebrew-tap`
 2. Create the Formula directory structure:
    ```
-   homebrew-muno/
+   homebrew-tap/
    └── Formula/
        └── muno.rb
    ```
@@ -31,7 +31,7 @@ When releasing a new version:
 
 3. Test the formula locally:
    ```bash
-   brew tap --force taokim/muno
+   brew tap --force taokim/tap
    brew install --build-from-source muno
    brew test muno
    ```
@@ -42,13 +42,13 @@ When releasing a new version:
 
 Users can install MUNO via:
 ```bash
-brew tap taokim/muno
+brew tap taokim/tap
 brew install muno
 ```
 
 Or in a single command:
 ```bash
-brew install taokim/muno/muno
+brew install taokim/tap/muno
 ```
 
 ## Updating
@@ -62,7 +62,7 @@ brew upgrade muno
 
 ```bash
 brew uninstall muno
-brew untap taokim/muno  # Optional: remove the tap
+brew untap taokim/tap  # Optional: remove the tap
 ```
 
 ## GitHub Actions for Automated Updates
@@ -81,7 +81,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          repository: taokim/homebrew-muno
+          repository: taokim/homebrew-tap
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
       
       - name: Update Formula
@@ -106,7 +106,7 @@ jobs:
 
 Test all installation methods work correctly:
 
-1. **Homebrew**: `brew install taokim/muno/muno`
+1. **Homebrew**: `brew install taokim/tap/muno`
 2. **Go Install**: `go install github.com/taokim/muno/cmd/muno@latest`
 3. **From Source**: Clone, build, and install manually
 4. **Binary Download**: Download from GitHub releases

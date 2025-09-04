@@ -97,7 +97,7 @@ muno clone --recursive       # Manual clone when needed
 ### Homebrew (macOS/Linux)
 
 ```bash
-brew tap taokim/muno
+brew tap taokim/tap
 brew install muno
 ```
 
