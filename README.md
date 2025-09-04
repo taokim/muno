@@ -148,10 +148,10 @@ muno push --recursive        # Push entire subtree
 
 ```bash
 muno use team-backend/payment-service
-muno start                   # Claude session at payment-service
+muno claude                  # Claude session at payment-service
 
 # Or start at specific location
-muno start team-frontend     # Start session at frontend
+muno claude team-frontend    # Start Claude at frontend
 ```
 
 ## Command Reference
@@ -174,8 +174,10 @@ All git commands operate relative to current position:
 - `muno commit -m "msg" [--recursive]` - Commit changes
 - `muno status [--recursive]` - Show git status
 
-### Session Management
-- `muno start [path]` - Start Claude session
+### AI Agent Sessions
+- `muno agent [name] [path]` - Start AI agent (claude, gemini, etc.)
+- `muno claude [path]` - Start Claude CLI
+- `muno gemini [path]` - Start Gemini CLI
 - `muno init <name>` - Initialize new workspace
 
 ## Target Resolution

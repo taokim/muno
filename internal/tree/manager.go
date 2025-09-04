@@ -303,12 +303,25 @@ func (m *Manager) cloneLazyReposRecursive(logicalPath string, recursive bool) er
 		m.saveState()
 	}
 	
-	// Recursively clone children if requested
-	if recursive {
-		for _, childName := range node.Children {
-			childPath := path.Join(logicalPath, childName)
+	// Clone children - always clone direct children, recursively if requested
+	for _, childName := range node.Children {
+		childPath := path.Join(logicalPath, childName)
+		if recursive {
+			// Recursive: clone all descendants
 			if err := m.cloneLazyReposRecursive(childPath, true); err != nil {
 				return err
+			}
+		} else {
+			// Non-recursive: only clone direct children if they're lazy
+			childNode := m.state.Nodes[childPath]
+			if childNode != nil && childNode.Type == NodeTypeRepo && childNode.State == RepoStateMissing {
+				fsPath := m.ComputeFilesystemPath(childPath)
+				fmt.Printf("Cloning %s to %s\n", childNode.URL, fsPath)
+				if err := m.cloneToPath(childNode.URL, fsPath); err != nil {
+					return fmt.Errorf("failed to clone %s: %w", childNode.Name, err)
+				}
+				childNode.State = RepoStateCloned
+				m.saveState()
 			}
 		}
 	}

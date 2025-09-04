@@ -69,11 +69,20 @@ func (m *StatelessManager) ComputeFilesystemPath(logicalPath string) string {
 
 // GetNodeByPath finds a node by its logical path
 func (m *StatelessManager) GetNodeByPath(logicalPath string) (*config.NodeDefinition, error) {
-	if logicalPath == "/" || logicalPath == "" {
+	// Treat empty or only-slashes paths as root
+	trimmed := strings.Trim(logicalPath, "/")
+	if trimmed == "" {
 		return nil, nil // Root node
 	}
 	
-	parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
+	// Split and ignore empty parts (e.g., "///")
+	rawParts := strings.Split(trimmed, "/")
+	parts := make([]string, 0, len(rawParts))
+	for _, p := range rawParts {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
 	if len(parts) == 0 {
 		return nil, nil
 	}
@@ -81,11 +90,7 @@ func (m *StatelessManager) GetNodeByPath(logicalPath string) (*config.NodeDefini
 	// Find in top-level nodes
 	for _, node := range m.config.Nodes {
 		if node.Name == parts[0] {
-			if len(parts) == 1 {
-				return &node, nil
-			}
-			// For deeper paths, would need to load sub-configs
-			// For now, just check if node exists on filesystem
+			// For now, return the matched top-level node regardless of deeper parts
 			return &node, nil
 		}
 	}

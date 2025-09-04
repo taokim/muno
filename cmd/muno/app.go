@@ -66,7 +66,9 @@ Features:
 	// Core commands
 	a.rootCmd.AddCommand(a.newInitCmd())
 	a.rootCmd.AddCommand(a.newListCmd())
-	a.rootCmd.AddCommand(a.newStartCmd())
+	a.rootCmd.AddCommand(a.newAgentCmd())
+	a.rootCmd.AddCommand(a.newClaudeCmd())
+	a.rootCmd.AddCommand(a.newGeminiCmd())
 	a.rootCmd.AddCommand(a.newStatusCmd())
 	
 	// Navigation commands
@@ -86,6 +88,9 @@ Features:
 	
 	// Version
 	a.rootCmd.AddCommand(a.newVersionCmd())
+	
+	// Convenience alias
+	a.rootCmd.AddCommand(a.newStartCmd())
 }
 
 // newInitCmd creates the init command
@@ -179,7 +184,7 @@ Shows:
 - Lazy/cloned state`,
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDirV2()
+			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -193,34 +198,161 @@ Shows:
 	return cmd
 }
 
-// newStartCmd creates the start command
-func (a *App) newStartCmd() *cobra.Command {
-	var newWindow bool
-	
+// newAgentCmd creates the agent command
+func (a *App) newAgentCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "start [path]",
-		Short: "Start a Claude session at current or specified node",
-		Long: `Start a Claude Code session at the current node or a specified path.
-		
-If no path is provided, starts at the current node based on CWD.
+		Use:   "agent [agent-name] [path] [-- agent-args]",
+		Short: "Start an AI agent session (claude, gemini, cursor, etc.)",
+		Long: `Start an AI agent session at the current node or a specified path.
+
+Available agents:
+- claude (default) - Anthropic's Claude CLI
+- gemini - Google's Gemini CLI (npm install -g @google/gemini-cli)
+- cursor - Cursor AI editor
+- windsurf - Windsurf AI editor
+- aider - Aider AI pair programmer
+- Or any other agent CLI installed in your PATH
+
+Usage examples:
+  muno agent                    # Start default agent (claude) at current location
+  muno agent gemini            # Start Gemini at current location
+  muno agent claude backend    # Start Claude at backend node
+  muno agent gemini . -- --model pro  # Start Gemini with extra args
+
 The working directory will be set to the node's directory.`,
-		Args: cobra.MaximumNArgs(1),
+		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDirV2()
+			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
+			// Parse arguments: [agent-name] [path] [-- agent-args]
+			agentName := "claude" // default
 			path := ""
-			if len(args) > 0 {
-				path = args[0]
+			var agentArgs []string
+			
+			// Find the -- separator
+			dashIndex := -1
+			for i, arg := range args {
+				if arg == "--" {
+					dashIndex = i
+					break
+				}
 			}
 			
-			return mgr.StartClaude(path)
+			// Split args into before and after --
+			beforeDash := args
+			if dashIndex >= 0 {
+				beforeDash = args[:dashIndex]
+				if dashIndex+1 < len(args) {
+					agentArgs = args[dashIndex+1:]
+				}
+			}
+			
+			// Parse arguments before --
+			if len(beforeDash) > 0 {
+				agentName = beforeDash[0]
+			}
+			if len(beforeDash) > 1 {
+				path = beforeDash[1]
+			}
+			
+			return mgr.StartAgent(agentName, path, agentArgs)
 		},
 	}
 	
-	cmd.Flags().BoolVarP(&newWindow, "new-window", "n", false, "Open in new terminal window")
+	return cmd
+}
+
+// newClaudeCmd creates the claude command (alias for agent claude)
+func (a *App) newClaudeCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "claude [path] [-- agent-args]",
+		Short: "Start a Claude session (alias for 'agent claude')",
+		Long:  `Start a Claude Code session at the current node or a specified path.`,
+		Args:  cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			// Parse arguments: [path] [-- agent-args]
+			path := ""
+			var agentArgs []string
+			
+			// Find the -- separator
+			dashIndex := -1
+			for i, arg := range args {
+				if arg == "--" {
+					dashIndex = i
+					break
+				}
+			}
+			
+			// Split args
+			beforeDash := args
+			if dashIndex >= 0 {
+				beforeDash = args[:dashIndex]
+				if dashIndex+1 < len(args) {
+					agentArgs = args[dashIndex+1:]
+				}
+			}
+			
+			if len(beforeDash) > 0 {
+				path = beforeDash[0]
+			}
+			
+			return mgr.StartAgent("claude", path, agentArgs)
+		},
+	}
+	
+	return cmd
+}
+
+// newGeminiCmd creates the gemini command (alias for agent gemini)
+func (a *App) newGeminiCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "gemini [path] [-- agent-args]",
+		Short: "Start a Gemini session (alias for 'agent gemini')",
+		Long:  `Start a Gemini AI session at the current node or a specified path.`,
+		Args:  cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			// Parse arguments: [path] [-- agent-args]
+			path := ""
+			var agentArgs []string
+			
+			// Find the -- separator
+			dashIndex := -1
+			for i, arg := range args {
+				if arg == "--" {
+					dashIndex = i
+					break
+				}
+			}
+			
+			// Split args
+			beforeDash := args
+			if dashIndex >= 0 {
+				beforeDash = args[:dashIndex]
+				if dashIndex+1 < len(args) {
+					agentArgs = args[dashIndex+1:]
+				}
+			}
+			
+			if len(beforeDash) > 0 {
+				path = beforeDash[0]
+			}
+			
+			return mgr.StartAgent("gemini", path, agentArgs)
+		},
+	}
 	
 	return cmd
 }
@@ -239,7 +371,7 @@ func (a *App) newStatusCmd() *cobra.Command {
 - Uncommitted changes`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDirV2()
+			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -268,7 +400,7 @@ func (a *App) newTreeCmd() *cobra.Command {
 		Long:  `Display the tree structure of the workspace from current or specified node.`,
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDirV2()
+			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -300,7 +432,7 @@ func (a *App) newAddCmd() *cobra.Command {
 The repository will be cloned immediately unless --lazy is specified.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDirV2()
+			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -322,7 +454,7 @@ func (a *App) newRemoveCmd() *cobra.Command {
 		Short: "Remove a child repository",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDirV2()
+			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -342,7 +474,7 @@ func (a *App) newCloneCmd() *cobra.Command {
 		Long:  `Clone repositories marked as lazy that haven't been cloned yet.`,
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDirV2()
+			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -377,7 +509,7 @@ Path formats:
 - Root: ~ or /`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDirV2()
+			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -401,7 +533,7 @@ func (a *App) newCurrentCmd() *cobra.Command {
 		Long:  `Display the current node path in the workspace tree.`,
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDirV2()
+			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -435,7 +567,7 @@ Target is determined by:
 4. Root node`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDirV2()
+			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -469,7 +601,7 @@ func (a *App) newCommitCmd() *cobra.Command {
 				return fmt.Errorf("commit message is required")
 			}
 			
-			mgr, err := manager.LoadFromCurrentDirV2()
+			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -500,7 +632,7 @@ func (a *App) newPushCmd() *cobra.Command {
 		Long: `Push committed changes from repositories at the current node.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDirV2()
+			mgr, err := manager.LoadFromCurrentDir()
 			if err != nil {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
@@ -519,6 +651,28 @@ func (a *App) newPushCmd() *cobra.Command {
 	return cmd
 }
 
+
+// newVersionCmd creates the version command
+func (a *App) newStartCmd() *cobra.Command {
+	// Alias for starting default agent (claude)
+	cmd := &cobra.Command{
+		Use:   "start [path]",
+		Short: "Start default agent (claude) at current or specified path",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			path := ""
+			if len(args) > 0 {
+				path = args[0]
+			}
+			return mgr.StartAgent("claude", path, nil)
+		},
+	}
+	return cmd
+}
 
 // newVersionCmd creates the version command
 func (a *App) newVersionCmd() *cobra.Command {

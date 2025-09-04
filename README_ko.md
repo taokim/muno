@@ -112,14 +112,17 @@ muno commit -m "Update"      # 현재 노드에서 커밋
 muno push --recursive        # 전체 서브트리 push
 ```
 
-### 4. Claude 세션 시작
+### 4. AI 에이전트 세션 시작
 
 ```bash
 muno use team-backend/payment-service
-muno start                   # payment-service에서 Claude 세션
+muno claude                  # payment-service에서 Claude 세션
 
 # 또는 특정 위치에서 시작
-muno start team-frontend     # 프론트엔드에서 세션 시작
+muno claude team-frontend    # 프론트엔드에서 Claude 시작
+
+# 다른 AI 에이전트 사용
+muno agent gemini           # Gemini CLI 시작
 ```
 
 ## 철학

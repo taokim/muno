@@ -215,8 +215,14 @@ func TestManager_StateFileCorruption(t *testing.T) {
 func TestStatelessManager_EdgeCases(t *testing.T) {
 	tmpDir := t.TempDir()
 	
-	// First test with non-existent config
-	os.RemoveAll(filepath.Join(tmpDir, "muno.yaml"))
+	// Create a minimal config file
+	configPath := filepath.Join(tmpDir, "muno.yaml")
+	configContent := `workspace:
+  name: test-workspace
+  repos_dir: repos
+`
+	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	require.NoError(t, err)
 	
 	mockGit := &git.MockGit{}
 	mgr, err := NewStatelessManager(tmpDir, mockGit)

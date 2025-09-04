@@ -1,7 +1,7 @@
 #!/bin/bash
-# Manual test script for new start command features
+# Manual test script for agent command features
 
-echo "🧪 Testing improved muno start command"
+echo "🧪 Testing muno agent/claude/gemini commands"
 echo "===================================="
 
 # Build the tool
@@ -56,25 +56,25 @@ echo -e "\n📋 Test scenarios:"
 echo "=================="
 
 echo -e "\n1. Test help output:"
-echo "../muno start --help"
+echo "../muno agent --help"
 
 echo -e "\n2. Test foreground mode (you'll need to Ctrl+C to exit):"
-echo "../muno start frontend-dev --foreground"
+echo "../muno claude frontend-dev"
 
 echo -e "\n3. Test multiple agents:"
-echo "../muno start frontend-dev backend-dev"
+echo "../muno agent claude frontend-dev"
 
 echo -e "\n4. Test by repository selection:"
-echo "../muno start --repos frontend,backend"
+echo "../muno agent gemini"
 
 echo -e "\n5. Test interactive selection:"
-echo "../muno start --interactive"
+echo "../muno claude --help"
 
 echo -e "\n6. Test new window mode (if supported on your OS):"
-echo "../muno start frontend-dev --new-window"
+echo "../muno gemini frontend-dev"
 
 echo -e "\n7. Test preset (once implemented in config):"
-echo "../muno start --preset fullstack"
+echo "../muno agent cursor"
 
 echo -e "\n8. Show status after starting:"
 echo "../muno status"

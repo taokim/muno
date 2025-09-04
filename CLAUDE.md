@@ -38,8 +38,14 @@ go build -o bin/muno ./cmd/muno
 ./bin/muno remove <name>           # Remove child repository
 ./bin/muno clone [--recursive]     # Clone lazy repositories
 
-# Start Claude session
-./bin/muno start [path]            # Start at current or specified node
+# Start AI agent sessions
+./bin/muno agent [name] [path]     # Start AI agent (claude, gemini, cursor, etc.)
+./bin/muno claude [path]           # Start Claude CLI (Anthropic)
+./bin/muno gemini [path]           # Start Gemini CLI (Google - requires npm install -g @google/gemini-cli)
+
+# Pass arguments to agents
+./bin/muno agent gemini -- --help  # Pass help flag to Gemini CLI
+./bin/muno claude backend          # Start Claude at backend directory
 
 # Git operations
 ./bin/muno pull [--recursive]      # Pull repositories

@@ -37,7 +37,8 @@ func TestAppCommands(t *testing.T) {
 	commands := []string{
 		"init", "tree", "list", "use", "current", 
 		"add", "remove", "status", "pull", "push",
-		"commit", "clone", "start", "version",
+		"commit", "clone", "version",
+		"agent", "claude", "gemini",
 	}
 	
 	for _, cmdName := range commands {

@@ -10,6 +10,7 @@ import (
 	"time"
 	
 	"github.com/taokim/muno/internal/config"
+	"github.com/taokim/muno/internal/git"
 	"github.com/taokim/muno/internal/interfaces"
 	"github.com/taokim/muno/internal/plugin"
 	"github.com/taokim/muno/internal/tree"
@@ -220,7 +221,7 @@ func (m *Manager) Use(ctx context.Context, path string) error {
 	if node.IsLazy && !node.IsCloned {
 		m.uiProvider.Info(fmt.Sprintf("Cloning repository: %s", node.Repository))
 		
-		repoPath := filepath.Join(m.workspace, "repos", node.Path)
+		repoPath := m.computeFilesystemPath(node.Path)
 		if err := m.gitProvider.Clone(node.Repository, repoPath, interfaces.CloneOptions{
 			Recursive: true,
 		}); err != nil {
@@ -275,7 +276,9 @@ func (m *Manager) Add(ctx context.Context, repoURL string, options AddOptions) e
 	
 	// Clone immediately if not lazy
 	if !options.Lazy {
-		repoPath := filepath.Join(m.workspace, "repos", current.Path, repoName)
+		// Compute filesystem path for the new child node
+		childPath := filepath.Join(current.Path, repoName)
+		repoPath := m.computeFilesystemPath(childPath)
 		
 		progress := m.uiProvider.Progress(fmt.Sprintf("Cloning %s", repoName))
 		progress.Start()
@@ -343,7 +346,7 @@ func (m *Manager) Remove(ctx context.Context, name string) error {
 	
 	// Remove from filesystem if cloned
 	if node.IsCloned {
-		repoPath := filepath.Join(m.workspace, "repos", nodePath)
+		repoPath := m.computeFilesystemPath(nodePath)
 		if m.fsProvider.Exists(repoPath) {
 			m.logProvider.Debug("Removing repository files", 
 				interfaces.Field{Key: "path", Value: repoPath})
@@ -665,6 +668,30 @@ func extractRepoName(url string) string {
 	return url
 }
 
+// computeFilesystemPath computes the actual filesystem path from a logical tree path
+// This replicates the logic from tree.Manager.ComputeFilesystemPath
+func (m *Manager) computeFilesystemPath(logicalPath string) string {
+	if logicalPath == "/" {
+		return filepath.Join(m.workspace, "repos")
+	}
+	
+	// Split path: /level1/level2/level3 -> [level1, level2, level3]
+	parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
+	
+	// Build filesystem path with repos/ subdirectories
+	// workspace/repos/level1/repos/level2/repos/level3
+	fsPath := filepath.Join(m.workspace, "repos")
+	for i, part := range parts {
+		fsPath = filepath.Join(fsPath, part)
+		// Add repos/ before next level (except last)
+		if i < len(parts)-1 {
+			fsPath = filepath.Join(fsPath, "repos")
+		}
+	}
+	
+	return fsPath
+}
+
 // Helper function to display tree recursively
 func (m *Manager) displayTreeRecursive(node interfaces.NodeInfo, indent int) {
 	prefix := strings.Repeat("  ", indent)
@@ -705,6 +732,11 @@ func (m *Manager) ListNodesRecursive(recursive bool) error {
 	current, err := m.treeProvider.GetCurrent()
 	if err != nil {
 		return fmt.Errorf("getting current node: %w", err)
+	}
+	
+	if len(current.Children) == 0 {
+		m.uiProvider.Info("No children")
+		return nil
 	}
 	
 	for _, child := range current.Children {
@@ -794,7 +826,7 @@ func (m *Manager) CloneRepos(path string, recursive bool) error {
 	
 	for _, node := range toClone {
 		m.logProvider.Info(fmt.Sprintf("Cloning repository %s from %s", node.Name, node.Repository))
-		if err := m.gitProvider.Clone(node.Repository, filepath.Join(m.workspace, node.Path), interfaces.CloneOptions{}); err != nil {
+		if err := m.gitProvider.Clone(node.Repository, m.computeFilesystemPath(node.Path), interfaces.CloneOptions{}); err != nil {
 			return fmt.Errorf("cloning %s: %w", node.Name, err)
 		}
 		
@@ -845,11 +877,12 @@ func (m *Manager) StatusNode(path string, recursive bool) error {
 	}
 	
 	// Show status
+	m.uiProvider.Info("Tree Status")
 	if recursive {
 		return m.showStatusRecursive(node)
 	}
 	
-	status, err := m.gitProvider.Status(filepath.Join(m.workspace, node.Path))
+	status, err := m.gitProvider.Status(m.computeFilesystemPath(node.Path))
 	if err != nil {
 		return fmt.Errorf("getting status: %w", err)
 	}
@@ -859,7 +892,7 @@ func (m *Manager) StatusNode(path string, recursive bool) error {
 }
 
 func (m *Manager) showStatusRecursive(node interfaces.NodeInfo) error {
-	status, err := m.gitProvider.Status(filepath.Join(m.workspace, node.Path))
+	status, err := m.gitProvider.Status(m.computeFilesystemPath(node.Path))
 	if err != nil {
 		m.uiProvider.Info(fmt.Sprintf("%s: error - %v", node.Name, err))
 	} else {
@@ -899,14 +932,17 @@ func (m *Manager) PullNode(path string, recursive bool) error {
 		return m.pullRecursive(node)
 	}
 	
-	m.logProvider.Info(fmt.Sprintf("Pulling changes at %s", node.Path))
-	return m.gitProvider.Pull(filepath.Join(m.workspace, node.Path), interfaces.PullOptions{})
+	fullPath := m.computeFilesystemPath(node.Path)
+	m.logProvider.Info("Pulling changes")
+	m.logProvider.Info(fmt.Sprintf("  Tree path: %s", node.Path))
+	m.logProvider.Info(fmt.Sprintf("  Directory: %s", fullPath))
+	return m.gitProvider.Pull(fullPath, interfaces.PullOptions{})
 }
 
 func (m *Manager) pullRecursive(node interfaces.NodeInfo) error {
 	if node.IsCloned {
 		m.logProvider.Info(fmt.Sprintf("Pulling changes at %s", node.Path))
-		if err := m.gitProvider.Pull(filepath.Join(m.workspace, node.Path), interfaces.PullOptions{}); err != nil {
+		if err := m.gitProvider.Pull(m.computeFilesystemPath(node.Path), interfaces.PullOptions{}); err != nil {
 			m.logProvider.Error(fmt.Sprintf("Pull failed at %s: %v", node.Path, err))
 		}
 	}
@@ -944,14 +980,17 @@ func (m *Manager) PushNode(path string, recursive bool) error {
 		return m.pushRecursive(node)
 	}
 	
-	m.logProvider.Info(fmt.Sprintf("Pushing changes at %s", node.Path))
-	return m.gitProvider.Push(filepath.Join(m.workspace, node.Path), interfaces.PushOptions{})
+	fullPath := m.computeFilesystemPath(node.Path)
+	m.logProvider.Info("Pushing changes")
+	m.logProvider.Info(fmt.Sprintf("  Tree path: %s", node.Path))
+	m.logProvider.Info(fmt.Sprintf("  Directory: %s", fullPath))
+	return m.gitProvider.Push(fullPath, interfaces.PushOptions{})
 }
 
 func (m *Manager) pushRecursive(node interfaces.NodeInfo) error {
 	if node.IsCloned {
 		m.logProvider.Info(fmt.Sprintf("Pushing changes at %s", node.Path))
-		if err := m.gitProvider.Push(filepath.Join(m.workspace, node.Path), interfaces.PushOptions{}); err != nil {
+		if err := m.gitProvider.Push(m.computeFilesystemPath(node.Path), interfaces.PushOptions{}); err != nil {
 			m.logProvider.Error(fmt.Sprintf("Push failed at %s: %v", node.Path, err))
 		}
 	}
@@ -985,11 +1024,15 @@ func (m *Manager) CommitNode(path string, message string, recursive bool) error 
 		return fmt.Errorf("getting node: %w", err)
 	}
 	
-	m.logProvider.Info(fmt.Sprintf("Committing changes at %s: %s", node.Path, message))
-	return m.gitProvider.Commit(filepath.Join(m.workspace, node.Path), message, interfaces.CommitOptions{})
+	fullPath := m.computeFilesystemPath(node.Path)
+	m.logProvider.Info(fmt.Sprintf("Committing changes: %s", message))
+	m.logProvider.Info(fmt.Sprintf("  Tree path: %s", node.Path))
+	m.logProvider.Info(fmt.Sprintf("  Directory: %s", fullPath))
+	return m.gitProvider.Commit(fullPath, message, interfaces.CommitOptions{})
 }
 
 // StartClaude starts a Claude session
+// Deprecated: Use StartAgent("claude", path, nil) instead
 func (m *Manager) StartClaude(path string) error {
 	if !m.initialized {
 		return fmt.Errorf("manager not initialized")
@@ -1010,8 +1053,11 @@ func (m *Manager) StartClaude(path string) error {
 	}
 	
 	// Start Claude session using process provider
-	fullPath := filepath.Join(m.workspace, node.Path)
-	m.logProvider.Info(fmt.Sprintf("Starting Claude session at %s", fullPath))
+	// Compute filesystem path with repos/ directory pattern
+	fullPath := m.computeFilesystemPath(node.Path)
+	m.logProvider.Info("Starting Claude session")
+	m.logProvider.Info(fmt.Sprintf("  Tree path: %s", node.Path))
+	m.logProvider.Info(fmt.Sprintf("  Directory: %s", fullPath))
 	
 	result, err := m.processProvider.ExecuteShell(context.Background(), fmt.Sprintf("cd %s && claude", fullPath), interfaces.ProcessOptions{})
 	if err != nil {
@@ -1020,6 +1066,59 @@ func (m *Manager) StartClaude(path string) error {
 	
 	if result.ExitCode != 0 {
 		return fmt.Errorf("Claude exited with code %d: %s", result.ExitCode, result.Stderr)
+	}
+	
+	return nil
+}
+
+// StartAgent starts an AI agent session (claude, gemini, cursor, etc.)
+func (m *Manager) StartAgent(agentName string, path string, agentArgs []string) error {
+	if !m.initialized {
+		return fmt.Errorf("manager not initialized")
+	}
+	
+	// Default to claude if no agent specified
+	if agentName == "" {
+		agentName = "claude"
+	}
+	
+	targetPath := path
+	if targetPath == "" {
+		current, err := m.treeProvider.GetCurrent()
+		if err != nil {
+			return fmt.Errorf("getting current node: %w", err)
+		}
+		targetPath = current.Path
+	}
+	
+	node, err := m.treeProvider.GetNode(targetPath)
+	if err != nil {
+		return fmt.Errorf("getting node: %w", err)
+	}
+	
+	// Start agent session using process provider
+	// Compute filesystem path with repos/ directory pattern
+	fullPath := m.computeFilesystemPath(node.Path)
+	m.logProvider.Info(fmt.Sprintf("Starting %s session", agentName))
+	m.logProvider.Info(fmt.Sprintf("  Tree path: %s", node.Path))
+	m.logProvider.Info(fmt.Sprintf("  Directory: %s", fullPath))
+	
+	// Build the command
+	command := fmt.Sprintf("cd %s && %s", fullPath, agentName)
+	if len(agentArgs) > 0 {
+		// Add agent-specific arguments
+		for _, arg := range agentArgs {
+			command += " " + arg
+		}
+	}
+	
+	result, err := m.processProvider.ExecuteShell(context.Background(), command, interfaces.ProcessOptions{})
+	if err != nil {
+		return fmt.Errorf("starting %s: %w", agentName, err)
+	}
+	
+	if result.ExitCode != 0 {
+		return fmt.Errorf("%s exited with code %d: %s", agentName, result.ExitCode, result.Stderr)
 	}
 	
 	return nil
@@ -1205,8 +1304,11 @@ func NewManagerForInit(projectPath string) (*Manager, error) {
 		return nil, fmt.Errorf("creating project directory: %w", err)
 	}
 	
+	// Create git interface for tree manager
+	gitInterface := git.New()
+	
 	// Create tree manager
-	treeMgr, err := tree.NewManager(projectPath, nil)
+	treeMgr, err := tree.NewManager(projectPath, gitInterface)
 	if err != nil {
 		return nil, fmt.Errorf("creating tree manager: %w", err)
 	}
@@ -1277,8 +1379,11 @@ func LoadFromCurrentDirWithOptions(opts *ManagerOptions) (*Manager, error) {
 		return nil, fmt.Errorf("muno.yaml not found in current directory or any parent")
 	}
 	
+	// Create git interface for tree manager
+	gitInterface := git.New()
+	
 	// Create tree manager
-	treeMgr, err := tree.NewManager(cwd, nil)
+	treeMgr, err := tree.NewManager(cwd, gitInterface)
 	if err != nil {
 		return nil, fmt.Errorf("creating tree manager: %w", err)
 	}

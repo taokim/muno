@@ -15,6 +15,200 @@ import (
 	"github.com/taokim/muno/internal/mocks"
 )
 
+// TestManager_StartAgent tests the StartAgent function
+func TestManager_StartAgent(t *testing.T) {
+	tests := []struct {
+		name           string
+		agentName      string
+		path           string
+		agentArgs      []string
+		initialized    bool
+		getCurrentErr  error
+		getNodeErr     error
+		executeErr     error
+		exitCode       int
+		wantErr        bool
+		errMsg         string
+		expectedCmd    string
+	}{
+		{
+			name:        "successful start with claude",
+			agentName:   "claude",
+			path:        "/test/repo",
+			initialized: true,
+			wantErr:     false,
+			expectedCmd: "cd /workspace/repos/test/repos/repo && claude",
+		},
+		{
+			name:        "successful start with gemini",
+			agentName:   "gemini",
+			path:        "/test/repo",
+			initialized: true,
+			wantErr:     false,
+			expectedCmd: "cd /workspace/repos/test/repos/repo && gemini",
+		},
+		{
+			name:        "default to claude when agent not specified",
+			agentName:   "",
+			path:        "/test/repo",
+			initialized: true,
+			wantErr:     false,
+			expectedCmd: "cd /workspace/repos/test/repos/repo && claude",
+		},
+		{
+			name:        "successful with agent args",
+			agentName:   "gemini",
+			path:        "/test/repo",
+			agentArgs:   []string{"--model", "pro", "--temperature", "0.7"},
+			initialized: true,
+			wantErr:     false,
+			expectedCmd: "cd /workspace/repos/test/repos/repo && gemini --model pro --temperature 0.7",
+		},
+		{
+			name:          "successful without path uses current",
+			agentName:     "claude",
+			path:          "",
+			initialized:   true,
+			getCurrentErr: nil,
+			wantErr:       false,
+		},
+		{
+			name:        "fails when not initialized",
+			agentName:   "claude",
+			path:        "/test/repo",
+			initialized: false,
+			wantErr:     true,
+			errMsg:      "manager not initialized",
+		},
+		{
+			name:          "fails when getting current node fails",
+			agentName:     "claude",
+			path:          "",
+			initialized:   true,
+			getCurrentErr: fmt.Errorf("current node error"),
+			wantErr:       true,
+			errMsg:        "getting current node",
+		},
+		{
+			name:        "fails when getting node fails",
+			agentName:   "gemini",
+			path:        "/test/repo",
+			initialized: true,
+			getNodeErr:  fmt.Errorf("node not found"),
+			wantErr:     true,
+			errMsg:      "getting node",
+		},
+		{
+			name:        "fails when execute shell fails",
+			agentName:   "cursor",
+			path:        "/test/repo",
+			initialized: true,
+			executeErr:  fmt.Errorf("command failed"),
+			wantErr:     true,
+			errMsg:      "starting cursor",
+		},
+		{
+			name:        "fails when exit code is non-zero",
+			agentName:   "copilot",
+			path:        "/test/repo",
+			initialized: true,
+			exitCode:    1,
+			wantErr:     true,
+			errMsg:      "copilot exited with code 1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mocks
+			mockTree := mocks.NewMockTreeProvider()
+			mockProcess := &MockProcessProviderWithCommand{
+				executeErr:  tt.executeErr,
+				exitCode:    tt.exitCode,
+				expectedCmd: tt.expectedCmd,
+			}
+			mockUI := mocks.NewMockUIProvider()
+			mockFS := mocks.NewMockFileSystemProvider()
+			mockConfig := mocks.NewMockConfigProvider()
+			mockGit := mocks.NewMockGitProvider()
+
+			// Setup tree mock behavior
+			if tt.getCurrentErr != nil {
+				mockTree.SetError("GetCurrent", "", tt.getCurrentErr)
+			} else {
+				mockTree.SetCurrent(interfaces.NodeInfo{
+					Path: "/current/node",
+					Name: "current",
+				})
+			}
+
+			// Only set up GetNode if we're not expecting GetCurrent to fail
+			if tt.getCurrentErr == nil {
+				nodePath := tt.path
+				if nodePath == "" {
+					nodePath = "/current/node"  // Use the current node path when no path specified
+				}
+				if tt.getNodeErr != nil {
+					mockTree.SetError("GetNode", nodePath, tt.getNodeErr)
+				} else {
+					mockTree.SetNode(nodePath, interfaces.NodeInfo{
+						Path: nodePath,
+						Name: "test-node",
+					})
+				}
+			}
+
+			m := &Manager{
+				initialized:     tt.initialized,
+				workspace:       "/workspace",
+				treeProvider:    mockTree,
+				processProvider: mockProcess,
+				uiProvider:      mockUI,
+				fsProvider:      mockFS,
+				configProvider:  mockConfig,
+				gitProvider:     mockGit,
+				logProvider:     NewDefaultLogProvider(false),
+				metricsProvider: NewNoOpMetricsProvider(),
+			}
+
+			err := m.StartAgent(tt.agentName, tt.path, tt.agentArgs)
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+				// Verify the command was built correctly if expectedCmd is set
+				if tt.expectedCmd != "" && mockProcess.lastCommand != "" {
+					assert.Contains(t, mockProcess.lastCommand, tt.expectedCmd)
+				}
+			}
+		})
+	}
+}
+
+// MockProcessProviderWithCommand is a mock that can track and validate ExecuteShell commands
+type MockProcessProviderWithCommand struct {
+	DefaultProcessProvider
+	executeErr  error
+	exitCode    int
+	expectedCmd string
+	lastCommand string
+}
+
+func (m *MockProcessProviderWithCommand) ExecuteShell(ctx context.Context, command string, opts interfaces.ProcessOptions) (*interfaces.ProcessResult, error) {
+	m.lastCommand = command
+	if m.executeErr != nil {
+		return nil, m.executeErr
+	}
+	return &interfaces.ProcessResult{
+		ExitCode: m.exitCode,
+		Stdout:   "",
+		Stderr:   "error output",
+	}, nil
+}
+
 // TestManager_StartClaude tests the StartClaude function
 func TestManager_StartClaude(t *testing.T) {
 	tests := []struct {
