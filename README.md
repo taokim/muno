@@ -42,6 +42,15 @@ The octopus perfectly represents MUNO's capabilities:
 
 MUNO introduces a revolutionary **tree-based architecture** that treats your entire codebase as a navigable filesystem, eliminating complexity while providing intuitive, CWD-first operations.
 
+### Inspired by Google Repo, Built for Modern Needs
+
+MUNO was inspired by [Google's Repo tool](https://gerrit.googlesource.com/git-repo) but born from the need to overcome its limitations:
+
+- **Tree Structure**: While Repo manages flat repository collections, MUNO enables true hierarchical organization with parent-child relationships
+- **Parent Documentation**: Repo lacks the ability to document and manage parent nodes - MUNO treats every node as a first-class citizen
+- **Intuitive Navigation**: Navigate your repository tree like a filesystem with `muno use`, unlike Repo's manifest-centric approach
+- **Flexible Organization**: Build custom tree structures that match your team's mental model, not forced into flat layouts
+
 ## Key Innovation: Tree-Based Navigation
 
 ### 🌳 **Workspace as a Tree**

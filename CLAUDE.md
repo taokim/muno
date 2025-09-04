@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **MUNO** (문어 in Korean, meaning "octopus") is a multi-repository orchestration tool with a tree-based navigation system. Like an octopus coordinating its eight arms, MUNO orchestrates multiple repositories with intelligent coordination. The name stands for **Multi-repository UNified Orchestration**.
 
+Inspired by Google's Repo tool but designed to overcome its limitations, MUNO introduces true hierarchical tree structures where parent nodes can be documented and managed as first-class citizens. Unlike Repo's flat manifest-based approach, MUNO allows you to build and navigate repository trees that match your team's mental model.
+
 Repositories form a navigable tree structure where every operation is based on your current position (CWD-first resolution).
 
 **Key Features:**
