@@ -97,8 +97,7 @@ brews:
     homepage: https://github.com/taokim/muno
     description: Multi-repository UNified Orchestration for Claude Code agents
     license: MIT
-    # Skip homebrew upload if HOMEBREW_TAP_GITHUB_TOKEN is not set
-    skip_upload: "{{ if .Env.HOMEBREW_TAP_GITHUB_TOKEN }}false{{ else }}true{{ end }}"
+    skip_upload: auto
     folder: Formula
     repository:
       owner: taokim
