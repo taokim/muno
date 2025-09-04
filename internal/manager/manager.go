@@ -10,6 +10,7 @@ import (
 	"time"
 	
 	"github.com/taokim/muno/internal/config"
+	"github.com/taokim/muno/internal/constants"
 	"github.com/taokim/muno/internal/git"
 	"github.com/taokim/muno/internal/interfaces"
 	"github.com/taokim/muno/internal/plugin"
@@ -672,7 +673,7 @@ func extractRepoName(url string) string {
 // This replicates the logic from tree.Manager.ComputeFilesystemPath
 func (m *Manager) computeFilesystemPath(logicalPath string) string {
 	if logicalPath == "/" {
-		return filepath.Join(m.workspace, "nodes")
+		return filepath.Join(m.workspace, constants.DefaultReposDir)
 	}
 	
 	// Split path: /level1/level2/level3 -> [level1, level2, level3]
@@ -680,12 +681,12 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 	
 	// Build filesystem path with nodes/ subdirectories
 	// workspace/nodes/level1/nodes/level2/nodes/level3
-	fsPath := filepath.Join(m.workspace, "nodes")
+	fsPath := filepath.Join(m.workspace, constants.DefaultReposDir)
 	for i, part := range parts {
 		fsPath = filepath.Join(fsPath, part)
 		// Add nodes/ before next level (except last)
 		if i < len(parts)-1 {
-			fsPath = filepath.Join(fsPath, "nodes")
+			fsPath = filepath.Join(fsPath, constants.DefaultReposDir)
 		}
 	}
 	
@@ -1142,7 +1143,7 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 	m.logProvider.Info(fmt.Sprintf("Found %d repositories", len(repos)))
 	
 	// Create repos directory
-	reposDir := filepath.Join(m.workspace, "nodes")
+	reposDir := filepath.Join(m.workspace, constants.DefaultReposDir)
 	if err := m.fsProvider.MkdirAll(reposDir, 0755); err != nil {
 		return fmt.Errorf("creating repos directory: %w", err)
 	}
@@ -1205,7 +1206,7 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 	m.config = &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     projectName,
-			ReposDir: "nodes",
+			ReposDir: constants.DefaultReposDir,
 		},
 		Nodes: []config.NodeDefinition{},
 		Path:  filepath.Join(m.workspace, "muno.yaml"),

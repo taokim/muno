@@ -133,6 +133,21 @@ func TestIsMetaRepo(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:     "platform suffix",
+			repoName: "enterprise-platform",
+			expected: true,
+		},
+		{
+			name:     "workspace suffix",
+			repoName: "dev-workspace",
+			expected: true,
+		},
+		{
+			name:     "root-repo suffix",
+			repoName: "company-root-repo",
+			expected: true,
+		},
+		{
 			name:     "regular repo",
 			repoName: "payment-service",
 			expected: false,

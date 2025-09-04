@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 	
+	"github.com/taokim/muno/internal/constants"
 	"github.com/taokim/muno/internal/git"
 )
 
@@ -53,7 +54,7 @@ func NewManager(workspacePath string, gitCmd git.Interface) (*Manager, error) {
 // This is the ONLY place that knows about the nodes/ directory pattern
 func (m *Manager) ComputeFilesystemPath(logicalPath string) string {
 	if logicalPath == "/" {
-		return filepath.Join(m.workspacePath, "nodes")
+		return filepath.Join(m.workspacePath, constants.DefaultReposDir)
 	}
 	
 	// Split path: /level1/level2/level3 -> [level1, level2, level3]
@@ -61,12 +62,12 @@ func (m *Manager) ComputeFilesystemPath(logicalPath string) string {
 	
 	// Build filesystem path with nodes/ subdirectories
 	// workspace/nodes/level1/nodes/level2/nodes/level3
-	fsPath := filepath.Join(m.workspacePath, "nodes")
+	fsPath := filepath.Join(m.workspacePath, constants.DefaultReposDir)
 	for i, part := range parts {
 		fsPath = filepath.Join(fsPath, part)
 		// Add nodes/ before next level (except last)
 		if i < len(parts)-1 {
-			fsPath = filepath.Join(fsPath, "nodes")
+			fsPath = filepath.Join(fsPath, constants.DefaultReposDir)
 		}
 	}
 	

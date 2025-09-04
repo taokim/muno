@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	
+	"github.com/taokim/muno/internal/constants"
 	"gopkg.in/yaml.v3"
 )
 
@@ -62,7 +63,7 @@ func DefaultConfigTree(projectName string) *ConfigTree {
 		Workspace: WorkspaceTree{
 			Name:     projectName,
 			RootRepo: "", // Can be set if root is a repo
-			ReposDir: "nodes", // Default nodes directory
+			ReposDir: constants.DefaultReposDir, // Default nodes directory
 		},
 		Nodes: []NodeDefinition{}, // Empty nodes list
 	}
@@ -82,7 +83,7 @@ func LoadTree(path string) (*ConfigTree, error) {
 
 	// Apply defaults
 	if cfg.Workspace.ReposDir == "" {
-		cfg.Workspace.ReposDir = "nodes"
+		cfg.Workspace.ReposDir = constants.DefaultReposDir
 	}
 	
 	// Store the path
@@ -147,7 +148,7 @@ func (c *ConfigTree) Validate() error {
 // GetReposDir returns the configured repos directory name
 func (c *ConfigTree) GetReposDir() string {
 	if c.Workspace.ReposDir == "" {
-		return "nodes"
+		return constants.DefaultReposDir
 	}
 	return c.Workspace.ReposDir
 }

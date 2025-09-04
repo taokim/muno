@@ -8,6 +8,7 @@ import (
 	"strings"
 	
 	"gopkg.in/yaml.v3"
+	"github.com/taokim/muno/internal/constants"
 )
 
 // DefaultMetaRepoPattern is the default regex pattern to detect meta-repos
@@ -72,7 +73,7 @@ func DefaultConfig(projectName string) *Config {
 	return &Config{
 		Workspace: WorkspaceConfig{
 			Name:     projectName,
-			RootPath: "nodes",
+			RootPath: constants.DefaultReposDir,
 		},
 		Defaults: DefaultDefaults(),
 		Repositories: map[string]Repository{
@@ -203,7 +204,7 @@ func Load(path string) (*Config, error) {
 	
 	// Set default workspace settings
 	if cfg.Workspace.RootPath == "" {
-		cfg.Workspace.RootPath = "nodes"
+		cfg.Workspace.RootPath = constants.DefaultReposDir
 	}
 	
 	// Set default repository loading settings
