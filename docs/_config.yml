@@ -1,7 +1,8 @@
 # GitHub Pages Configuration for MUNO
-# theme: jekyll-theme-minimal (disabled to use custom HTML)
 title: MUNO
 description: 🐙 Multi-repository UNified Orchestration - Manage multiple git repositories with monorepo-like convenience
+baseurl: "/muno"
+url: "https://taokim.github.io"
 logo: ../assets/muno-logo.png
 show_downloads: true
 google_analytics: 
