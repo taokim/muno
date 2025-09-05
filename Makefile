@@ -11,7 +11,14 @@ VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME := $(shell date -u '+%Y-%m-%d_%H:%M:%S')
-LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.gitCommit=$(GIT_COMMIT) -X main.gitBranch=$(GIT_BRANCH) -X main.buildTime=$(BUILD_TIME)"
+
+# Extract GitHub owner and repo from git remote origin URL
+# Works with both HTTPS and SSH URLs
+GIT_REMOTE_URL := $(shell git remote get-url origin 2>/dev/null || echo "")
+GITHUB_OWNER := $(shell echo $(GIT_REMOTE_URL) | sed -E 's|.*github\.com[:/]([^/]+)/.*|\1|' || echo "taokim")
+GITHUB_REPO := $(shell echo $(GIT_REMOTE_URL) | sed -E 's|.*github\.com[:/][^/]+/([^/.]+)(\.git)?.*|\1|' || echo "muno")
+
+LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.gitCommit=$(GIT_COMMIT) -X main.gitBranch=$(GIT_BRANCH) -X main.buildTime=$(BUILD_TIME) -X main.GitHubOwner=$(GITHUB_OWNER) -X main.GitHubRepo=$(GITHUB_REPO)"
 
 # Default target
 all: build

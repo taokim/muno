@@ -5,10 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"regexp"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/taokim/muno/internal/manager"
@@ -50,34 +47,20 @@ func (a *App) ExecuteWithArgs(args []string) error {
 	return a.Execute()
 }
 
-// getDocumentationURLs returns formatted documentation URLs based on git remote
+// Build-time variables (set via ldflags)
+var (
+	// GitHubOwner is the GitHub repository owner (set at build time)
+	GitHubOwner = "taokim"
+	// GitHubRepo is the GitHub repository name (set at build time)
+	GitHubRepo = "muno"
+)
+
+// getDocumentationURLs returns formatted documentation URLs for MUNO
 func getDocumentationURLs() string {
-	// Default values
-	owner := "{owner}"
-	repo := "{repo}"
-	
-	// Try to get from git remote
-	cmd := exec.Command("git", "remote", "get-url", "origin")
-	if output, err := cmd.Output(); err == nil {
-		url := strings.TrimSpace(string(output))
-		
-		// Parse GitHub URL (supports both HTTPS and SSH)
-		// HTTPS: https://github.com/owner/repo.git
-		// SSH: git@github.com:owner/repo.git
-		patterns := []string{
-			`github\.com[:/]([^/]+)/([^/\s]+?)(?:\.git)?$`,
-			`github\.com/([^/]+)/([^/\s]+?)(?:\.git)?$`,
-		}
-		
-		for _, pattern := range patterns {
-			re := regexp.MustCompile(pattern)
-			if matches := re.FindStringSubmatch(url); len(matches) >= 3 {
-				owner = matches[1]
-				repo = matches[2]
-				break
-			}
-		}
-	}
+	// Use build-time variables that were set when MUNO was compiled
+	// These always point to the documentation of the repository where MUNO was built from
+	owner := GitHubOwner
+	repo := GitHubRepo
 	
 	return fmt.Sprintf(`Documentation:
 - Web: https://%s.github.io/%s/
