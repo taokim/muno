@@ -53,6 +53,20 @@ test_*.html
 /muno.yaml
 /shared-memory.md
 /nodes/
+internal/manager/muno.yaml
+internal/manager/test-project
+internal/manager/shared-memory.md
 
 # Development directories
 .conductor/
+
+# Coverage files
+*.cover
+coverage/
+*.coverage
+
+# AI Assistant directories
+.claude/
+.muno/
+# Keep Serena memories for project context
+# .serena/
