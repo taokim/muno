@@ -131,12 +131,12 @@ func (a *App) newInitCmd() *cobra.Command {
 Smart mode (default):
 - Detects existing git repositories
 - Offers to add them to workspace
-- Moves repositories to nodes/ directory
+- Moves repositories to repos/ directory
 - Creates muno.yaml with all repository definitions
 		
 Creates:
 - muno.yaml (v3 configuration with repo list)
-- nodes/ directory for tree structure
+- repos/ directory for tree structure
 - Root CLAUDE.md with project instructions`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

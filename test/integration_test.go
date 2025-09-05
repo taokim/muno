@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/taokim/muno/internal/config"
 )
 
 // TestIntegrationWorkflow tests the complete workflow
@@ -43,7 +44,7 @@ func TestIntegrationWorkflow(t *testing.T) {
 		// Check created files - init creates in current dir, not subdirectory
 		assert.FileExists(t, filepath.Join(tmpDir, "muno.yaml"))
 		assert.FileExists(t, filepath.Join(tmpDir, "CLAUDE.md"))
-		assert.DirExists(t, filepath.Join(tmpDir, "nodes"))
+		assert.DirExists(t, filepath.Join(tmpDir, config.GetDefaultReposDir()))
 	})
 	
 	// Test list command

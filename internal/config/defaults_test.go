@@ -16,7 +16,7 @@ func TestEmbeddedDefaults(t *testing.T) {
 	
 	assert.NotNil(t, defaults)
 	assert.Equal(t, "muno-workspace", defaults.Workspace.Name)
-	assert.Equal(t, "nodes", defaults.Workspace.ReposDir)
+	assert.Equal(t, "repos", defaults.Workspace.ReposDir)
 	
 	// Test eager patterns
 	patterns := GetEagerLoadPatterns()
@@ -58,14 +58,14 @@ func TestConfigurationOverride(t *testing.T) {
 			name: "empty config uses defaults",
 			configContent: ``,
 			expectedName:  "muno-workspace",
-			expectedRepos: "nodes",
+			expectedRepos: "repos",
 		},
 		{
 			name: "partial override - name only",
 			configContent: `workspace:
   name: my-project`,
 			expectedName:  "my-project",
-			expectedRepos: "nodes", // should use default
+			expectedRepos: "repos", // should use default
 		},
 		{
 			name: "partial override - repos_dir only",
@@ -114,7 +114,7 @@ func TestMergeWithDefaults(t *testing.T) {
 			expected: &ConfigTree{
 				Workspace: WorkspaceTree{
 					Name:     "muno-workspace",
-					ReposDir: "nodes",
+					ReposDir: "repos",
 				},
 			},
 		},
@@ -124,7 +124,7 @@ func TestMergeWithDefaults(t *testing.T) {
 			expected: &ConfigTree{
 				Workspace: WorkspaceTree{
 					Name:     "muno-workspace",
-					ReposDir: "nodes",
+					ReposDir: "repos",
 				},
 			},
 		},
@@ -138,7 +138,7 @@ func TestMergeWithDefaults(t *testing.T) {
 			expected: &ConfigTree{
 				Workspace: WorkspaceTree{
 					Name:     "my-project",
-					ReposDir: "nodes",
+					ReposDir: "repos",
 				},
 			},
 		},

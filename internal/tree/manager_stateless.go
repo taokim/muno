@@ -65,7 +65,7 @@ func (m *StatelessManager) ComputeFilesystemPath(logicalPath string) string {
 	// Split path: /level1/level2 -> [level1, level2]
 	parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
 	
-	// Build filesystem path with nodes/ subdirectories
+	// Build filesystem path with repos/ subdirectories
 	fsPath := filepath.Join(m.workspacePath, m.config.GetReposDir())
 	for i, part := range parts {
 		fsPath = filepath.Join(fsPath, part)

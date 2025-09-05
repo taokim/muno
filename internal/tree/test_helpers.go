@@ -13,7 +13,7 @@ func CreateTestConfig(t *testing.T, dir string, reposDir string) {
 	t.Helper()
 	
 	if reposDir == "" {
-		reposDir = "nodes" // default
+		reposDir = config.GetDefaultReposDir() // use config default
 	}
 	
 	cfg := &config.ConfigTree{

@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/taokim/muno/internal/config"
 )
 
 // captureOutput captures stdout during function execution
@@ -66,7 +67,7 @@ func TestInitCommand(t *testing.T) {
 	
 	// Check files created
 	assert.FileExists(t, filepath.Join(tmpDir, "muno.yaml"))
-	assert.DirExists(t, filepath.Join(tmpDir, "nodes"))
+	assert.DirExists(t, filepath.Join(tmpDir, config.GetDefaultReposDir()))
 }
 
 func TestTreeCommand(t *testing.T) {

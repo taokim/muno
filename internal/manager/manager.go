@@ -1063,7 +1063,7 @@ func (m *Manager) StartClaude(path string) error {
 	}
 	
 	// Start Claude session using process provider
-	// Compute filesystem path with nodes/ directory pattern
+	// Compute filesystem path with repos/ directory pattern
 	fullPath := m.computeFilesystemPath(node.Path)
 	m.logProvider.Info("Starting Claude session")
 	m.logProvider.Info(fmt.Sprintf("  Tree path: %s", node.Path))
@@ -1300,7 +1300,7 @@ func (m *Manager) StartAgent(agentName string, path string, agentArgs []string, 
 	}
 	
 	// Start agent session using process provider
-	// Compute filesystem path with nodes/ directory pattern
+	// Compute filesystem path with repos/ directory pattern
 	fullPath := m.computeFilesystemPath(node.Path)
 	m.logProvider.Info(fmt.Sprintf("Starting %s session", agentName))
 	m.logProvider.Info(fmt.Sprintf("  Tree path: %s", node.Path))
@@ -1389,7 +1389,7 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 	// Get repos directory
 	reposDir := m.getReposDir()
 	if reposDir == "" {
-		reposDir = "nodes"
+		reposDir = "repos"
 	}
 	
 	// Create repos directory if it doesn't exist
@@ -1434,7 +1434,7 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 				gitDir := filepath.Join(repoPath, ".git")
 				
 				if m.fsProvider.Exists(gitDir) {
-					// Found a git repo in nodes directory
+					// Found a git repo in repos directory
 					remote, _ := m.getGitRemote(repoPath)
 					if remote != "" {
 						m.logProvider.Info(fmt.Sprintf("Found repo in %s/: %s", reposDir, repoName))
@@ -1453,7 +1453,7 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 		}
 	}
 	
-	// Now scan other directories (excluding nodes dir and ignores)
+	// Now scan other directories (excluding repos dir and ignores)
 	repos, err := m.findGitRepositoriesWithIgnore(".", append([]string{reposDir}, getMapKeys(ignoreDirs)...))
 	if err != nil && !options.Force {
 		return fmt.Errorf("scanning repositories: %w", err)
@@ -1462,7 +1462,7 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 	m.logProvider.Info(fmt.Sprintf("Found %d repositories in %s/, %d in other directories", 
 		reposInNodesDir, reposDir, len(repos)))
 	
-	// Process found repositories outside nodes directory
+	// Process found repositories outside repos directory
 	movedRepos := 0
 	for _, repo := range repos {
 		repoName := filepath.Base(repo.Path)
