@@ -1,5 +1,4 @@
 ---
-layout: default
 title: MUNO Documentation
 description: Complete documentation for MUNO - Multi-repository UNified Orchestration
 ---
