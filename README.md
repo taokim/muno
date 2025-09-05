@@ -372,6 +372,12 @@ muno api visualize             # Visualize API dependencies
 - Automated API testing across tree
 - Contract-first development workflow
 
+## Documentation
+
+- [AI Agent Guide](docs/AI_AGENT_GUIDE.md) - Comprehensive guide for AI agents to organize repositories
+- [CLAUDE.md](CLAUDE.md) - Instructions for Claude Code integration
+- [Examples](examples/) - Sample configurations and use cases
+
 ## License
 
 MIT

@@ -1,0 +1,41 @@
+# Example: Team-based organization
+# This structure organizes repositories by team ownership
+version: 3
+current: ""
+nodes:
+  - name: team-backend
+    # Backend team owns these services
+    nodes:
+      - name: payment-service
+        url: https://github.com/org/payment-service.git
+      - name: order-service
+        url: https://github.com/org/order-service.git
+      - name: inventory-service
+        url: https://github.com/org/inventory-service.git
+      - name: shared-libs
+        url: https://github.com/org/backend-shared.git
+        lazy: true  # Rarely modified, lazy load
+  
+  - name: team-frontend
+    # Frontend team repositories
+    nodes:
+      - name: web-app
+        url: https://github.com/org/web-app.git
+      - name: mobile-app
+        url: https://github.com/org/mobile-app.git
+      - name: design-system
+        url: https://github.com/org/design-system.git
+        lazy: true
+  
+  - name: team-platform
+    # Platform/Infrastructure team
+    nodes:
+      - name: api-gateway
+        url: https://github.com/org/api-gateway.git
+      - name: auth-service
+        url: https://github.com/org/auth-service.git
+      - name: monitoring
+        url: https://github.com/org/monitoring-stack.git
+      - name: terraform
+        url: https://github.com/org/terraform-modules.git
+        lazy: true

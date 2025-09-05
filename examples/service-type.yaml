@@ -1,0 +1,53 @@
+# Example: Service-type organization
+# This structure groups repositories by architectural layers
+version: 3
+current: ""
+nodes:
+  - name: apis
+    # All API services
+    nodes:
+      - name: payment-api
+        url: https://github.com/org/payment-api.git
+      - name: order-api
+        url: https://github.com/org/order-api.git
+      - name: user-api
+        url: https://github.com/org/user-api.git
+      - name: search-api
+        url: https://github.com/org/search-api.git
+  
+  - name: frontends
+    # All frontend applications
+    nodes:
+      - name: customer-web
+        url: https://github.com/org/customer-web.git
+      - name: admin-portal
+        url: https://github.com/org/admin-portal.git
+      - name: mobile-app
+        url: https://github.com/org/mobile-app.git
+      - name: partner-dashboard
+        url: https://github.com/org/partner-dashboard.git
+        lazy: true
+  
+  - name: libraries
+    # Shared libraries and packages
+    nodes:
+      - name: common-utils
+        url: https://github.com/org/common-utils.git
+        lazy: true
+      - name: api-contracts
+        url: https://github.com/org/api-contracts.git
+        lazy: true
+      - name: ui-components
+        url: https://github.com/org/ui-components.git
+        lazy: true
+  
+  - name: infrastructure
+    # Infrastructure and deployment code
+    nodes:
+      - name: terraform
+        url: https://github.com/org/terraform.git
+      - name: kubernetes
+        url: https://github.com/org/k8s-configs.git
+      - name: ci-cd
+        url: https://github.com/org/ci-cd-pipelines.git
+        lazy: true

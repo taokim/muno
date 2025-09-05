@@ -295,11 +295,8 @@ func (t *treeProviderAdapter) nodeToNodeInfo(path string, node *tree.TreeNode) i
 	}
 	
 	// Add children
-	for _, childName := range node.Children {
-		childPath := path + "/" + childName
-		if path == "/" {
-			childPath = "/" + childName
-		}
+	for _, childPath := range node.Children {
+		// Children already contain full paths
 		childNode := t.mgr.GetNode(childPath)
 		if childNode != nil {
 			childInfo := t.nodeToNodeInfo(childPath, childNode)

@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	
-	"github.com/taokim/muno/internal/constants"
 	"gopkg.in/yaml.v3"
 )
 
@@ -59,11 +58,12 @@ type RepoConfig struct {
 
 // DefaultConfigTree returns the default tree configuration
 func DefaultConfigTree(projectName string) *ConfigTree {
+	defaults := GetDefaults()
 	return &ConfigTree{
 		Workspace: WorkspaceTree{
 			Name:     projectName,
-			RootRepo: "", // Can be set if root is a repo
-			ReposDir: constants.DefaultReposDir, // Default nodes directory
+			RootRepo: defaults.Workspace.RootRepo,
+			ReposDir: defaults.Workspace.ReposDir,
 		},
 		Nodes: []NodeDefinition{}, // Empty nodes list
 	}
@@ -81,10 +81,8 @@ func LoadTree(path string) (*ConfigTree, error) {
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
 
-	// Apply defaults
-	if cfg.Workspace.ReposDir == "" {
-		cfg.Workspace.ReposDir = constants.DefaultReposDir
-	}
+	// Merge with defaults - project config overrides defaults
+	cfg = *MergeWithDefaults(&cfg)
 	
 	// Store the path
 	cfg.Path = filepath.Dir(path)
@@ -147,8 +145,10 @@ func (c *ConfigTree) Validate() error {
 
 // GetReposDir returns the configured repos directory name
 func (c *ConfigTree) GetReposDir() string {
+	// After merging with defaults, this should never be empty
+	// But add a safeguard just in case
 	if c.Workspace.ReposDir == "" {
-		return constants.DefaultReposDir
+		return GetDefaultReposDir()
 	}
 	return c.Workspace.ReposDir
 }

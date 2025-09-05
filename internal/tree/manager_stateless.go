@@ -8,7 +8,6 @@ import (
 	"strings"
 	
 	"github.com/taokim/muno/internal/config"
-	"github.com/taokim/muno/internal/constants"
 	"github.com/taokim/muno/internal/git"
 )
 
@@ -23,9 +22,20 @@ type StatelessManager struct {
 
 // NewStatelessManager creates a manager that derives state from filesystem
 func NewStatelessManager(workspacePath string, gitCmd git.Interface) (*StatelessManager, error) {
-	// Load config from workspace
-	configPath := filepath.Join(workspacePath, constants.DefaultConfigFileName)
-	cfg, err := config.LoadTree(configPath)
+	// Load config from workspace - try various config file names
+	var cfg *config.ConfigTree
+	var err error
+	
+	for _, configName := range config.GetConfigFileNames() {
+		configPath := filepath.Join(workspacePath, configName)
+		cfg, err = config.LoadTree(configPath)
+		if err == nil {
+			break
+		}
+		if !os.IsNotExist(err) && !strings.Contains(err.Error(), "no such file or directory") {
+			return nil, fmt.Errorf("loading config: %w", err)
+		}
+	}
 	if err != nil {
 		// If no config, create default
 		if os.IsNotExist(err) {
@@ -59,9 +69,9 @@ func (m *StatelessManager) ComputeFilesystemPath(logicalPath string) string {
 	fsPath := filepath.Join(m.workspacePath, m.config.GetReposDir())
 	for i, part := range parts {
 		fsPath = filepath.Join(fsPath, part)
-		// Add nodes/ before next level (except last)
+		// Add repos dir before next level (except last)
 		if i < len(parts)-1 {
-			fsPath = filepath.Join(fsPath, constants.DefaultReposDir)
+			fsPath = filepath.Join(fsPath, m.config.GetReposDir())
 		}
 	}
 	

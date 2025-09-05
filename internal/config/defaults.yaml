@@ -1,0 +1,96 @@
+# Default MUNO Configuration
+# This file contains all default values that can be overridden by project muno.yaml
+
+workspace:
+  # Default workspace name when not specified
+  name: "muno-workspace"
+  # Default directory name for repositories
+  repos_dir: "nodes"
+  # Root repository URL (if the workspace root itself is a git repo)
+  root_repo: ""
+
+# Repository detection patterns
+detection:
+  # Patterns that trigger eager loading (repositories expected to have children)
+  eager_patterns:
+    - "-monorepo"
+    - "-munorepo"  
+    - "-muno"
+    - "-metarepo"
+    - "-platform"
+    - "-workspace"
+    - "-root-repo"
+  
+  # Patterns to ignore when scanning for repositories
+  ignore_patterns:
+    - ".git"
+    - "node_modules"
+    - "vendor"
+    - "dist"
+    - "build"
+    - "target"
+    - ".idea"
+    - ".vscode"
+    - "__pycache__"
+    - ".pytest_cache"
+
+# File discovery configuration
+files:
+  # Configuration file names to search for (in order of preference)
+  config_names:
+    - "muno.yaml"
+    - ".muno.yaml"
+    - "muno.yml"
+    - ".muno.yml"
+  
+  # State file name for tracking tree state
+  state_file: ".muno-tree.json"
+  
+  # Legacy state file name (for migration)
+  legacy_state_file: ".muno-state.json"
+
+# Git configuration
+git:
+  # Default remote name
+  default_remote: "origin"
+  # Default branch name
+  default_branch: "main"
+  # Clone timeout in seconds
+  clone_timeout: 300
+  # Shallow clone depth (0 = full clone)
+  shallow_depth: 0
+
+# Display configuration  
+display:
+  # Tree display settings
+  tree:
+    indent: "  "
+    branch: "├── "
+    last_branch: "└── "
+    vertical: "│   "
+    space: "    "
+  
+  # Status icons
+  icons:
+    workspace: "🌳"
+    cloned: "📦"
+    lazy: "💤"
+    modified: "✏️"
+    ahead: "⬆️"
+    behind: "⬇️"
+    diverged: "🔄"
+    error: "❌"
+    success: "✅"
+    info: "ℹ️"
+
+# Behavior configuration
+behavior:
+  # Auto-clone lazy repos when navigating to them
+  auto_clone_on_nav: true
+  # Show progress bars for long operations
+  show_progress: true
+  # Parallel operation limits
+  max_parallel_clones: 4
+  max_parallel_pulls: 8
+  # Interactive mode by default
+  interactive: true

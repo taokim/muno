@@ -45,7 +45,22 @@ func TestComputeFilesystemPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	mockGit := &MockGitInterface{}
 	
-	mgr, err := NewManager(tmpDir, mockGit)
+	// Create a test configuration
+	cfg := &config.ConfigTree{
+		Workspace: config.WorkspaceTree{
+			Name:     "test-workspace",
+			ReposDir: "nodes",
+		},
+		Nodes: []config.NodeDefinition{},
+	}
+	
+	// Save config
+	configPath := filepath.Join(tmpDir, "muno.yaml")
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Failed to save config: %v", err)
+	}
+	
+	mgr, err := CreateTestManagerWithConfig(t, tmpDir, mockGit)
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
@@ -114,7 +129,7 @@ func TestAddRepo(t *testing.T) {
 	tmpDir := t.TempDir()
 	mockGit := &MockGitInterface{}
 	
-	mgr, err := NewManager(tmpDir, mockGit)
+	mgr, err := CreateTestManagerWithConfig(t, tmpDir, mockGit)
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
@@ -173,7 +188,7 @@ func TestTreeNavigation(t *testing.T) {
 	tmpDir := t.TempDir()
 	mockGit := &MockGitInterface{}
 	
-	mgr, err := NewManager(tmpDir, mockGit)
+	mgr, err := CreateTestManagerWithConfig(t, tmpDir, mockGit)
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
@@ -221,7 +236,7 @@ func TestRemoveNode(t *testing.T) {
 	tmpDir := t.TempDir()
 	mockGit := &MockGitInterface{}
 	
-	mgr, err := NewManager(tmpDir, mockGit)
+	mgr, err := CreateTestManagerWithConfig(t, tmpDir, mockGit)
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}

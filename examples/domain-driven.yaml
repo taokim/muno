@@ -1,0 +1,67 @@
+# Example: Domain-driven organization
+# This structure follows domain-driven design principles
+version: 3
+current: ""
+nodes:
+  - name: commerce
+    # Commerce domain - all e-commerce related services
+    nodes:
+      - name: catalog
+        url: https://github.com/org/catalog-service.git
+      - name: pricing
+        url: https://github.com/org/pricing-service.git
+      - name: cart
+        url: https://github.com/org/cart-service.git
+      - name: checkout
+        url: https://github.com/org/checkout-service.git
+      - name: payment
+        url: https://github.com/org/payment-service.git
+  
+  - name: identity
+    # Identity and access management domain
+    nodes:
+      - name: authentication
+        url: https://github.com/org/auth-service.git
+      - name: users
+        url: https://github.com/org/user-service.git
+      - name: permissions
+        url: https://github.com/org/permission-service.git
+      - name: sessions
+        url: https://github.com/org/session-service.git
+  
+  - name: fulfillment
+    # Order fulfillment domain
+    nodes:
+      - name: orders
+        url: https://github.com/org/order-service.git
+      - name: inventory
+        url: https://github.com/org/inventory-service.git
+      - name: shipping
+        url: https://github.com/org/shipping-service.git
+      - name: warehouse
+        url: https://github.com/org/warehouse-service.git
+  
+  - name: communication
+    # Customer communication domain
+    nodes:
+      - name: notifications
+        url: https://github.com/org/notification-service.git
+      - name: email
+        url: https://github.com/org/email-service.git
+      - name: sms
+        url: https://github.com/org/sms-service.git
+      - name: push
+        url: https://github.com/org/push-notification.git
+        lazy: true
+  
+  - name: analytics
+    # Analytics and reporting domain
+    nodes:
+      - name: events
+        url: https://github.com/org/event-collector.git
+      - name: reporting
+        url: https://github.com/org/reporting-service.git
+        lazy: true
+      - name: dashboards
+        url: https://github.com/org/analytics-dashboard.git
+        lazy: true

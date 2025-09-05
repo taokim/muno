@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"github.com/taokim/muno/internal/config"
-	"github.com/taokim/muno/internal/constants"
 )
 
 // NodeKind represents the kind of node based on field presence
@@ -54,7 +53,7 @@ func ResolveConfigPath(basePath string, node *config.NodeDefinition) string {
 func IsMetaRepo(repoName string) bool {
 	name := strings.ToLower(repoName)
 	
-	for _, pattern := range constants.EagerLoadPatterns {
+	for _, pattern := range config.GetEagerLoadPatterns() {
 		if strings.HasSuffix(name, pattern) {
 			return true
 		}
@@ -81,7 +80,7 @@ func GetEffectiveLazy(node *config.NodeDefinition) bool {
 
 // AutoDiscoverConfig checks if a cloned repository has its own muno.yaml
 func AutoDiscoverConfig(repoPath string) (string, bool) {
-	for _, configName := range constants.ConfigFileNames {
+	for _, configName := range config.GetConfigFileNames() {
 		configPath := filepath.Join(repoPath, configName)
 		if _, err := os.Stat(configPath); err == nil {
 			return configPath, true

@@ -14,7 +14,7 @@ func TestSimplifiedStateIntegration(t *testing.T) {
 	tmpDir := t.TempDir()
 	mockGit := &MockGitInterface{}
 	
-	mgr, err := NewManager(tmpDir, mockGit)
+	mgr, err := CreateTestManagerWithConfig(t, tmpDir, mockGit)
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestTreeDisplay(t *testing.T) {
 	tmpDir := t.TempDir()
 	mockGit := &MockGitInterface{}
 	
-	mgr, err := NewManager(tmpDir, mockGit)
+	mgr, err := CreateTestManagerWithConfig(t, tmpDir, mockGit)
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}

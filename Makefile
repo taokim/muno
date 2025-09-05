@@ -1,8 +1,10 @@
 # MUNO - Multi-repository UNified Orchestration
-.PHONY: build clean test install lint release help
+.PHONY: build build-dev build-local clean test install install-dev install-local uninstall-dev uninstall-local lint release status help
 
 # Variables
 BINARY_NAME := muno
+BINARY_NAME_DEV := muno-dev
+BINARY_NAME_LOCAL := muno-local
 BUILD_DIR := bin
 CMD_DIR := cmd/muno
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -20,6 +22,20 @@ build:
 	@mkdir -p $(BUILD_DIR)
 	@go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./$(CMD_DIR)
 	@echo "Binary built: $(BUILD_DIR)/$(BINARY_NAME)"
+
+## build-dev: Build development binary with -dev suffix
+build-dev:
+	@echo "Building $(BINARY_NAME_DEV)..."
+	@mkdir -p $(BUILD_DIR)
+	@go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME_DEV) ./$(CMD_DIR)
+	@echo "Development binary built: $(BUILD_DIR)/$(BINARY_NAME_DEV)"
+
+## build-local: Build local binary with -local suffix
+build-local:
+	@echo "Building $(BINARY_NAME_LOCAL)..."
+	@mkdir -p $(BUILD_DIR)
+	@go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME_LOCAL) ./$(CMD_DIR)
+	@echo "Local binary built: $(BUILD_DIR)/$(BINARY_NAME_LOCAL)"
 
 ## clean: Clean build artifacts
 clean:
@@ -40,11 +56,39 @@ test-all:
 	@go test -v ./...
 	@echo "All tests complete"
 
-## install: Install the binary to $GOPATH/bin
+## install: Install production version
 install: build
 	@echo "Installing $(BINARY_NAME)..."
 	@go install ./$(CMD_DIR)
-	@echo "Installation complete"
+	@echo "Installed as '$(BINARY_NAME)'"
+
+## install-dev: Install development version
+install-dev: build-dev
+	@echo "Installing $(BINARY_NAME_DEV)..."
+	@cp $(BUILD_DIR)/$(BINARY_NAME_DEV) $(GOPATH)/bin/$(BINARY_NAME_DEV) 2>/dev/null || cp $(BUILD_DIR)/$(BINARY_NAME_DEV) ~/go/bin/$(BINARY_NAME_DEV)
+	@chmod +x $(GOPATH)/bin/$(BINARY_NAME_DEV) 2>/dev/null || chmod +x ~/go/bin/$(BINARY_NAME_DEV)
+	@echo "Installed as '$(BINARY_NAME_DEV)'"
+
+## install-local: Install local test version
+install-local: build-local
+	@echo "Installing $(BINARY_NAME_LOCAL)..."
+	@cp $(BUILD_DIR)/$(BINARY_NAME_LOCAL) $(GOPATH)/bin/$(BINARY_NAME_LOCAL) 2>/dev/null || cp $(BUILD_DIR)/$(BINARY_NAME_LOCAL) ~/go/bin/$(BINARY_NAME_LOCAL)
+	@chmod +x $(GOPATH)/bin/$(BINARY_NAME_LOCAL) 2>/dev/null || chmod +x ~/go/bin/$(BINARY_NAME_LOCAL)
+	@echo "Installed as '$(BINARY_NAME_LOCAL)'"
+
+## uninstall-dev: Remove development version
+uninstall-dev:
+	@echo "Removing $(BINARY_NAME_DEV)..."
+	@rm -f $(GOPATH)/bin/$(BINARY_NAME_DEV) 2>/dev/null || rm -f ~/go/bin/$(BINARY_NAME_DEV)
+	@rm -f /usr/local/bin/$(BINARY_NAME_DEV)
+	@echo "$(BINARY_NAME_DEV) removed"
+
+## uninstall-local: Remove local version  
+uninstall-local:
+	@echo "Removing $(BINARY_NAME_LOCAL)..."
+	@rm -f $(GOPATH)/bin/$(BINARY_NAME_LOCAL) 2>/dev/null || rm -f ~/go/bin/$(BINARY_NAME_LOCAL)
+	@rm -f /usr/local/bin/$(BINARY_NAME_LOCAL)
+	@echo "$(BINARY_NAME_LOCAL) removed"
 
 ## lint: Run linters
 lint:
@@ -67,9 +111,30 @@ release:
 run: build
 	@$(BUILD_DIR)/$(BINARY_NAME)
 
+## status: Show installation status of all versions
+status:
+	@./scripts/muno-versions.sh status
+
 ## help: Show this help message
 help:
-	@echo "Available targets:"
-	@grep -E '^##' Makefile | sed 's/## /  /'
+	@echo "MUNO Build System"
+	@echo ""
+	@echo "Installation targets:"
+	@echo "  make install        - Install production version (muno)"
+	@echo "  make install-dev    - Install development version (muno-dev)"
+	@echo "  make install-local  - Install local test version (muno-local)"
+	@echo "  make status         - Show all installed versions"
+	@echo ""
+	@echo "Build targets:"
+	@echo "  make build          - Build production binary"
+	@echo "  make build-dev      - Build development binary"
+	@echo "  make build-local    - Build local test binary"
+	@echo "  make clean          - Remove build artifacts"
+	@echo ""
+	@echo "Other targets:"
+	@echo "  make test           - Run tests"
+	@echo "  make test-all       - Run all tests including integration"
+	@echo "  make lint           - Run linters"
+	@echo "  make release        - Build release binaries for all platforms"
 
 .DEFAULT_GOAL := help

@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/taokim/muno/internal/manager"
@@ -47,19 +50,57 @@ func (a *App) ExecuteWithArgs(args []string) error {
 	return a.Execute()
 }
 
+// getDocumentationURLs returns formatted documentation URLs based on git remote
+func getDocumentationURLs() string {
+	// Default values
+	owner := "{owner}"
+	repo := "{repo}"
+	
+	// Try to get from git remote
+	cmd := exec.Command("git", "remote", "get-url", "origin")
+	if output, err := cmd.Output(); err == nil {
+		url := strings.TrimSpace(string(output))
+		
+		// Parse GitHub URL (supports both HTTPS and SSH)
+		// HTTPS: https://github.com/owner/repo.git
+		// SSH: git@github.com:owner/repo.git
+		patterns := []string{
+			`github\.com[:/]([^/]+)/([^/\s]+?)(?:\.git)?$`,
+			`github\.com/([^/]+)/([^/\s]+?)(?:\.git)?$`,
+		}
+		
+		for _, pattern := range patterns {
+			re := regexp.MustCompile(pattern)
+			if matches := re.FindStringSubmatch(url); len(matches) >= 3 {
+				owner = matches[1]
+				repo = matches[2]
+				break
+			}
+		}
+	}
+	
+	return fmt.Sprintf(`Documentation:
+- Web: https://%s.github.io/%s/
+- AI Agents: https://%s.github.io/%s/AI_AGENT_GUIDE (READ THIS!)
+- Raw docs: https://raw.githubusercontent.com/%s/%s/main/docs/`,
+		owner, repo, owner, repo, owner, repo)
+}
+
 // setupCommands initializes all commands
 func (a *App) setupCommands() {
 	a.rootCmd = &cobra.Command{
 		Use:   "muno",
 		Short: "Multi-repository orchestration for Claude Code with tree-based workspaces",
-		Long: `MUNO (Multi-repository UNified Orchestration) orchestrates Claude Code sessions across multiple 
+		Long: fmt.Sprintf(`MUNO (Multi-repository UNified Orchestration) orchestrates Claude Code sessions across multiple 
 repositories with tree-based navigation and lazy loading.
 
 Features:
 - Tree-based navigation: Navigate workspace like a filesystem
 - Lazy loading: Repos clone on-demand when parent is used
 - CWD-first resolution: Commands operate based on current directory
-- Simple configuration: Everything is just a repository`,
+- Simple configuration: Everything is just a repository
+
+%s`, getDocumentationURLs()),
 		Version: formatVersion(),
 	}
 	
@@ -200,6 +241,8 @@ Shows:
 
 // newAgentCmd creates the agent command
 func (a *App) newAgentCmd() *cobra.Command {
+	var withMunoContext bool
+	
 	cmd := &cobra.Command{
 		Use:   "agent [agent-name] [path] [-- agent-args]",
 		Short: "Start an AI agent session (claude, gemini, cursor, etc.)",
@@ -258,15 +301,19 @@ The working directory will be set to the node's directory.`,
 				path = beforeDash[1]
 			}
 			
-			return mgr.StartAgent(agentName, path, agentArgs)
+			return mgr.StartAgent(agentName, path, agentArgs, withMunoContext)
 		},
 	}
+	
+	cmd.Flags().BoolVar(&withMunoContext, "with-muno-context", false, "Include MUNO documentation and workspace context for the agent")
 	
 	return cmd
 }
 
 // newClaudeCmd creates the claude command (alias for agent claude)
 func (a *App) newClaudeCmd() *cobra.Command {
+	var withMunoContext bool
+	
 	cmd := &cobra.Command{
 		Use:   "claude [path] [-- agent-args]",
 		Short: "Start a Claude session (alias for 'agent claude')",
@@ -304,15 +351,19 @@ func (a *App) newClaudeCmd() *cobra.Command {
 				path = beforeDash[0]
 			}
 			
-			return mgr.StartAgent("claude", path, agentArgs)
+			return mgr.StartAgent("claude", path, agentArgs, withMunoContext)
 		},
 	}
+	
+	cmd.Flags().BoolVar(&withMunoContext, "with-muno-context", false, "Include MUNO documentation and workspace context for the agent")
 	
 	return cmd
 }
 
 // newGeminiCmd creates the gemini command (alias for agent gemini)
 func (a *App) newGeminiCmd() *cobra.Command {
+	var withMunoContext bool
+	
 	cmd := &cobra.Command{
 		Use:   "gemini [path] [-- agent-args]",
 		Short: "Start a Gemini session (alias for 'agent gemini')",
@@ -350,9 +401,11 @@ func (a *App) newGeminiCmd() *cobra.Command {
 				path = beforeDash[0]
 			}
 			
-			return mgr.StartAgent("gemini", path, agentArgs)
+			return mgr.StartAgent("gemini", path, agentArgs, withMunoContext)
 		},
 	}
+	
+	cmd.Flags().BoolVar(&withMunoContext, "with-muno-context", false, "Include MUNO documentation and workspace context for the agent")
 	
 	return cmd
 }
@@ -668,7 +721,7 @@ func (a *App) newStartCmd() *cobra.Command {
 			if len(args) > 0 {
 				path = args[0]
 			}
-			return mgr.StartAgent("claude", path, nil)
+			return mgr.StartAgent("claude", path, nil, false)
 		},
 	}
 	return cmd

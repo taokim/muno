@@ -16,6 +16,7 @@ func TestManager_EdgeCases(t *testing.T) {
 	tmpDir := t.TempDir()
 	mockGit := &git.MockGit{}
 	
+	CreateTestConfig(t, tmpDir, "")
 	mgr, err := NewManager(tmpDir, mockGit)
 	require.NoError(t, err)
 	
@@ -178,6 +179,7 @@ func TestManager_StateFileCorruption(t *testing.T) {
 	tmpDir := t.TempDir()
 	mockGit := &git.MockGit{}
 	
+	CreateTestConfig(t, tmpDir, "")
 	mgr, err := NewManager(tmpDir, mockGit)
 	require.NoError(t, err)
 	
@@ -409,6 +411,7 @@ func TestManager_DisplayMethods(t *testing.T) {
 	tmpDir := t.TempDir()
 	mockGit := &git.MockGit{}
 	
+	CreateTestConfig(t, tmpDir, "")
 	mgr, err := NewManager(tmpDir, mockGit)
 	require.NoError(t, err)
 	
