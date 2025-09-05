@@ -171,7 +171,7 @@ func TestManager_StartAgent(t *testing.T) {
 				metricsProvider: NewNoOpMetricsProvider(),
 			}
 
-			err := m.StartAgent(tt.agentName, tt.path, tt.agentArgs)
+			err := m.StartAgent(tt.agentName, tt.path, tt.agentArgs, false)
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errMsg != "" {

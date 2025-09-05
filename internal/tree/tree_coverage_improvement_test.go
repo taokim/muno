@@ -41,11 +41,11 @@ func TestManager_EdgeCases(t *testing.T) {
 	t.Run("ComputeFilesystemPath edge cases", func(t *testing.T) {
 		// Root path
 		fsPath := mgr.ComputeFilesystemPath("/")
-		assert.Equal(t, filepath.Join(tmpDir, "nodes"), fsPath)
+		assert.Equal(t, filepath.Join(tmpDir, config.GetDefaultReposDir()), fsPath)
 		
 		// Deep nested path
 		fsPath = mgr.ComputeFilesystemPath("/a/b/c/d")
-		expected := filepath.Join(tmpDir, "nodes", "a", "nodes", "b", "nodes", "c", "nodes", "d")
+		expected := filepath.Join(tmpDir, config.GetDefaultReposDir(), "a", config.GetDefaultReposDir(), "b", config.GetDefaultReposDir(), "c", config.GetDefaultReposDir(), "d")
 		assert.Equal(t, expected, fsPath)
 	})
 	
@@ -293,16 +293,16 @@ func TestStatelessManager_EdgeCases(t *testing.T) {
 	t.Run("ComputeFilesystemPath with various inputs", func(t *testing.T) {
 		// Empty string
 		fsPath := mgr.ComputeFilesystemPath("")
-		assert.Equal(t, filepath.Join(tmpDir, "nodes"), fsPath)
+		assert.Equal(t, filepath.Join(tmpDir, config.GetDefaultReposDir()), fsPath)
 		
 		// Multiple levels
 		fsPath = mgr.ComputeFilesystemPath("/a/b/c")
-		expected := filepath.Join(tmpDir, "nodes", "a", "nodes", "b", "nodes", "c")
+		expected := filepath.Join(tmpDir, config.GetDefaultReposDir(), "a", config.GetDefaultReposDir(), "b", config.GetDefaultReposDir(), "c")
 		assert.Equal(t, expected, fsPath)
 		
 		// Relative path (though not typical usage)
 		fsPath = mgr.ComputeFilesystemPath("relative")
-		assert.Equal(t, filepath.Join(tmpDir, "nodes", "relative"), fsPath)
+		assert.Equal(t, filepath.Join(tmpDir, config.GetDefaultReposDir(), "relative"), fsPath)
 	})
 	
 	t.Run("CloneLazyRepos with config nodes", func(t *testing.T) {
@@ -362,7 +362,7 @@ func TestConfigResolver(t *testing.T) {
 	
 	t.Run("LoadNodeConfig with valid config", func(t *testing.T) {
 		// Create a config file
-		configDir := filepath.Join(tmpDir, "nodes", "test")
+		configDir := filepath.Join(tmpDir, config.GetDefaultReposDir(), "test")
 		os.MkdirAll(configDir, 0755)
 		
 		cfg := &config.ConfigTree{
