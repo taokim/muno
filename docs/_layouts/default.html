@@ -8,8 +8,6 @@
     <title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
     <meta name="description" content="{{ page.description | default: site.description }}">
     
-    <link rel="stylesheet" href="{{ '/assets/css/style.css?v=' | append: site.github.build_revision | relative_url }}">
-    
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
@@ -137,9 +135,9 @@
         <p>{{ site.description }}</p>
     </div>
     
-    {% if page.url == "/" or page.url == "/index" %}
+    {% if page.url == "/" or page.url == "/index" or page.url == "/index.html" %}
     <div class="ai-agent-notice">
-        ⚠️ AI AGENTS: <a href="{{ site.baseurl }}/AI_AGENT_GUIDE">READ THIS ESSENTIAL GUIDE FIRST</a> ⚠️
+        ⚠️ AI AGENTS: <a href="/muno/AI_AGENT_GUIDE">READ THIS ESSENTIAL GUIDE FIRST</a> ⚠️
     </div>
     {% endif %}
     
@@ -149,9 +147,9 @@
     
     <div class="footer">
         <p>
-            <a href="{{ site.github.repository_url }}">View on GitHub</a> |
-            <a href="{{ site.github.repository_url }}/issues">Report Issue</a> |
-            <a href="{{ site.baseurl }}/">Documentation Home</a>
+            <a href="https://github.com/taokim/muno">View on GitHub</a> |
+            <a href="https://github.com/taokim/muno/issues">Report Issue</a> |
+            <a href="/muno/">Documentation Home</a>
         </p>
         <p>© {{ 'now' | date: '%Y' }} MUNO Project. Licensed under MIT.</p>
     </div>
