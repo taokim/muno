@@ -70,3 +70,8 @@ coverage/
 .muno/
 # Keep Serena memories for project context
 # .serena/
+
+# MUNO workspace files
+.muno-tree.json
+repos/
+.serena/memories/
