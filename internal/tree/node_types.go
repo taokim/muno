@@ -65,7 +65,7 @@ func IsMetaRepo(repoName string) bool {
 // Default is true (lazy) unless it's a meta-repo or explicitly set to false
 func GetEffectiveLazy(node *config.NodeDefinition) bool {
 	// If explicitly set, use that value
-	if node.Lazy {
+	if node.IsLazy() {
 		return true
 	}
 	

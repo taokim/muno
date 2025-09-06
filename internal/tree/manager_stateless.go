@@ -58,20 +58,53 @@ func NewStatelessManager(workspacePath string, gitCmd git.Interface) (*Stateless
 
 // ComputeFilesystemPath converts logical path to filesystem path
 func (m *StatelessManager) ComputeFilesystemPath(logicalPath string) string {
+	reposDir := m.config.GetReposDir()
+	
+	// For root, always use repos directory
 	if logicalPath == "/" || logicalPath == "" {
-		return filepath.Join(m.workspacePath, m.config.GetReposDir())
+		return filepath.Join(m.workspacePath, reposDir)
 	}
 	
+	// Try to get the node to determine its type
+	node, err := m.GetNodeByPath(logicalPath)
+	if err == nil && node != nil {
+		// Check if this is a git repository node (not a config node)
+		// A node is a git repository if it has a URL (not a config path)
+		if node.URL != "" {
+			// For git repository nodes, use the workspace path directly without repos subdir
+			// This ensures CWD is the actual git repo directory
+			parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
+			
+			// If it's a top-level repo, put it directly in workspace
+			if len(parts) == 1 {
+				return filepath.Join(m.workspacePath, parts[0])
+			}
+			
+			// For nested repos, we need to compute the parent path and add the repo name
+			parentPath := "/" + strings.Join(parts[:len(parts)-1], "/")
+			parentFsPath := m.ComputeFilesystemPath(parentPath)
+			return filepath.Join(parentFsPath, parts[len(parts)-1])
+		}
+	}
+	
+	// For config nodes and intermediate directories, use the original logic with repos subdirs
 	// Split path: /level1/level2 -> [level1, level2]
 	parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
 	
 	// Build filesystem path with repos/ subdirectories
-	fsPath := filepath.Join(m.workspacePath, m.config.GetReposDir())
+	fsPath := filepath.Join(m.workspacePath, reposDir)
 	for i, part := range parts {
 		fsPath = filepath.Join(fsPath, part)
 		// Add repos dir before next level (except last)
 		if i < len(parts)-1 {
-			fsPath = filepath.Join(fsPath, m.config.GetReposDir())
+			// Check if the next level is a git repo
+			nextPath := "/" + strings.Join(parts[:i+2], "/")
+			nextNode, err := m.GetNodeByPath(nextPath)
+			if err == nil && nextNode != nil && nextNode.URL != "" {
+				// Don't add repos dir if next level is a git repo
+				continue
+			}
+			fsPath = filepath.Join(fsPath, reposDir)
 		}
 	}
 	
@@ -159,10 +192,14 @@ func (m *StatelessManager) UseNode(logicalPath string) error {
 // AddRepo adds a new repository to config
 func (m *StatelessManager) AddRepo(parentPath, name, url string, lazy bool) error {
 	// For stateless operation, we add to config and save
+	fetchMode := config.FetchLazy
+	if !lazy {
+		fetchMode = config.FetchEager
+	}
 	node := config.NodeDefinition{
-		Name: name,
-		URL:  url,
-		Lazy: lazy,
+		Name:  name,
+		URL:   url,
+		Fetch: fetchMode,
 	}
 	
 	// Add to nodes
@@ -247,7 +284,7 @@ func (m *StatelessManager) ListChildren(targetPath string) ([]*TreeNode, error) 
 				Name:  node.Name,
 				Type:  NodeTypeRepo,
 				URL:   node.URL,
-				Lazy:  node.Lazy,
+				Lazy:  node.IsLazy(),
 				State: state,
 			})
 		}
@@ -310,7 +347,7 @@ func (m *StatelessManager) DisplayTree() string {
 		}
 		
 		status := ""
-		if node.Lazy && state == RepoStateMissing {
+		if node.IsLazy() && state == RepoStateMissing {
 			status = " (lazy)"
 		}
 		

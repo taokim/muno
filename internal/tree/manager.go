@@ -86,22 +86,21 @@ func NewManager(workspacePath string, gitCmd git.Interface) (*Manager, error) {
 func (m *Manager) ComputeFilesystemPath(logicalPath string) string {
 	reposDir := m.config.GetReposDir()
 	
-	if logicalPath == "/" {
+	// For root, always use repos directory
+	if logicalPath == "/" || logicalPath == "" {
 		return filepath.Join(m.workspacePath, reposDir)
 	}
 	
-	// Split path: /level1/level2/level3 -> [level1, level2, level3]
+	// Simple implementation: workspace/repos/path
+	// For git repository nodes, this returns the actual repo directory
+	// e.g., /mass-settlement -> workspace/repos/mass-settlement (the git repo dir)
+	// e.g., /team/project -> workspace/repos/team/project
 	parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
 	
-	// Build filesystem path with repos subdirectories
-	// workspace/[reposDir]/level1/[reposDir]/level2/[reposDir]/level3
+	// Build the full filesystem path
 	fsPath := filepath.Join(m.workspacePath, reposDir)
-	for i, part := range parts {
+	for _, part := range parts {
 		fsPath = filepath.Join(fsPath, part)
-		// Add repos dir before next level (except last)
-		if i < len(parts)-1 {
-			fsPath = filepath.Join(fsPath, reposDir)
-		}
 	}
 	
 	return fsPath
@@ -435,13 +434,13 @@ func (m *Manager) buildTreeFromConfig() error {
 				existingNode.ConfigPath = nodeDef.Config
 				existingNode.Type = NodeTypeConfig
 			}
-			existingNode.Lazy = nodeDef.Lazy
+			existingNode.Lazy = nodeDef.IsLazy()
 		} else {
 			// Create new node
 			newNode := &TreeNode{
 				Name:     nodeDef.Name,
 				Children: []string{},
-				Lazy:     nodeDef.Lazy,
+				Lazy:     nodeDef.IsLazy(),
 			}
 			
 			if nodeDef.URL != "" {
@@ -468,7 +467,7 @@ func (m *Manager) buildTreeFromConfig() error {
 		}
 		
 		// Clone eager repositories
-		if nodeDef.URL != "" && !nodeDef.Lazy {
+		if nodeDef.URL != "" && !nodeDef.IsLazy() {
 			if _, err := os.Stat(filepath.Join(nodeDir, ".git")); os.IsNotExist(err) {
 				fmt.Printf("Cloning %s from %s...\n", nodeDef.Name, nodeDef.URL)
 				if err := m.cloneToPath(nodeDef.URL, nodeDir); err != nil {
@@ -524,7 +523,7 @@ func (m *Manager) loadConfigReference(parentPath string, configPath string) erro
 		childNode := &TreeNode{
 			Name:     nodeDef.Name,
 			URL:      nodeDef.URL,
-			Lazy:     nodeDef.Lazy,
+			Lazy:     nodeDef.IsLazy(),
 			Children: []string{},
 			Type:     NodeTypeRepository,
 		}
@@ -553,9 +552,9 @@ func (m *Manager) loadConfigReference(parentPath string, configPath string) erro
 			fmt.Printf("Warning: Failed to create directory for %s: %v\n", nodeDef.Name, err)
 		}
 		
-		// Clone eager child repositories
-		if nodeDef.URL != "" && !nodeDef.Lazy {
-			if _, err := os.Stat(filepath.Join(childDir, ".git")); os.IsNotExist(err) {
+		// Clone repositories based on fetch mode
+		if nodeDef.URL != "" && !nodeDef.IsLazy() {
+				if _, err := os.Stat(filepath.Join(childDir, ".git")); os.IsNotExist(err) {
 				fmt.Printf("Cloning %s from %s...\n", nodeDef.Name, nodeDef.URL)
 				if err := m.cloneToPath(nodeDef.URL, childDir); err != nil {
 					fmt.Printf("Warning: Failed to clone %s: %v\n", nodeDef.Name, err)

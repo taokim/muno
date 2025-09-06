@@ -56,7 +56,7 @@ func (m *StatelessManager) DisplayTreeWithDepth(maxDepth int) string {
 		}
 		
 		status := ""
-		if node.Lazy && state == RepoStateMissing {
+		if node.IsLazy() && state == RepoStateMissing {
 			status = " (lazy)"
 		}
 		
