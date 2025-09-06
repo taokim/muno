@@ -97,19 +97,24 @@ func TestStatelessManager_ComputeFilesystemPath(t *testing.T) {
 			expectedPath: filepath.Join(tmpDir, "nodes"),
 		},
 		{
-			name:         "child path",
+			name:         "child path (git repo)",
 			logicalPath:  "/child1",
-			expectedPath: filepath.Join(tmpDir, "nodes", "child1"),
+			expectedPath: filepath.Join(tmpDir, "child1"), // Git repo - no nodes/ subdir
 		},
 		{
-			name:         "nested path",
+			name:         "config node path",
+			logicalPath:  "/parent",
+			expectedPath: filepath.Join(tmpDir, "nodes", "parent"), // Config node - uses nodes/ subdir
+		},
+		{
+			name:         "nested path under config node",
 			logicalPath:  "/parent/nested1",
 			expectedPath: filepath.Join(tmpDir, "nodes", "parent", "nodes", "nested1"),
 		},
 		{
-			name:         "relative path",
+			name:         "relative path (git repo)",
 			logicalPath:  "child1",
-			expectedPath: filepath.Join(tmpDir, "nodes", "child1"),
+			expectedPath: filepath.Join(tmpDir, "child1"), // Git repo - no nodes/ subdir
 		},
 	}
 	

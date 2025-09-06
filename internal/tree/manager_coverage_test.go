@@ -120,7 +120,7 @@ func TestManagerCloneLazyRepos(t *testing.T) {
 	cfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "test-workspace",
-			ReposDir: "nodes",
+			ReposDir: "repos",
 		},
 		Nodes: []config.NodeDefinition{
 			{Name: "lazy1", URL: "https://github.com/test/lazy1.git", Lazy: true},
@@ -135,7 +135,7 @@ func TestManagerCloneLazyRepos(t *testing.T) {
 	}
 	
 	// Create repos directory
-	reposDir := filepath.Join(tmpDir, "nodes")
+	reposDir := filepath.Join(tmpDir, "repos")
 	if err := os.MkdirAll(reposDir, 0755); err != nil {
 		t.Fatalf("Failed to create repos dir: %v", err)
 	}
@@ -383,7 +383,7 @@ func TestComputeFilesystemPathEdgeCases(t *testing.T) {
 	cfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "test-workspace",
-			ReposDir: "nodes",
+			ReposDir: "repos",
 		},
 		Nodes: []config.NodeDefinition{},
 	}
@@ -403,10 +403,10 @@ func TestComputeFilesystemPathEdgeCases(t *testing.T) {
 		logical  string
 		expected string
 	}{
-		{"/", filepath.Join(tmpDir, "nodes")},
-		{"/a", filepath.Join(tmpDir, "nodes", "a")},
-		{"/a/b", filepath.Join(tmpDir, "nodes", "a", "nodes", "b")},
-		{"/a/b/c/d/e", filepath.Join(tmpDir, "nodes", "a", "nodes", "b", "nodes", "c", "nodes", "d", "nodes", "e")},
+		{"/", filepath.Join(tmpDir, "repos")},
+		{"/a", filepath.Join(tmpDir, "repos", "a")},
+		{"/a/b", filepath.Join(tmpDir, "repos", "a", "b")},
+		{"/a/b/c/d/e", filepath.Join(tmpDir, "repos", "a", "b", "c", "d", "e")},
 	}
 	
 	for _, test := range tests {

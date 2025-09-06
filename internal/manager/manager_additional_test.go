@@ -37,7 +37,7 @@ func TestManager_StartAgent(t *testing.T) {
 			path:        "/test/repo",
 			initialized: true,
 			wantErr:     false,
-			expectedCmd: "cd /workspace/nodes/test/nodes/repo && claude",
+			expectedCmd: "cd /workspace/repos/test/repos/repo && claude",
 		},
 		{
 			name:        "successful start with gemini",
@@ -45,7 +45,7 @@ func TestManager_StartAgent(t *testing.T) {
 			path:        "/test/repo",
 			initialized: true,
 			wantErr:     false,
-			expectedCmd: "cd /workspace/nodes/test/nodes/repo && gemini",
+			expectedCmd: "cd /workspace/repos/test/repos/repo && gemini",
 		},
 		{
 			name:        "default to claude when agent not specified",
@@ -53,7 +53,7 @@ func TestManager_StartAgent(t *testing.T) {
 			path:        "/test/repo",
 			initialized: true,
 			wantErr:     false,
-			expectedCmd: "cd /workspace/nodes/test/nodes/repo && claude",
+			expectedCmd: "cd /workspace/repos/test/repos/repo && claude",
 		},
 		{
 			name:        "successful with agent args",
@@ -62,7 +62,7 @@ func TestManager_StartAgent(t *testing.T) {
 			agentArgs:   []string{"--model", "pro", "--temperature", "0.7"},
 			initialized: true,
 			wantErr:     false,
-			expectedCmd: "cd /workspace/nodes/test/nodes/repo && gemini --model pro --temperature 0.7",
+			expectedCmd: "cd /workspace/repos/test/repos/repo && gemini --model pro --temperature 0.7",
 		},
 		{
 			name:          "successful without path uses current",

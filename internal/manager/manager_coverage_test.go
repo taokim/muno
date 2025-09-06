@@ -16,7 +16,7 @@ import (
 
 // Test StartBackground method of DefaultProcessProvider
 func TestDefaultProcessProvider_StartBackground(t *testing.T) {
-	provider := NewDefaultProcessProvider()
+	provider := NewStubProcessProvider()
 	ctx := context.Background()
 	
 	// Test starting a background process

@@ -44,12 +44,12 @@ func TestSimplifiedStateIntegration(t *testing.T) {
 		logical  string
 		expected string
 	}{
-		{"/", filepath.Join(tmpDir, "nodes")},
-		{"/level1", filepath.Join(tmpDir, "nodes", "level1")},
-		{"/level1/level2", filepath.Join(tmpDir, "nodes", "level1", "nodes", "level2")},
-		{"/level1/level2/level3", filepath.Join(tmpDir, "nodes", "level1", "nodes", "level2", "nodes", "level3")},
-		{"/shared", filepath.Join(tmpDir, "nodes", "shared")},
-		{"/level1/sibling", filepath.Join(tmpDir, "nodes", "level1", "nodes", "sibling")},
+		{"/", filepath.Join(tmpDir, "repos")},
+		{"/level1", filepath.Join(tmpDir, "level1")}, // Git repo - no repos/ subdir
+		{"/level1/level2", filepath.Join(tmpDir, "level1", "level2")}, // Nested git repo
+		{"/level1/level2/level3", filepath.Join(tmpDir, "level1", "level2", "level3")}, // Nested git repo
+		{"/shared", filepath.Join(tmpDir, "shared")}, // Git repo - no repos/ subdir
+		{"/level1/sibling", filepath.Join(tmpDir, "level1", "sibling")}, // Nested git repo
 	}
 	
 	t.Run("FilesystemPathComputation", func(t *testing.T) {

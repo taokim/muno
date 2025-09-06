@@ -49,7 +49,7 @@ func TestComputeFilesystemPath(t *testing.T) {
 	cfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "test-workspace",
-			ReposDir: "nodes",
+			ReposDir: "repos",
 		},
 		Nodes: []config.NodeDefinition{},
 	}
@@ -69,10 +69,10 @@ func TestComputeFilesystemPath(t *testing.T) {
 		logical  string
 		expected string
 	}{
-		{"/", filepath.Join(tmpDir, "nodes")},
-		{"/level1", filepath.Join(tmpDir, "nodes", "level1")},
-		{"/level1/level2", filepath.Join(tmpDir, "nodes", "level1", "nodes", "level2")},
-		{"/a/b/c", filepath.Join(tmpDir, "nodes", "a", "nodes", "b", "nodes", "c")},
+		{"/", filepath.Join(tmpDir, "repos")},
+		{"/level1", filepath.Join(tmpDir, "repos", "level1")},
+		{"/level1/level2", filepath.Join(tmpDir, "repos", "level1", "level2")},
+		{"/a/b/c", filepath.Join(tmpDir, "repos", "a", "b", "c")},
 	}
 	
 	for _, test := range tests {
@@ -90,7 +90,7 @@ func TestStateManagement(t *testing.T) {
 	cfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "test-workspace",
-			ReposDir: "nodes",
+			ReposDir: "repos",
 		},
 		Nodes: []config.NodeDefinition{
 			{Name: "repo1", URL: "https://github.com/test/repo1.git", Lazy: true},
@@ -212,8 +212,8 @@ func TestTreeNavigation(t *testing.T) {
 		t.Errorf("Current path = %s, want /level1/level2", mgr.state.CurrentPath)
 	}
 	
-	// Verify filesystem path
-	expectedFS := filepath.Join(tmpDir, "nodes", "level1", "nodes", "level2")
+	// Verify filesystem path - should be under repos directory
+	expectedFS := filepath.Join(tmpDir, config.GetDefaultReposDir(), "level1", "level2")
 	actualFS := mgr.ComputeFilesystemPath("/level1/level2")
 	if actualFS != expectedFS {
 		t.Errorf("Filesystem path = %s, want %s", actualFS, expectedFS)

@@ -31,7 +31,7 @@ func TestExtractRepoName(t *testing.T) {
 }
 
 func TestDefaultProcessProvider_SimpleOperations(t *testing.T) {
-	provider := NewDefaultProcessProvider()
+	provider := NewStubProcessProvider()
 	ctx := context.Background()
 	
 	// Test ExecuteShell

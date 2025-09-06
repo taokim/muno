@@ -45,7 +45,7 @@ func TestManager_EdgeCases(t *testing.T) {
 		
 		// Deep nested path
 		fsPath = mgr.ComputeFilesystemPath("/a/b/c/d")
-		expected := filepath.Join(tmpDir, config.GetDefaultReposDir(), "a", config.GetDefaultReposDir(), "b", config.GetDefaultReposDir(), "c", config.GetDefaultReposDir(), "d")
+		expected := filepath.Join(tmpDir, config.GetDefaultReposDir(), "a", "b", "c", "d")
 		assert.Equal(t, expected, fsPath)
 	})
 	
@@ -221,7 +221,7 @@ func TestStatelessManager_EdgeCases(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "muno.yaml")
 	configContent := `workspace:
   name: test-workspace
-  repos_dir: nodes
+  repos_dir: repos
 `
 	err := os.WriteFile(configPath, []byte(configContent), 0644)
 	require.NoError(t, err)
@@ -297,7 +297,7 @@ func TestStatelessManager_EdgeCases(t *testing.T) {
 		
 		// Multiple levels
 		fsPath = mgr.ComputeFilesystemPath("/a/b/c")
-		expected := filepath.Join(tmpDir, config.GetDefaultReposDir(), "a", config.GetDefaultReposDir(), "b", config.GetDefaultReposDir(), "c")
+		expected := filepath.Join(tmpDir, config.GetDefaultReposDir(), "a", "b", "c")
 		assert.Equal(t, expected, fsPath)
 		
 		// Relative path (though not typical usage)
