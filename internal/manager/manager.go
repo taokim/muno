@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 	
+	"github.com/mattn/go-isatty"
 	"github.com/taokim/muno/internal/adapters"
 	"github.com/taokim/muno/internal/config"
-	"github.com/taokim/muno/internal/git"
 	"github.com/taokim/muno/internal/interfaces"
 	"github.com/taokim/muno/internal/plugin"
 	"github.com/taokim/muno/internal/tree"
@@ -225,9 +225,11 @@ func (m *Manager) Use(ctx context.Context, path string) error {
 		return fmt.Errorf("failed to get current node: %w", err)
 	}
 	
-	// Clone if lazy
-	if node.IsLazy && !node.IsCloned {
-		m.uiProvider.Info(fmt.Sprintf("Cloning repository: %s", node.Repository))
+	// Clone if lazy repository (not config nodes)
+	if node.IsLazy && !node.IsCloned && node.Repository != "" {
+		m.uiProvider.Info("")
+		m.uiProvider.Info("🔄 Repository needs to be cloned...")
+		m.uiProvider.Info(fmt.Sprintf("📦 Cloning from: %s", node.Repository))
 		
 		repoPath := m.computeFilesystemPath(node.Path)
 		if err := m.gitProvider.Clone(node.Repository, repoPath, interfaces.CloneOptions{
@@ -242,9 +244,18 @@ func (m *Manager) Use(ctx context.Context, path string) error {
 			m.logProvider.Warn("Failed to update node state", 
 				interfaces.Field{Key: "error", Value: err})
 		}
+		
+		m.uiProvider.Success("✅ Repository cloned successfully!")
 	}
 	
-	m.uiProvider.Success(fmt.Sprintf("Now at: %s", path))
+	// Show navigation success with more info
+	m.uiProvider.Info("")
+	m.uiProvider.Success(fmt.Sprintf("📍 Navigated to: %s", node.Name))
+	m.uiProvider.Info(fmt.Sprintf("   Path: %s", node.Path))
+	if len(node.Children) > 0 {
+		m.uiProvider.Info(fmt.Sprintf("   Children: %d repositories", len(node.Children)))
+		m.uiProvider.Info("   Use 'muno list' to see available repositories")
+	}
 	m.metricsProvider.Counter("manager.navigate", 1, "path:"+path)
 	
 	return nil
@@ -327,7 +338,16 @@ func (m *Manager) Add(ctx context.Context, repoURL string, options AddOptions) e
 			interfaces.Field{Key: "error", Value: err})
 	}
 	
-	m.uiProvider.Success(fmt.Sprintf("Added repository: %s", repoName))
+	// Show success with more details
+	m.uiProvider.Info("")
+	m.uiProvider.Success(fmt.Sprintf("✅ Successfully added: %s", repoName))
+	m.uiProvider.Info(fmt.Sprintf("   URL: %s", repoURL))
+	if isLazy {
+		m.uiProvider.Info("   Status: 💤 Lazy (will clone on first use)")
+	} else {
+		m.uiProvider.Info("   Status: ✅ Cloned and ready")
+	}
+	m.uiProvider.Info(fmt.Sprintf("   Location: %s", filepath.Join(current.Path, repoName)))
 	m.metricsProvider.Counter("manager.add_repo", 1)
 	
 	return nil
@@ -390,7 +410,13 @@ func (m *Manager) Remove(ctx context.Context, name string) error {
 			interfaces.Field{Key: "error", Value: err})
 	}
 	
-	m.uiProvider.Success(fmt.Sprintf("Removed repository: %s", name))
+	m.uiProvider.Info("")
+	m.uiProvider.Success(fmt.Sprintf("🗑️  Successfully removed: %s", name))
+	m.uiProvider.Info(fmt.Sprintf("   Path was: %s", nodePath))
+	if node.IsCloned {
+		m.uiProvider.Info("   Files: Deleted from filesystem")
+	}
+	m.uiProvider.Info("   Config: Updated")
 	m.metricsProvider.Counter("manager.remove_repo", 1)
 	
 	return nil
@@ -609,7 +635,9 @@ type DefaultLogProvider struct {
 }
 
 func (l *DefaultLogProvider) Info(msg string, fields ...interfaces.Field) {
-	fmt.Printf("[INFO] %s\n", msg)
+	if l.debug {
+		fmt.Printf("[INFO] %s\n", msg)
+	}
 }
 
 func (l *DefaultLogProvider) Debug(msg string, fields ...interfaces.Field) {
@@ -713,20 +741,33 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 		return filepath.Join(m.workspace, reposDir)
 	}
 	
-	// For repository nodes, the path is simpler
-	// workspace/[reposDir]/repo-name for top-level repos
-	// or workspace/parent-path/repo-name for nested repos
+	// Split the path into parts
 	parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
 	
-	// For now, assume simple structure: workspace/[reposDir]/repo-name
-	// This matches the actual directory structure in most cases
+	// For top-level repository
 	if len(parts) == 1 {
-		// Top-level repository
 		return filepath.Join(m.workspace, reposDir, parts[0])
 	}
 	
-	// For nested paths, we need more complex logic
-	// But for now, just join the parts under repos dir
+	// For nested paths, we need to check if parent is a git repo
+	// If parent is a git repo, children go inside it
+	// Otherwise, they go in parallel under repos dir
+	
+	// Check if the first part is a cloned repository
+	parentPath := filepath.Join(m.workspace, reposDir, parts[0])
+	gitPath := filepath.Join(parentPath, ".git")
+	
+	// If parent is a git repository, nest children inside it
+	if m.fsProvider.Exists(gitPath) {
+		// Build path inside the parent repository
+		fsPath := parentPath
+		for i := 1; i < len(parts); i++ {
+			fsPath = filepath.Join(fsPath, parts[i])
+		}
+		return fsPath
+	}
+	
+	// Otherwise, use flat structure under repos dir
 	fsPath := filepath.Join(m.workspace, reposDir)
 	for _, part := range parts {
 		fsPath = filepath.Join(fsPath, part)
@@ -737,17 +778,99 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 
 // Helper function to display tree recursively
 func (m *Manager) displayTreeRecursive(node interfaces.NodeInfo, indent int) {
-	prefix := strings.Repeat("  ", indent)
-	status := ""
-	if node.IsLazy {
-		status = " (lazy)"
-	} else if node.HasChanges {
-		status = " (modified)"
+	m.displayTreeRecursiveWithPrefix(node, "", true, true)
+}
+
+// displayTreeRecursiveWithPrefix displays tree with proper tree characters
+func (m *Manager) displayTreeRecursiveWithPrefix(node interfaces.NodeInfo, prefix string, isRoot bool, isLast bool) {
+	// Prepare node display
+	var output string
+	if isRoot {
+		output = node.Name
+	} else {
+		connector := "├── "
+		if isLast {
+			connector = "└── "
+		}
+		output = prefix + connector + node.Name
 	}
-	m.uiProvider.Info(fmt.Sprintf("%s%s%s", prefix, node.Name, status))
 	
-	for _, child := range node.Children {
-		m.displayTreeRecursive(child, indent+1)
+	// Add status indicators based on node type
+	var status []string
+	
+	// Check if this is a terminal node (leaf) or non-terminal (parent)
+	isTerminal := len(node.Children) == 0
+	
+	if isTerminal {
+		// Terminal nodes (actual repositories)
+		if node.Repository != "" {
+			status = append(status, "📦")
+		}
+		if node.IsLazy && !node.IsCloned {
+			status = append(status, "💤 lazy")
+		} else if !node.IsCloned {
+			status = append(status, "⏳ not cloned")
+		} else if node.IsCloned {
+			status = append(status, "✅")
+		}
+		if node.HasChanges {
+			status = append(status, "📝 modified")
+		}
+	} else {
+		// Non-terminal nodes (parent nodes with children)
+		// Check if it's a config reference node or git parent node
+		if m.config != nil {
+			// Look up in config to determine node type
+			nodeFound := false
+			for _, nodeDef := range m.config.Nodes {
+				if nodeDef.Name == node.Name {
+					if nodeDef.Config != "" {
+						status = append(status, "📄 config")
+					} else if nodeDef.URL != "" {
+						status = append(status, "📁 git parent")
+					}
+					nodeFound = true
+					break
+				}
+			}
+			if !nodeFound && node.Repository != "" {
+				// It's a git parent node
+				status = append(status, "📁 git parent")
+			} else if !nodeFound {
+				// Generic parent node
+				status = append(status, "📂 parent")
+			}
+		} else {
+			// No config available, use generic icon
+			status = append(status, "📂 parent")
+		}
+		
+		// Show child count for parent nodes
+		childCount := len(node.Children)
+		if childCount > 0 {
+			status = append(status, fmt.Sprintf("%d children", childCount))
+		}
+	}
+	
+	if len(status) > 0 {
+		output += " [" + strings.Join(status, " ") + "]"
+	}
+	
+	m.uiProvider.Info(output)
+	
+	// Process children
+	childCount := len(node.Children)
+	for i, child := range node.Children {
+		childPrefix := prefix
+		if !isRoot {
+			if isLast {
+				childPrefix += "    "
+			} else {
+				childPrefix += "│   "
+			}
+		}
+		isLastChild := (i == childCount - 1)
+		m.displayTreeRecursiveWithPrefix(child, childPrefix, false, isLastChild)
 	}
 }
 
@@ -766,24 +889,64 @@ func (m *Manager) ListNodesRecursive(recursive bool) error {
 	
 	// Display tree using UI provider
 	if recursive {
-		m.uiProvider.Info(fmt.Sprintf("Tree at %s:", tree.Path))
+		m.uiProvider.Info("🌳 Repository Tree")
+		m.uiProvider.Info("─────────────────")
 		m.displayTreeRecursive(tree, 0)
+		
+		// Show summary
+		totalNodes, clonedNodes, lazyNodes := m.countNodes(tree)
+		m.uiProvider.Info("")
+		m.uiProvider.Info(fmt.Sprintf("📊 Summary: %d total • %d cloned • %d lazy", 
+			totalNodes, clonedNodes, lazyNodes))
 		return nil
 	}
 	
-	// Just list immediate children
+	// Just list immediate children with better formatting
 	current, err := m.treeProvider.GetCurrent()
 	if err != nil {
 		return fmt.Errorf("getting current node: %w", err)
 	}
 	
+	m.uiProvider.Info(fmt.Sprintf("📂 Current: %s", current.Path))
+	m.uiProvider.Info("─────────────────")
+	
 	if len(current.Children) == 0 {
-		m.uiProvider.Info("No children")
+		m.uiProvider.Info("  📭 No repositories at this level")
+		m.uiProvider.Info("")
+		m.uiProvider.Info("  💡 Tip: Use 'muno add <repo-url>' to add repositories")
 		return nil
 	}
 	
-	for _, child := range current.Children {
-		m.uiProvider.Info(fmt.Sprintf("  %s", child.Name))
+	m.uiProvider.Info(fmt.Sprintf("  Found %d repositories:", len(current.Children)))
+	m.uiProvider.Info("")
+	
+	for i, child := range current.Children {
+		icon := "📦"
+		status := ""
+		
+		if child.IsLazy && !child.IsCloned {
+			icon = "💤"
+			status = " (lazy - not cloned)"
+		} else if !child.IsCloned {
+			icon = "⏳"
+			status = " (not cloned)"
+		} else if child.HasChanges {
+			icon = "📝"
+			status = " (modified)"
+		} else if child.IsCloned {
+			icon = "✅"
+			status = " (cloned)"
+		}
+		
+		m.uiProvider.Info(fmt.Sprintf("  %s %s%s", icon, child.Name, status))
+		
+		if child.Repository != "" && i < 5 { // Show URLs for first 5 repos
+			m.uiProvider.Info(fmt.Sprintf("     └─ %s", child.Repository))
+		}
+	}
+	
+	if len(current.Children) > 5 {
+		m.uiProvider.Info(fmt.Sprintf("\n  ... and %d more", len(current.Children)-5))
 	}
 	
 	return nil
@@ -800,7 +963,29 @@ func (m *Manager) ShowCurrent() error {
 		return fmt.Errorf("getting current node: %w", err)
 	}
 	
-	m.uiProvider.Info(fmt.Sprintf("Current: %s", current.Path))
+	m.uiProvider.Info("📍 Current Position")
+	m.uiProvider.Info("─────────────────")
+	m.uiProvider.Info(fmt.Sprintf("  Path: %s", current.Path))
+	m.uiProvider.Info(fmt.Sprintf("  Name: %s", current.Name))
+	
+	if current.Repository != "" {
+		m.uiProvider.Info(fmt.Sprintf("  Repo: %s", current.Repository))
+	}
+	
+	status := "✅ Cloned"
+	if current.IsLazy && !current.IsCloned {
+		status = "💤 Lazy (not cloned)"
+	} else if !current.IsCloned {
+		status = "⏳ Not cloned"
+	} else if current.HasChanges {
+		status = "📝 Modified"
+	}
+	m.uiProvider.Info(fmt.Sprintf("  Status: %s", status))
+	
+	if len(current.Children) > 0 {
+		m.uiProvider.Info(fmt.Sprintf("  Children: %d repositories", len(current.Children)))
+	}
+	
 	return nil
 }
 
@@ -820,14 +1005,61 @@ func (m *Manager) ShowTreeAtPath(path string, depth int) error {
 		return fmt.Errorf("getting node: %w", err)
 	}
 	
-	m.uiProvider.Info(fmt.Sprintf("Tree at %s:", node.Path))
+	m.uiProvider.Info("🌳 Repository Tree")
+	m.uiProvider.Info("─────────────────")
+	m.uiProvider.Info(fmt.Sprintf("📍 Starting from: %s", node.Path))
+	m.uiProvider.Info("")
 	m.displayTreeRecursive(node, 0)
+	
+	// Show summary
+	totalNodes, clonedNodes, lazyNodes := m.countNodes(node)
+	m.uiProvider.Info("")
+	m.uiProvider.Info("─────────────────")
+	m.uiProvider.Info(fmt.Sprintf("📊 Summary: %d total • %d cloned • %d lazy", 
+		totalNodes, clonedNodes, lazyNodes))
+		
 	return nil
 }
 
 // UseNodeWithClone navigates to a node and clones if needed
 func (m *Manager) UseNodeWithClone(path string, autoClone bool) error {
+	if !m.initialized {
+		return fmt.Errorf("manager not initialized")
+	}
+	
 	ctx := context.Background()
+	
+	// If autoClone is false, we need to navigate without cloning
+	if !autoClone {
+		// Just navigate in the tree without cloning
+		if err := m.treeProvider.Navigate(path); err != nil {
+			return fmt.Errorf("failed to navigate: %w", err)
+		}
+		
+		// Get node info
+		node, err := m.treeProvider.GetCurrent()
+		if err != nil {
+			return fmt.Errorf("failed to get current node: %w", err)
+		}
+		
+		// Show navigation success
+		m.uiProvider.Info("")
+		m.uiProvider.Success(fmt.Sprintf("📍 Navigated to: %s", node.Name))
+		m.uiProvider.Info(fmt.Sprintf("   Path: %s", node.Path))
+		
+		if node.IsLazy && !node.IsCloned && node.Repository != "" {
+			m.uiProvider.Warning("⚠️  This repository is not cloned yet. Use 'muno clone' to clone it.")
+		}
+		
+		if len(node.Children) > 0 {
+			m.uiProvider.Info(fmt.Sprintf("   Children: %d repositories", len(node.Children)))
+			m.uiProvider.Info("   Use 'muno list' to see available repositories")
+		}
+		
+		return nil
+	}
+	
+	// If autoClone is true, use the regular Use function which auto-clones
 	return m.Use(ctx, path)
 }
 
@@ -888,6 +1120,26 @@ func (m *Manager) CloneRepos(path string, recursive bool) error {
 	}
 	
 	return m.saveConfig()
+}
+
+// countNodes counts total, cloned, and lazy nodes in the tree
+func (m *Manager) countNodes(node interfaces.NodeInfo) (total, cloned, lazy int) {
+	total = 1
+	if node.IsCloned {
+		cloned = 1
+	}
+	if node.IsLazy && !node.IsCloned {
+		lazy = 1
+	}
+	
+	for _, child := range node.Children {
+		t, c, l := m.countNodes(child)
+		total += t
+		cloned += c
+		lazy += l
+	}
+	
+	return total, cloned, lazy
 }
 
 // Helper function to collect lazy nodes recursively
@@ -957,10 +1209,15 @@ func (m *Manager) showStatusRecursive(node interfaces.NodeInfo) error {
 	return nil
 }
 
-// PullNode pulls changes for a node
-func (m *Manager) PullNode(path string, recursive bool) error {
+// PullNode pulls changes for a node (or all nodes if path is empty and recursive is true)
+func (m *Manager) PullNode(path string, recursive bool, force bool) error {
 	if !m.initialized {
 		return fmt.Errorf("manager not initialized")
+	}
+	
+	// Handle --all case (empty path with recursive flag)
+	if path == "" && recursive {
+		return m.pullAllRepositories(force)
 	}
 	
 	targetPath := path
@@ -978,26 +1235,119 @@ func (m *Manager) PullNode(path string, recursive bool) error {
 	}
 	
 	if recursive {
-		return m.pullRecursive(node)
+		return m.pullRecursive(node, force)
 	}
 	
+	// Single node pull
 	fullPath := m.computeFilesystemPath(node.Path)
-	m.logProvider.Info("Pulling changes")
-	m.logProvider.Info(fmt.Sprintf("  Tree path: %s", node.Path))
-	m.logProvider.Info(fmt.Sprintf("  Directory: %s", fullPath))
-	return m.gitProvider.Pull(fullPath, interfaces.PullOptions{})
+	m.uiProvider.Info(fmt.Sprintf("📦 Pulling: %s", node.Name))
+	m.uiProvider.Info(fmt.Sprintf("   Path: %s", fullPath))
+	
+	pullOpts := interfaces.PullOptions{Force: force}
+	if err := m.gitProvider.Pull(fullPath, pullOpts); err != nil {
+		m.uiProvider.Error(fmt.Sprintf("   ❌ Failed: %v", err))
+		return err
+	}
+	
+	m.uiProvider.Success("   ✅ Success")
+	return nil
 }
 
-func (m *Manager) pullRecursive(node interfaces.NodeInfo) error {
-	if node.IsCloned {
-		m.logProvider.Info(fmt.Sprintf("Pulling changes at %s", node.Path))
-		if err := m.gitProvider.Pull(m.computeFilesystemPath(node.Path), interfaces.PullOptions{}); err != nil {
-			m.logProvider.Error(fmt.Sprintf("Pull failed at %s: %v", node.Path, err))
+// pullAllRepositories pulls all cloned repositories in the workspace
+func (m *Manager) pullAllRepositories(force bool) error {
+	// Get root node
+	root, err := m.treeProvider.GetNode("/")
+	if err != nil {
+		return fmt.Errorf("getting root node: %w", err)
+	}
+	
+	m.uiProvider.Info("🔄 Pulling all repositories...")
+	m.uiProvider.Info("─────────────────")
+	
+	// Collect all cloned repositories
+	allRepos := m.collectClonedRepos(root)
+	if len(allRepos) == 0 {
+		m.uiProvider.Info("📭 No cloned repositories found")
+		return nil
+	}
+	
+	m.uiProvider.Info(fmt.Sprintf("Found %d repositories to pull", len(allRepos)))
+	m.uiProvider.Info("")
+	
+	successCount := 0
+	failedRepos := []string{}
+	
+	for _, node := range allRepos {
+		fullPath := m.computeFilesystemPath(node.Path)
+		m.uiProvider.Info(fmt.Sprintf("📦 Pulling: %s", node.Name))
+		
+		pullOpts := interfaces.PullOptions{Force: force}
+		
+		if err := m.gitProvider.Pull(fullPath, pullOpts); err != nil {
+			m.uiProvider.Error(fmt.Sprintf("   ❌ Failed: %v", err))
+			failedRepos = append(failedRepos, node.Name)
+		} else {
+			m.uiProvider.Success("   ✅ Success")
+			successCount++
 		}
 	}
 	
+	// Show summary
+	m.uiProvider.Info("")
+	m.uiProvider.Info("─────────────────")
+	m.uiProvider.Info(fmt.Sprintf("📊 Results: %d succeeded, %d failed", 
+		successCount, len(failedRepos)))
+	
+	if len(failedRepos) > 0 {
+		m.uiProvider.Info("")
+		m.uiProvider.Warning("⚠️  Failed repositories:")
+		for _, repo := range failedRepos {
+			m.uiProvider.Info(fmt.Sprintf("   - %s", repo))
+		}
+		if !force {
+			m.uiProvider.Info("")
+			m.uiProvider.Info("💡 Tip: Use --force to override local changes")
+		}
+	}
+	
+	return nil
+}
+
+// collectClonedRepos collects all cloned repositories recursively
+func (m *Manager) collectClonedRepos(node interfaces.NodeInfo) []interfaces.NodeInfo {
+	var repos []interfaces.NodeInfo
+	
+	// Only add terminal nodes that are cloned
+	if len(node.Children) == 0 && node.IsCloned {
+		repos = append(repos, node)
+	}
+	
+	// Recurse into children
 	for _, child := range node.Children {
-		if err := m.pullRecursive(child); err != nil {
+		repos = append(repos, m.collectClonedRepos(child)...)
+	}
+	
+	return repos
+}
+
+func (m *Manager) pullRecursive(node interfaces.NodeInfo, force bool) error {
+	// Only pull terminal nodes (actual repositories)
+	if len(node.Children) == 0 && node.IsCloned {
+		fullPath := m.computeFilesystemPath(node.Path)
+		m.uiProvider.Info(fmt.Sprintf("📦 Pulling: %s", node.Name))
+		
+		pullOpts := interfaces.PullOptions{Force: force}
+		if err := m.gitProvider.Pull(fullPath, pullOpts); err != nil {
+			m.uiProvider.Error(fmt.Sprintf("   ❌ Failed at %s: %v", node.Path, err))
+			// Don't stop on error, continue with other repos
+		} else {
+			m.uiProvider.Success(fmt.Sprintf("   ✅ Success: %s", node.Name))
+		}
+	}
+	
+	// Recurse into children
+	for _, child := range node.Children {
+		if err := m.pullRecursive(child, force); err != nil {
 			return err
 		}
 	}
@@ -1361,15 +1711,28 @@ func (m *Manager) StartAgent(agentName string, path string, agentArgs []string, 
 	targetPath := path
 	if targetPath == "" {
 		current, err := m.treeProvider.GetCurrent()
-		if err != nil {
-			return fmt.Errorf("getting current node: %w", err)
+		if err != nil || current.Path == "" {
+			// If we can't get current or it's empty, use root
+			targetPath = "/"
+		} else {
+			targetPath = current.Path
 		}
-		targetPath = current.Path
 	}
 	
-	node, err := m.treeProvider.GetNode(targetPath)
-	if err != nil {
-		return fmt.Errorf("getting node: %w", err)
+	// Special case for root - create a simple node
+	var node interfaces.NodeInfo
+	if targetPath == "/" || targetPath == "" {
+		// For root, just use workspace directly
+		node = interfaces.NodeInfo{
+			Path: "/",
+			Name: "root",
+		}
+	} else {
+		n, err := m.treeProvider.GetNode(targetPath)
+		if err != nil {
+			return fmt.Errorf("getting node: %w", err)
+		}
+		node = n
 	}
 	
 	// Start agent session using process provider
@@ -1381,12 +1744,25 @@ func (m *Manager) StartAgent(agentName string, path string, agentArgs []string, 
 		fullPath = m.computeFilesystemPath(node.Path)
 	}
 	
+	// Check if the agent command exists (but don't fail if it's an alias)
+	agentPath, err := exec.LookPath(agentName)
+	if err != nil {
+		// It might be a shell alias, so we'll try to run it anyway
+		m.logProvider.Debug(fmt.Sprintf("%s not found in PATH, might be a shell alias", agentName))
+		agentPath = agentName // Use the name directly, shell will resolve it
+	}
+	
 	m.logProvider.Info(fmt.Sprintf("Starting %s session", agentName))
+	if err == nil {
+		m.logProvider.Info(fmt.Sprintf("  Agent path: %s", agentPath))
+	} else {
+		m.logProvider.Info(fmt.Sprintf("  Agent: %s (possibly shell alias)", agentName))
+	}
 	m.logProvider.Info(fmt.Sprintf("  Tree path: %s", node.Path))
 	m.logProvider.Info(fmt.Sprintf("  Directory: %s", fullPath))
 	
-	// Build the command - use the computed path as working directory
-	command := fmt.Sprintf("cd %s && %s", fullPath, agentName)
+	// Build the command arguments
+	var contextFile string
 	
 	// If requested, inject MUNO context for the agent
 	if withMunoContext {
@@ -1402,534 +1778,99 @@ func (m *Manager) StartAgent(agentName string, path string, agentArgs []string, 
 				contextFile := filepath.Join(contextPath, ".muno", "agent-context.md")
 				// Read the context file and pass it via --append-system-prompt
 				if _, err := m.fsProvider.ReadFile(contextFile); err == nil {
-					// Escape the content for shell command
-					// Use a file redirection instead of inline content to avoid shell escaping issues
-					command += fmt.Sprintf(" --append-system-prompt \"$(cat '%s')\"", contextFile)
+					// We'll use this contextFile path later when building the command
 					m.logProvider.Info("  Appending MUNO context to Claude system prompt")
 				}
 			}
 		}
 	}
 	
-	if len(agentArgs) > 0 {
-		// Add agent-specific arguments
-		for _, arg := range agentArgs {
-			command += " " + arg
-		}
+	// Build command arguments
+	var allArgs []string
+	if withMunoContext && agentName == "claude" && contextFile != "" {
+		allArgs = append(allArgs, "--append-system-prompt", contextFile)
 	}
+	allArgs = append(allArgs, agentArgs...)
 	
 	// For interactive agents, we need to run them directly with stdin/stdout connected
-	// We can't use ExecuteShell as it waits for completion
 	m.logProvider.Debug(fmt.Sprintf("Starting interactive agent: %s", agentName))
 	
-	// Use os/exec directly for interactive commands
-	cmd := exec.Command("sh", "-c", command)
+	// Check if we're in a TTY environment
+	isInteractive := isatty.IsTerminal(os.Stdin.Fd()) || isatty.IsCygwinTerminal(os.Stdin.Fd())
+	
+	if !isInteractive {
+		// Not in a TTY - agent command might fail or behave unexpectedly
+		m.logProvider.Warn("Not running in a terminal. Some agents may not work properly.")
+		m.logProvider.Warn("Consider using --print flag for non-interactive mode if supported by the agent.")
+	}
+	
+	// Create the command
+	// We need to use the user's shell to support aliases
+	// Detect the user's shell
+	userShell := os.Getenv("SHELL")
+	if userShell == "" {
+		userShell = "/bin/sh" // fallback to sh
+	}
+	
+	// Build the command string for the shell
+	// Use -i for interactive shell to load aliases and -c to execute command
+	var shellCmd string
+	if len(allArgs) > 0 {
+		// Properly escape arguments
+		quotedArgs := make([]string, len(allArgs))
+		for i, arg := range allArgs {
+			// Simple escaping - wrap in single quotes and escape any single quotes
+			quotedArgs[i] = "'" + strings.ReplaceAll(arg, "'", "'\\''") + "'"
+		}
+		shellCmd = fmt.Sprintf("cd %s && %s %s", fullPath, agentName, strings.Join(quotedArgs, " "))
+	} else {
+		shellCmd = fmt.Sprintf("cd %s && %s", fullPath, agentName)
+	}
+	
+	// Use -i for interactive shell to load RC files (aliases)
+	// But we also need -c to run a command
+	// For zsh/bash, we can use: shell -i -c "command"
+	cmd := exec.Command(userShell, "-i", "-c", shellCmd)
+	cmd.Dir = fullPath
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	
+	// Set up the environment
+	cmd.Env = os.Environ()
+	
 	// Run the interactive command
+	m.logProvider.Debug(fmt.Sprintf("Executing via %s: %s", userShell, shellCmd))
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("running %s: %w", agentName, err)
+		// Check if the error is due to various issues
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			if exitErr.ExitCode() == 127 {
+				// Command not found - provide helpful message
+				installMsg := ""
+				switch agentName {
+				case "claude":
+					installMsg = "Install with: npm install -g @anthropic-ai/cli"
+				case "gemini":
+					installMsg = "Install with: npm install -g @google/gemini-cli"
+				case "cursor":
+					installMsg = "Download from: https://cursor.sh"
+				case "windsurf":
+					installMsg = "Download from: https://www.codeium.com/windsurf"
+				case "aider":
+					installMsg = "Install with: pip install aider-chat"
+				default:
+					installMsg = fmt.Sprintf("Make sure %s is installed or aliased in your shell", agentName)
+				}
+				return fmt.Errorf("%s not found. %s", agentName, installMsg)
+			}
+			if exitErr.ExitCode() == 126 {
+				return fmt.Errorf("%s found but not executable. Check file permissions", agentName)
+			}
+			// For other exit codes, just pass through the error
+			return fmt.Errorf("%s exited with error: %w", agentName, err)
+		}
+		return fmt.Errorf("failed to run %s: %w", agentName, err)
 	}
 	
 	return nil
-}
-
-// SmartInitWorkspace performs intelligent initialization for V2
-func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) error {
-	// Initialize the manager
-	m.initialized = true
-	
-	// Try to load existing config first
-	var existingConfig *config.ConfigTree
-	configPath := filepath.Join(m.workspace, "muno.yaml")
-	
-	// Try different config file names
-	for _, configName := range []string{"muno.yaml", "muno.yml", ".muno.yaml", ".muno.yml"} {
-		testPath := filepath.Join(m.workspace, configName)
-		if m.fsProvider.Exists(testPath) {
-			cfg, err := config.LoadTree(testPath)
-			if err == nil {
-				existingConfig = cfg
-				configPath = testPath
-				m.logProvider.Info(fmt.Sprintf("Found existing config: %s", configName))
-				break
-			}
-			m.logProvider.Warn(fmt.Sprintf("Failed to load %s: %v", configName, err))
-		}
-	}
-	
-	// Create or update configuration
-	if existingConfig != nil {
-		// Use existing config, but update project name if provided
-		m.config = existingConfig
-		if projectName != "" && projectName != existingConfig.Workspace.Name {
-			m.config.Workspace.Name = projectName
-		}
-		m.logProvider.Info(fmt.Sprintf("Preserving %d existing nodes", len(m.config.Nodes)))
-	} else {
-		// Create new configuration
-		m.config = &config.ConfigTree{
-			Workspace: config.WorkspaceTree{
-				Name:     projectName,
-				ReposDir: config.GetDefaultReposDir(),
-			},
-			Nodes: []config.NodeDefinition{},
-			Path:  configPath,
-		}
-	}
-	
-	// Build a map of existing nodes to avoid duplicates
-	existingNodes := make(map[string]bool)
-	for _, node := range m.config.Nodes {
-		existingNodes[node.Name] = true
-	}
-	
-	// Get repos directory
-	reposDir := m.getReposDir()
-	if reposDir == "" {
-		reposDir = "repos"
-	}
-	
-	// Create repos directory if it doesn't exist
-	reposDirPath := filepath.Join(m.workspace, reposDir)
-	if err := m.fsProvider.MkdirAll(reposDirPath, 0755); err != nil {
-		return fmt.Errorf("creating repos directory: %w", err)
-	}
-	
-	// Define directories to ignore during scanning
-	ignoreDirs := map[string]bool{
-		".git":         true,
-		".muno":        true,
-		"node_modules": true,
-		".idea":        true,
-		".vscode":      true,
-		"vendor":       true,
-		".cache":       true,
-		"dist":         true,
-		"build":        true,
-		"target":       true,
-	}
-	
-	// Scan for existing git repositories
-	m.logProvider.Info("Scanning for git repositories...")
-	
-	// First, scan the repos directory for existing repos
-	reposInNodesDir := 0
-	if m.fsProvider.Exists(reposDirPath) {
-		entries, err := os.ReadDir(reposDirPath)
-		if err == nil {
-			for _, entry := range entries {
-				if !entry.IsDir() {
-					continue
-				}
-				
-				repoName := entry.Name()
-				if existingNodes[repoName] {
-					continue // Already in config
-				}
-				
-				repoPath := filepath.Join(reposDirPath, repoName)
-				gitDir := filepath.Join(repoPath, ".git")
-				
-				if m.fsProvider.Exists(gitDir) {
-					// Found a git repo in repos directory
-					remote, _ := m.getGitRemote(repoPath)
-					if remote != "" {
-						m.logProvider.Info(fmt.Sprintf("Found repo in %s/: %s", reposDir, repoName))
-						
-						// Add to configuration with proper lazy determination
-						// Default to auto mode for smart detection
-						m.config.Nodes = append(m.config.Nodes, config.NodeDefinition{
-							Name:  repoName,
-							URL:   remote,
-							Fetch: config.FetchAuto,
-						})
-						existingNodes[repoName] = true
-						reposInNodesDir++
-					}
-				}
-			}
-		}
-	}
-	
-	// Now scan other directories (excluding repos dir and ignores)
-	repos, err := m.findGitRepositoriesWithIgnore(".", append([]string{reposDir}, getMapKeys(ignoreDirs)...))
-	if err != nil && !options.Force {
-		return fmt.Errorf("scanning repositories: %w", err)
-	}
-	
-	m.logProvider.Info(fmt.Sprintf("Found %d repositories in %s/, %d in other directories", 
-		reposInNodesDir, reposDir, len(repos)))
-	
-	// Process found repositories outside repos directory
-	movedRepos := 0
-	for _, repo := range repos {
-		repoName := filepath.Base(repo.Path)
-		
-		// Skip if already exists in config
-		if existingNodes[repoName] {
-			m.logProvider.Info(fmt.Sprintf("Skipping %s (already in config)", repoName))
-			continue
-		}
-		
-		// In interactive mode, ask user
-		if !options.NonInteractive && !options.Force {
-			m.uiProvider.Info(fmt.Sprintf("\nFound repository: %s", repo.Path))
-			if repo.RemoteURL != "" {
-				m.uiProvider.Info(fmt.Sprintf("  Remote URL: %s", repo.RemoteURL))
-			}
-			
-			shouldAdd, err := m.uiProvider.Confirm("Add to workspace?")
-			if err != nil || !shouldAdd {
-				continue
-			}
-		}
-		
-		// Move to repos directory
-		targetPath := filepath.Join(reposDirPath, repoName)
-		if err := os.Rename(repo.Path, targetPath); err != nil {
-			m.logProvider.Warn(fmt.Sprintf("Failed to move %s: %v", repoName, err))
-			continue
-		}
-		
-		// Add to configuration
-		url := repo.RemoteURL
-		if url == "" {
-			url = "file://" + targetPath
-		}
-		
-		// Default to auto mode for smart detection
-		m.config.Nodes = append(m.config.Nodes, config.NodeDefinition{
-			Name:  repoName,
-			URL:   url,
-			Fetch: config.FetchAuto,
-		})
-		existingNodes[repoName] = true
-		movedRepos++
-		
-		m.logProvider.Info(fmt.Sprintf("Moved and added: %s", repoName))
-	}
-	
-	// Validate all nodes
-	for i, node := range m.config.Nodes {
-		// Ensure node has either URL or Config, not both
-		if node.URL != "" && node.Config != "" {
-			m.logProvider.Warn(fmt.Sprintf("Node %s has both URL and Config, clearing Config", node.Name))
-			m.config.Nodes[i].Config = ""
-		}
-		
-		// Validate config references exist
-		if node.Config != "" {
-			configPath := node.Config
-			if !filepath.IsAbs(configPath) {
-				configPath = filepath.Join(m.workspace, configPath)
-			}
-			if !m.fsProvider.Exists(configPath) {
-				m.logProvider.Warn(fmt.Sprintf("Config file not found for %s: %s", node.Name, node.Config))
-			}
-		}
-	}
-	
-	// Save the configuration
-	if err := m.saveConfig(); err != nil {
-		return fmt.Errorf("saving configuration: %w", err)
-	}
-	
-	// Create CLAUDE.md if it doesn't exist
-	claudePath := filepath.Join(m.workspace, "CLAUDE.md")
-	if !m.fsProvider.Exists(claudePath) {
-		content := fmt.Sprintf("# %s\n\nMUNO workspace with tree-based navigation.\n", m.config.Workspace.Name)
-		if err := m.fsProvider.WriteFile(claudePath, []byte(content), 0644); err != nil {
-			m.logProvider.Warn(fmt.Sprintf("Failed to create CLAUDE.md: %v", err))
-		}
-	}
-	
-	// Summary
-	m.uiProvider.Success(fmt.Sprintf("\nWorkspace '%s' initialized successfully!", m.config.Workspace.Name))
-	m.uiProvider.Info(fmt.Sprintf("\nConfiguration summary:"))
-	m.uiProvider.Info(fmt.Sprintf("  - Total nodes: %d", len(m.config.Nodes)))
-	
-	configRefs := 0
-	gitRepos := 0
-	for _, node := range m.config.Nodes {
-		if node.Config != "" {
-			configRefs++
-		} else if node.URL != "" {
-			gitRepos++
-		}
-	}
-	
-	m.uiProvider.Info(fmt.Sprintf("  - Git repositories: %d", gitRepos))
-	m.uiProvider.Info(fmt.Sprintf("  - Config references: %d", configRefs))
-	
-	if movedRepos > 0 {
-		m.uiProvider.Info(fmt.Sprintf("  - Moved to %s/: %d", reposDir, movedRepos))
-	}
-	
-	m.uiProvider.Info("\nNext steps:")
-	m.uiProvider.Info("  muno tree        # View repository tree")
-	m.uiProvider.Info("  muno use <repo>  # Navigate to a repository")
-	m.uiProvider.Info("  muno add <url>   # Add more repositories")
-	
-	return nil
-}
-
-// findGitRepositories searches for git repositories in the given path
-func (m *Manager) findGitRepositories(rootPath string) ([]GitRepoInfo, error) {
-	var repos []GitRepoInfo
-	visited := make(map[string]bool)
-	
-	err := m.fsProvider.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // Skip errors
-		}
-		
-		// Skip hidden directories except .git
-		if info.IsDir() && strings.HasPrefix(info.Name(), ".") && info.Name() != ".git" {
-			return filepath.SkipDir
-		}
-		
-		// Skip common non-repo directories
-		if info.IsDir() && (info.Name() == "node_modules" || info.Name() == "vendor") {
-			return filepath.SkipDir
-		}
-		
-		// Check if this is a .git directory
-		if info.IsDir() && info.Name() == ".git" {
-			repoPath := filepath.Dir(path)
-			absRepoPath, _ := filepath.Abs(repoPath)
-			
-			if visited[absRepoPath] {
-				return filepath.SkipDir
-			}
-			visited[absRepoPath] = true
-			
-			repoInfo := GitRepoInfo{
-				Path: repoPath,
-			}
-			
-			// Get remote URL
-			if url, err := m.gitProvider.GetRemoteURL(repoPath); err == nil {
-				repoInfo.RemoteURL = url
-			}
-			
-			// Get current branch
-			if branch, err := m.gitProvider.Branch(repoPath); err == nil {
-				repoInfo.Branch = branch
-			}
-			
-			repos = append(repos, repoInfo)
-			return filepath.SkipDir
-		}
-		
-		return nil
-	})
-	
-	return repos, err
-}
-
-// ClearCurrent clears the current position in the tree
-func (m *Manager) ClearCurrent() error {
-	if !m.initialized {
-		return fmt.Errorf("manager not initialized")
-	}
-	
-	return m.treeProvider.SetPath("/")
-}
-
-// NewManagerForInit creates a new Manager for initialization without requiring existing config
-func NewManagerForInit(projectPath string) (*Manager, error) {
-	
-	// Ensure project path exists
-	if err := os.MkdirAll(projectPath, 0755); err != nil {
-		return nil, fmt.Errorf("creating project directory: %w", err)
-	}
-	
-	// Create git interface for tree manager
-	gitInterface := git.New()
-	
-	// Create tree manager
-	treeMgr, err := tree.NewManager(projectPath, gitInterface)
-	if err != nil {
-		return nil, fmt.Errorf("creating tree manager: %w", err)
-	}
-	
-	// Create Manager options with default providers
-	opts := ManagerOptions{
-		ConfigProvider:  NewConfigAdapter(nil),
-		GitProvider:     NewGitAdapter(nil),
-		FSProvider:      NewFileSystemAdapter(nil),
-		UIProvider:      NewUIAdapter(nil),
-		TreeProvider:    NewTreeAdapter(treeMgr),
-		ProcessProvider: NewDefaultProcessProvider(),
-		LogProvider:     NewDefaultLogProvider(false),
-		MetricsProvider: NewNoOpMetricsProvider(),
-		EnablePlugins:   false,
-		AutoLoadConfig:  false, // Don't try to load config for init
-	}
-	
-	// Create Manager
-	mgr, err := NewManager(opts)
-	if err != nil {
-		return nil, fmt.Errorf("creating manager: %w", err)
-	}
-	
-	// Set workspace path
-	mgr.workspace = projectPath
-	
-	return mgr, nil
-}
-
-// LoadFromCurrentDir loads a Manager from the current directory
-func LoadFromCurrentDir() (*Manager, error) {
-	return LoadFromCurrentDirWithOptions(nil)
-}
-
-// LoadFromCurrentDirWithOptions loads a Manager from the current directory with options
-func LoadFromCurrentDirWithOptions(opts *ManagerOptions) (*Manager, error) {
-	// Use defaults if no options provided
-	if opts == nil {
-		opts = DefaultManagerOptions()
-	}
-	
-	// Get current working directory
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-
-	// Search upwards for muno.yaml
-	searchDir := cwd
-	configPath := ""
-	for {
-		candidate := filepath.Join(searchDir, "muno.yaml")
-		if _, err := os.Stat(candidate); err == nil {
-			configPath = candidate
-			cwd = searchDir // Update cwd to the project root
-			break
-		}
-		
-		parent := filepath.Dir(searchDir)
-		if parent == searchDir {
-			break // Reached root
-		}
-		searchDir = parent
-	}
-	
-	if configPath == "" {
-		return nil, fmt.Errorf("muno.yaml not found in current directory or any parent")
-	}
-	
-	// Create git interface for tree manager
-	gitInterface := git.New()
-	
-	// Create tree manager
-	treeMgr, err := tree.NewManager(cwd, gitInterface)
-	if err != nil {
-		return nil, fmt.Errorf("creating tree manager: %w", err)
-	}
-	
-	// Create Manager options with default providers
-	managerOpts := ManagerOptions{
-		ConfigProvider:  NewConfigAdapter(nil),
-		GitProvider:     NewGitAdapter(nil),
-		FSProvider:      NewFileSystemAdapter(nil),
-		UIProvider:      NewUIAdapter(nil),
-		TreeProvider:    NewTreeAdapter(treeMgr),
-		ProcessProvider: NewDefaultProcessProvider(),
-		LogProvider:     NewDefaultLogProvider(false),
-		MetricsProvider: NewNoOpMetricsProvider(),
-		EnablePlugins:   false,
-		AutoLoadConfig:  true,
-	}
-	
-	// Create Manager
-	mgr, err := NewManager(managerOpts)
-	if err != nil {
-		return nil, fmt.Errorf("creating manager: %w", err)
-	}
-	
-	// Initialize with the workspace path
-	ctx := context.Background()
-	if err := mgr.Initialize(ctx, cwd); err != nil {
-		return nil, fmt.Errorf("initializing manager: %w", err)
-	}
-	
-	return mgr, nil
-}
-
-// findGitRepositoriesWithIgnore searches for git repositories excluding specified directories
-func (m *Manager) findGitRepositoriesWithIgnore(rootPath string, ignoreDirs []string) ([]GitRepoInfo, error) {
-	var repos []GitRepoInfo
-	visited := make(map[string]bool)
-	
-	// Convert ignore list to map for faster lookup
-	ignoreMap := make(map[string]bool)
-	for _, dir := range ignoreDirs {
-		ignoreMap[dir] = true
-	}
-	
-	err := m.fsProvider.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // Skip errors
-		}
-		
-		// Skip ignored directories
-		if info.IsDir() && ignoreMap[info.Name()] {
-			return filepath.SkipDir
-		}
-		
-		// Skip hidden directories except .git
-		if info.IsDir() && strings.HasPrefix(info.Name(), ".") && info.Name() != ".git" {
-			return filepath.SkipDir
-		}
-		
-		// Check if this is a .git directory
-		if info.IsDir() && info.Name() == ".git" {
-			repoPath := filepath.Dir(path)
-			absRepoPath, _ := filepath.Abs(repoPath)
-			
-			if visited[absRepoPath] {
-				return filepath.SkipDir
-			}
-			visited[absRepoPath] = true
-			
-			repoInfo := GitRepoInfo{
-				Path: repoPath,
-			}
-			
-			// Get remote URL
-			if url, err := m.gitProvider.GetRemoteURL(repoPath); err == nil {
-				repoInfo.RemoteURL = url
-			}
-			
-			// Get current branch
-			if branch, err := m.gitProvider.Branch(repoPath); err == nil {
-				repoInfo.Branch = branch
-			}
-			
-			repos = append(repos, repoInfo)
-			return filepath.SkipDir
-		}
-		
-		return nil
-	})
-	
-	return repos, err
-}
-
-// getGitRemote gets the remote URL for a git repository
-func (m *Manager) getGitRemote(repoPath string) (string, error) {
-	return m.gitProvider.GetRemoteURL(repoPath)
-}
-
-// getMapKeys returns the keys of a map as a slice
-func getMapKeys(m map[string]bool) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
 }

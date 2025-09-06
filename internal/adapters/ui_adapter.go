@@ -120,7 +120,7 @@ func (u *UIAdapter) Progress(message string) interfaces.ProgressReporter {
 
 // Info displays an info message
 func (u *UIAdapter) Info(message string) {
-	fmt.Printf("ℹ️  %s\n", message)
+	fmt.Printf("%s\n", message)
 }
 
 // Success displays a success message

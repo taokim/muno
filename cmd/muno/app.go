@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/taokim/muno/internal/manager"
@@ -256,34 +257,34 @@ Use --with-context when organizing repositories or building workspace hierarchie
 			}
 			
 			// Parse arguments: [agent-name] [path] [-- agent-args]
+			// Note: Cobra removes the "--" separator, so args after it are just positional args
 			agentName := "claude" // default
 			path := ""
 			var agentArgs []string
 			
-			// Find the -- separator
-			dashIndex := -1
-			for i, arg := range args {
-				if arg == "--" {
-					dashIndex = i
-					break
-				}
+			// Process arguments
+			// If we have args, the first is always the agent name (unless it starts with -)
+			argIndex := 0
+			if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+				agentName = args[0]
+				argIndex++
 			}
 			
-			// Split args into before and after --
-			beforeDash := args
-			if dashIndex >= 0 {
-				beforeDash = args[:dashIndex]
-				if dashIndex+1 < len(args) {
-					agentArgs = args[dashIndex+1:]
+			// The second arg (if present) could be a path or could be an agent arg
+			// If it starts with "-", it's likely an agent arg that came after "--"
+			if argIndex < len(args) {
+				if strings.HasPrefix(args[argIndex], "-") {
+					// This is likely an agent argument (user used -- separator)
+					agentArgs = args[argIndex:]
+				} else {
+					// This is a path
+					path = args[argIndex]
+					argIndex++
+					// Everything after the path is agent args
+					if argIndex < len(args) {
+						agentArgs = args[argIndex:]
+					}
 				}
-			}
-			
-			// Parse arguments before --
-			if len(beforeDash) > 0 {
-				agentName = beforeDash[0]
-			}
-			if len(beforeDash) > 1 {
-				path = beforeDash[1]
 			}
 			
 			return mgr.StartAgent(agentName, path, agentArgs, withContext)
@@ -311,29 +312,24 @@ func (a *App) newClaudeCmd() *cobra.Command {
 			}
 			
 			// Parse arguments: [path] [-- agent-args]
+			// Note: Cobra removes the "--" separator, so args after it are just positional args
 			path := ""
 			var agentArgs []string
 			
-			// Find the -- separator
-			dashIndex := -1
-			for i, arg := range args {
-				if arg == "--" {
-					dashIndex = i
-					break
+			// Process arguments
+			if len(args) > 0 {
+				// If the first arg starts with "-", it's likely an agent argument (user used -- separator)
+				if strings.HasPrefix(args[0], "-") {
+					// All args are agent arguments
+					agentArgs = args
+				} else {
+					// First arg is a path
+					path = args[0]
+					// Everything after the path is agent args
+					if len(args) > 1 {
+						agentArgs = args[1:]
+					}
 				}
-			}
-			
-			// Split args
-			beforeDash := args
-			if dashIndex >= 0 {
-				beforeDash = args[:dashIndex]
-				if dashIndex+1 < len(args) {
-					agentArgs = args[dashIndex+1:]
-				}
-			}
-			
-			if len(beforeDash) > 0 {
-				path = beforeDash[0]
 			}
 			
 			return mgr.StartAgent("claude", path, agentArgs, withContext)
@@ -361,29 +357,24 @@ func (a *App) newGeminiCmd() *cobra.Command {
 			}
 			
 			// Parse arguments: [path] [-- agent-args]
+			// Note: Cobra removes the "--" separator, so args after it are just positional args
 			path := ""
 			var agentArgs []string
 			
-			// Find the -- separator
-			dashIndex := -1
-			for i, arg := range args {
-				if arg == "--" {
-					dashIndex = i
-					break
+			// Process arguments
+			if len(args) > 0 {
+				// If the first arg starts with "-", it's likely an agent argument (user used -- separator)
+				if strings.HasPrefix(args[0], "-") {
+					// All args are agent arguments
+					agentArgs = args
+				} else {
+					// First arg is a path
+					path = args[0]
+					// Everything after the path is agent args
+					if len(args) > 1 {
+						agentArgs = args[1:]
+					}
 				}
-			}
-			
-			// Split args
-			beforeDash := args
-			if dashIndex >= 0 {
-				beforeDash = args[:dashIndex]
-				if dashIndex+1 < len(args) {
-					agentArgs = args[dashIndex+1:]
-				}
-			}
-			
-			if len(beforeDash) > 0 {
-				path = beforeDash[0]
 			}
 			
 			return mgr.StartAgent("gemini", path, agentArgs, withContext)
@@ -592,6 +583,8 @@ func (a *App) newCurrentCmd() *cobra.Command {
 // newPullCmd creates the pull command
 func (a *App) newPullCmd() *cobra.Command {
 	var recursive bool
+	var force bool
+	var all bool
 	
 	cmd := &cobra.Command{
 		Use:   "pull [path]",
@@ -602,7 +595,10 @@ Target is determined by:
 1. Explicit path if provided
 2. Current working directory mapping
 3. Stored current node
-4. Root node`,
+4. Root node
+
+Use --all to pull all cloned repositories in the workspace.
+Use --force to override local changes.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr, err := manager.LoadFromCurrentDir()
@@ -615,11 +611,19 @@ Target is determined by:
 				path = args[0]
 			}
 			
-			return mgr.PullNode(path, recursive)
+			// Handle --all flag
+			if all {
+				path = ""
+				recursive = true
+			}
+			
+			return mgr.PullNode(path, recursive, force)
 		},
 	}
 	
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Pull recursively in subtree")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force pull, overriding local changes")
+	cmd.Flags().BoolVarP(&all, "all", "a", false, "Pull all cloned repositories in workspace")
 	
 	return cmd
 }
