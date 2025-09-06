@@ -224,7 +224,7 @@ Shows:
 
 // newAgentCmd creates the agent command
 func (a *App) newAgentCmd() *cobra.Command {
-	var withMunoContext bool
+	var withContext bool
 	
 	cmd := &cobra.Command{
 		Use:   "agent [agent-name] [path] [-- agent-args]",
@@ -244,8 +244,10 @@ Usage examples:
   muno agent gemini            # Start Gemini at current location
   muno agent claude backend    # Start Claude at backend node
   muno agent gemini . -- --model pro  # Start Gemini with extra args
+  muno agent claude --with-context  # Include MUNO docs for repo organization
 
-The working directory will be set to the node's directory.`,
+The working directory will be set to the node's directory.
+Use --with-context when organizing repositories or building workspace hierarchies.`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr, err := manager.LoadFromCurrentDir()
@@ -284,18 +286,18 @@ The working directory will be set to the node's directory.`,
 				path = beforeDash[1]
 			}
 			
-			return mgr.StartAgent(agentName, path, agentArgs, withMunoContext)
+			return mgr.StartAgent(agentName, path, agentArgs, withContext)
 		},
 	}
 	
-	cmd.Flags().BoolVar(&withMunoContext, "with-muno-context", false, "Include MUNO documentation and workspace context for the agent")
+	cmd.Flags().BoolVar(&withContext, "with-context", false, "Include MUNO documentation and workspace context for repository organization tasks")
 	
 	return cmd
 }
 
 // newClaudeCmd creates the claude command (alias for agent claude)
 func (a *App) newClaudeCmd() *cobra.Command {
-	var withMunoContext bool
+	var withContext bool
 	
 	cmd := &cobra.Command{
 		Use:   "claude [path] [-- agent-args]",
@@ -334,18 +336,18 @@ func (a *App) newClaudeCmd() *cobra.Command {
 				path = beforeDash[0]
 			}
 			
-			return mgr.StartAgent("claude", path, agentArgs, withMunoContext)
+			return mgr.StartAgent("claude", path, agentArgs, withContext)
 		},
 	}
 	
-	cmd.Flags().BoolVar(&withMunoContext, "with-muno-context", false, "Include MUNO documentation and workspace context for the agent")
+	cmd.Flags().BoolVar(&withContext, "with-context", false, "Include MUNO documentation and workspace context for repository organization tasks")
 	
 	return cmd
 }
 
 // newGeminiCmd creates the gemini command (alias for agent gemini)
 func (a *App) newGeminiCmd() *cobra.Command {
-	var withMunoContext bool
+	var withContext bool
 	
 	cmd := &cobra.Command{
 		Use:   "gemini [path] [-- agent-args]",
@@ -384,11 +386,11 @@ func (a *App) newGeminiCmd() *cobra.Command {
 				path = beforeDash[0]
 			}
 			
-			return mgr.StartAgent("gemini", path, agentArgs, withMunoContext)
+			return mgr.StartAgent("gemini", path, agentArgs, withContext)
 		},
 	}
 	
-	cmd.Flags().BoolVar(&withMunoContext, "with-muno-context", false, "Include MUNO documentation and workspace context for the agent")
+	cmd.Flags().BoolVar(&withContext, "with-context", false, "Include MUNO documentation and workspace context for repository organization tasks")
 	
 	return cmd
 }

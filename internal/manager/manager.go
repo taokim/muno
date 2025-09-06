@@ -2,19 +2,27 @@ package manager
 
 import (
 	"context"
+	"embed"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 	
+	"github.com/taokim/muno/internal/adapters"
 	"github.com/taokim/muno/internal/config"
 	"github.com/taokim/muno/internal/git"
 	"github.com/taokim/muno/internal/interfaces"
 	"github.com/taokim/muno/internal/plugin"
 	"github.com/taokim/muno/internal/tree"
 )
+
+// Embed the AI Agent Context documentation as a file system
+//
+//go:embed docs/AI_AGENT_CONTEXT.md
+var agentContextFS embed.FS
 
 // Manager is the refactored manager with full dependency injection
 type Manager struct {
@@ -250,7 +258,7 @@ func (m *Manager) Add(ctx context.Context, repoURL string, options AddOptions) e
 	
 	m.logProvider.Info("Adding repository", 
 		interfaces.Field{Key: "url", Value: repoURL},
-		interfaces.Field{Key: "lazy", Value: options.Lazy})
+		interfaces.Field{Key: "fetch", Value: options.Fetch})
 	
 	// Get current node
 	current, err := m.treeProvider.GetCurrent()
@@ -261,11 +269,24 @@ func (m *Manager) Add(ctx context.Context, repoURL string, options AddOptions) e
 	// Extract repo name from URL
 	repoName := extractRepoName(repoURL)
 	
+	// Determine if node should be lazy based on fetch mode
+	isLazy := true // Default to lazy
+	switch options.Fetch {
+	case config.FetchEager:
+		isLazy = false
+	case config.FetchLazy:
+		isLazy = true
+	case config.FetchAuto, "":
+		// Default to auto mode for smart detection
+		// Use smart detection
+		isLazy = !tree.IsMetaRepo(repoName)
+	}
+	
 	// Create new node
 	newNode := interfaces.NodeInfo{
 		Name:       repoName,
 		Repository: repoURL,
-		IsLazy:     options.Lazy,
+		IsLazy:     isLazy,
 		IsCloned:   false,
 	}
 	
@@ -275,7 +296,7 @@ func (m *Manager) Add(ctx context.Context, repoURL string, options AddOptions) e
 	}
 	
 	// Clone immediately if not lazy
-	if !options.Lazy {
+	if !isLazy {
 		// Compute filesystem path for the new child node
 		childPath := filepath.Join(current.Path, repoName)
 		repoPath := m.computeFilesystemPath(childPath)
@@ -496,7 +517,7 @@ func (m *Manager) Close() error {
 
 // AddOptions for adding repositories
 type AddOptions struct {
-	Lazy      bool
+	Fetch     string // Fetch mode: "lazy", "eager", or "auto"
 	Recursive bool
 	Branch    string
 }
@@ -518,6 +539,12 @@ type GitRepoInfo struct {
 
 // NewDefaultProcessProvider creates a default process provider
 func NewDefaultProcessProvider() interfaces.ProcessProvider {
+	// Use the real process adapter for actual command execution
+	return adapters.NewProcessAdapter()
+}
+
+// NewStubProcessProvider creates a stub process provider for testing
+func NewStubProcessProvider() interfaces.ProcessProvider {
 	return &DefaultProcessProvider{}
 }
 
@@ -670,8 +697,8 @@ func extractRepoName(url string) string {
 
 // getReposDir returns the configured repos directory name
 func (m *Manager) getReposDir() string {
-	if m.config != nil && m.config.Workspace.ReposDir != "" {
-		return m.config.Workspace.ReposDir
+	if m.config != nil {
+		return m.config.GetReposDir()
 	}
 	return config.GetDefaultReposDir()
 }
@@ -681,22 +708,28 @@ func (m *Manager) getReposDir() string {
 func (m *Manager) computeFilesystemPath(logicalPath string) string {
 	reposDir := m.getReposDir()
 	
-	if logicalPath == "/" {
+	// For root, always use repos directory
+	if logicalPath == "/" || logicalPath == "" {
 		return filepath.Join(m.workspace, reposDir)
 	}
 	
-	// Split path: /level1/level2/level3 -> [level1, level2, level3]
+	// For repository nodes, the path is simpler
+	// workspace/[reposDir]/repo-name for top-level repos
+	// or workspace/parent-path/repo-name for nested repos
 	parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
 	
-	// Build filesystem path with repos subdirectories
-	// workspace/[reposDir]/level1/[reposDir]/level2/[reposDir]/level3
+	// For now, assume simple structure: workspace/[reposDir]/repo-name
+	// This matches the actual directory structure in most cases
+	if len(parts) == 1 {
+		// Top-level repository
+		return filepath.Join(m.workspace, reposDir, parts[0])
+	}
+	
+	// For nested paths, we need more complex logic
+	// But for now, just join the parts under repos dir
 	fsPath := filepath.Join(m.workspace, reposDir)
-	for i, part := range parts {
+	for _, part := range parts {
 		fsPath = filepath.Join(fsPath, part)
-		// Add repos dir before next level (except last)
-		if i < len(parts)-1 {
-			fsPath = filepath.Join(fsPath, reposDir)
-		}
 	}
 	
 	return fsPath
@@ -800,8 +833,14 @@ func (m *Manager) UseNodeWithClone(path string, autoClone bool) error {
 
 // AddRepoSimple adds a repository
 func (m *Manager) AddRepoSimple(repoURL string, name string, lazy bool) error {
+	// Determine fetch mode based on lazy flag
+	fetchMode := config.FetchAuto // Default to auto for smart detection
+	if lazy {
+		fetchMode = config.FetchLazy
+	}
+	
 	ctx := context.Background()
-	return m.Add(ctx, repoURL, AddOptions{Lazy: lazy})
+	return m.Add(ctx, repoURL, AddOptions{Fetch: fetchMode})
 }
 
 // RemoveNode removes a repository
@@ -1063,8 +1102,14 @@ func (m *Manager) StartClaude(path string) error {
 	}
 	
 	// Start Claude session using process provider
-	// Compute filesystem path with repos/ directory pattern
-	fullPath := m.computeFilesystemPath(node.Path)
+	// For root level, use workspace root instead of repos directory
+	var fullPath string
+	if node.Path == "/" || node.Path == "" {
+		fullPath = m.workspace
+	} else {
+		fullPath = m.computeFilesystemPath(node.Path)
+	}
+	
 	m.logProvider.Info("Starting Claude session")
 	m.logProvider.Info(fmt.Sprintf("  Tree path: %s", node.Path))
 	m.logProvider.Info(fmt.Sprintf("  Directory: %s", fullPath))
@@ -1110,6 +1155,12 @@ func (m *Manager) createAgentContext(node *interfaces.NodeInfo, workDir string) 
 
 %s
 
+### Node Types in the Tree:
+- **[git: URL]**: Git repository node - clones and manages a git repository
+- **[config: PATH]**: Config reference node - delegates subtree management to another muno.yaml file
+- **[lazy]**: Repository will be cloned on-demand when first accessed
+- **[not cloned]**: Repository exists in config but hasn't been cloned yet
+
 ## Available MUNO Commands
 
 - **Navigation**: muno use <path> - Navigate to a node in the tree
@@ -1125,16 +1176,10 @@ func (m *Manager) createAgentContext(node *interfaces.NodeInfo, workDir string) 
 - **Web Documentation**: https://taokim.github.io/muno/
 - **Examples**: https://github.com/taokim/muno/tree/main/examples
 
-## Organization Strategies
+## Configuration Documentation
 
-MUNO supports several repository organization patterns:
-
-1. **Team-based**: Organize by team ownership
-2. **Service-type**: Group by architectural layers (APIs, frontends, libraries)
-3. **Domain-driven**: Follow domain boundaries (commerce, identity, etc.)
-4. **Multi-cloud**: Organize by cloud provider
-
-For detailed migration and organization guidance, see the AI Agent Guide above.
+For complete configuration schema, defaults, and examples, see:
+- **Configuration Schema**: https://raw.githubusercontent.com/taokim/muno/main/docs/MUNO_CONFIG_SCHEMA.md
 
 ## Tips for AI Agents
 
@@ -1147,7 +1192,16 @@ For detailed migration and organization guidance, see the AI Agent Guide above.
 *This context was generated by MUNO to help AI agents understand the workspace structure.*
 `, node.Path, workDir, treeOutput)
 	
-	// Write context file
+	// Read and append the embedded AI Agent Context documentation
+	agentContextData, err := agentContextFS.ReadFile("docs/AI_AGENT_CONTEXT.md")
+	if err != nil {
+		m.logProvider.Warn(fmt.Sprintf("Could not read embedded agent context: %v", err))
+		// Continue without the extended context
+	} else {
+		contextContent += "\n\n---\n\n" + string(agentContextData)
+	}
+	
+	// Write context file to .muno directory
 	contextFile := filepath.Join(contextDir, "agent-context.md")
 	if err := m.fsProvider.WriteFile(contextFile, []byte(contextContent), 0644); err != nil {
 		return fmt.Errorf("writing context file: %w", err)
@@ -1211,7 +1265,6 @@ func (m *Manager) ensureGitignoreEntry(workDir string, entry string) error {
 // generateTreeContext generates a tree representation for the context
 func (m *Manager) generateTreeContext(currentNode *interfaces.NodeInfo) string {
 	var output strings.Builder
-	output.WriteString("```\n")
 	
 	// Get root node to show full tree
 	root, err := m.treeProvider.GetNode("")
@@ -1222,7 +1275,6 @@ func (m *Manager) generateTreeContext(currentNode *interfaces.NodeInfo) string {
 	
 	// Generate tree with current node highlighted
 	m.writeTreeNode(&output, &root, currentNode.Path, "", true)
-	output.WriteString("```\n")
 	
 	return output.String()
 }
@@ -1244,12 +1296,33 @@ func (m *Manager) writeTreeNode(output *strings.Builder, node *interfaces.NodeIn
 		nodeName = fmt.Sprintf("%s  <-- YOU ARE HERE", nodeName)
 	}
 	
-	// Add status indicators
+	// Add status and type indicators
 	statusIndicator := ""
+	
+	// First, add node type information from config if available
+	if m.config != nil {
+		for _, nodeDef := range m.config.Nodes {
+			if nodeDef.Name == node.Name {
+				if nodeDef.URL != "" {
+					statusIndicator += fmt.Sprintf(" [git: %s]", nodeDef.URL)
+				} else if nodeDef.Config != "" {
+					statusIndicator += fmt.Sprintf(" [config: %s]", nodeDef.Config)
+				}
+				break
+			}
+		}
+	}
+	
+	// Also show repository URL from NodeInfo if available
+	if node.Repository != "" && !strings.Contains(statusIndicator, node.Repository) {
+		statusIndicator += fmt.Sprintf(" [repo: %s]", node.Repository)
+	}
+	
+	// Add clone status
 	if node.IsLazy && !node.IsCloned {
-		statusIndicator = " [lazy]"
+		statusIndicator += " [lazy]"
 	} else if !node.IsCloned {
-		statusIndicator = " [not cloned]"
+		statusIndicator += " [not cloned]"
 	}
 	
 	output.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, connector, nodeName, statusIndicator))
@@ -1300,23 +1373,44 @@ func (m *Manager) StartAgent(agentName string, path string, agentArgs []string, 
 	}
 	
 	// Start agent session using process provider
-	// Compute filesystem path with repos/ directory pattern
-	fullPath := m.computeFilesystemPath(node.Path)
+	// For agents at root level, use workspace root instead of repos directory
+	var fullPath string
+	if node.Path == "/" || node.Path == "" {
+		fullPath = m.workspace
+	} else {
+		fullPath = m.computeFilesystemPath(node.Path)
+	}
+	
 	m.logProvider.Info(fmt.Sprintf("Starting %s session", agentName))
 	m.logProvider.Info(fmt.Sprintf("  Tree path: %s", node.Path))
 	m.logProvider.Info(fmt.Sprintf("  Directory: %s", fullPath))
 	
+	// Build the command - use the computed path as working directory
+	command := fmt.Sprintf("cd %s && %s", fullPath, agentName)
+	
 	// If requested, inject MUNO context for the agent
 	if withMunoContext {
 		m.logProvider.Info("  Creating MUNO context for agent...")
-		if err := m.createAgentContext(&node, fullPath); err != nil {
+		// Always create context in workspace root for consistency
+		contextPath := m.workspace
+		if err := m.createAgentContext(&node, contextPath); err != nil {
 			m.logProvider.Error(fmt.Sprintf("Failed to create agent context: %v", err))
 			// Continue anyway, context is optional
+		} else {
+			// For Claude, append the context as a system prompt
+			if agentName == "claude" {
+				contextFile := filepath.Join(contextPath, ".muno", "agent-context.md")
+				// Read the context file and pass it via --append-system-prompt
+				if _, err := m.fsProvider.ReadFile(contextFile); err == nil {
+					// Escape the content for shell command
+					// Use a file redirection instead of inline content to avoid shell escaping issues
+					command += fmt.Sprintf(" --append-system-prompt \"$(cat '%s')\"", contextFile)
+					m.logProvider.Info("  Appending MUNO context to Claude system prompt")
+				}
+			}
 		}
 	}
 	
-	// Build the command
-	command := fmt.Sprintf("cd %s && %s", fullPath, agentName)
 	if len(agentArgs) > 0 {
 		// Add agent-specific arguments
 		for _, arg := range agentArgs {
@@ -1324,13 +1418,19 @@ func (m *Manager) StartAgent(agentName string, path string, agentArgs []string, 
 		}
 	}
 	
-	result, err := m.processProvider.ExecuteShell(context.Background(), command, interfaces.ProcessOptions{})
-	if err != nil {
-		return fmt.Errorf("starting %s: %w", agentName, err)
-	}
+	// For interactive agents, we need to run them directly with stdin/stdout connected
+	// We can't use ExecuteShell as it waits for completion
+	m.logProvider.Debug(fmt.Sprintf("Starting interactive agent: %s", agentName))
 	
-	if result.ExitCode != 0 {
-		return fmt.Errorf("%s exited with code %d: %s", agentName, result.ExitCode, result.Stderr)
+	// Use os/exec directly for interactive commands
+	cmd := exec.Command("sh", "-c", command)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	
+	// Run the interactive command
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("running %s: %w", agentName, err)
 	}
 	
 	return nil
@@ -1439,11 +1539,12 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 					if remote != "" {
 						m.logProvider.Info(fmt.Sprintf("Found repo in %s/: %s", reposDir, repoName))
 						
-						// Add to configuration
+						// Add to configuration with proper lazy determination
+						// Default to auto mode for smart detection
 						m.config.Nodes = append(m.config.Nodes, config.NodeDefinition{
-							Name: repoName,
-							URL:  remote,
-							Lazy: false,
+							Name:  repoName,
+							URL:   remote,
+							Fetch: config.FetchAuto,
 						})
 						existingNodes[repoName] = true
 						reposInNodesDir++
@@ -1499,10 +1600,11 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 			url = "file://" + targetPath
 		}
 		
+		// Default to auto mode for smart detection
 		m.config.Nodes = append(m.config.Nodes, config.NodeDefinition{
-			Name: repoName,
-			URL:  url,
-			Lazy: false,
+			Name:  repoName,
+			URL:   url,
+			Fetch: config.FetchAuto,
 		})
 		existingNodes[repoName] = true
 		movedRepos++
