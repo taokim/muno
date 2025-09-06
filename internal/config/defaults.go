@@ -167,6 +167,8 @@ func MergeWithDefaults(projectConfig *ConfigTree) *ConfigTree {
 	if projectConfig.Workspace.Name == "" {
 		projectConfig.Workspace.Name = defaultConfig.Workspace.Name
 	}
+	// Only apply default repos_dir if not explicitly set
+	// "." means use workspace root, empty string gets default
 	if projectConfig.Workspace.ReposDir == "" {
 		projectConfig.Workspace.ReposDir = defaultConfig.Workspace.ReposDir
 	}

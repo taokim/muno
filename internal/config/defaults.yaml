@@ -17,7 +17,6 @@ detection:
     - "-munorepo"  
     - "-muno"
     - "-metarepo"
-    - "-platform"
     - "-workspace"
     - "-root-repo"
   

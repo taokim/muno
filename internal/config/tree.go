@@ -4,8 +4,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	
 	"gopkg.in/yaml.v3"
+)
+
+// Fetch mode constants
+const (
+	FetchLazy  = "lazy"  // Clone on first use
+	FetchEager = "eager" // Clone immediately
+	FetchAuto  = "auto"  // Use smart detection based on repo name (default)
 )
 
 // ConfigTree represents the tree-based configuration
@@ -32,7 +40,37 @@ type NodeDefinition struct {
 	Name   string `yaml:"name"`
 	URL    string `yaml:"url,omitempty"`     // Git repository URL
 	Config string `yaml:"config,omitempty"`  // Path to sub-configuration
-	Lazy   bool   `yaml:"lazy,omitempty"`    // Clone on-demand
+	Fetch  string `yaml:"fetch,omitempty"`   // Fetch mode: "auto" (default), "lazy", or "eager"
+}
+
+// IsLazy determines if a node should be lazy based on its fetch mode
+func (n *NodeDefinition) IsLazy() bool {
+	switch n.Fetch {
+	case FetchEager:
+		return false
+	case FetchLazy:
+		return true
+	case FetchAuto, "":
+		// Default to auto mode for smart detection
+		// Use smart detection based on repo name patterns
+		// Check if name ends with meta-repo patterns
+		name := strings.ToLower(n.Name)
+		for _, pattern := range GetEagerLoadPatterns() {
+			if strings.HasSuffix(name, pattern) {
+				return false // It's a meta-repo, should be eager
+			}
+		}
+		return true // Regular repo, should be lazy
+	default:
+		// Unknown fetch mode defaults to auto behavior
+		name := strings.ToLower(n.Name)
+		for _, pattern := range GetEagerLoadPatterns() {
+			if strings.HasSuffix(name, pattern) {
+				return false
+			}
+		}
+		return true
+	}
 }
 
 // NodeMeta represents metadata for a tree node
@@ -145,11 +183,9 @@ func (c *ConfigTree) Validate() error {
 
 // GetReposDir returns the configured repos directory name
 func (c *ConfigTree) GetReposDir() string {
-	// After merging with defaults, this should never be empty
-	// But add a safeguard just in case
-	if c.Workspace.ReposDir == "" {
-		return GetDefaultReposDir()
-	}
+	// If ReposDir is explicitly set (even to empty string or "."), use it
+	// Only use default if it's not set at all (which happens after merging with defaults)
+	// An empty string or "." means the workspace root is the repos directory
 	return c.Workspace.ReposDir
 }
 
