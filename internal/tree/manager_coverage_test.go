@@ -123,8 +123,8 @@ func TestManagerCloneLazyRepos(t *testing.T) {
 			ReposDir: "repos",
 		},
 		Nodes: []config.NodeDefinition{
-			{Name: "lazy1", URL: "https://github.com/test/lazy1.git", Lazy: true},
-			{Name: "non-lazy", URL: "https://github.com/test/non-lazy.git", Lazy: false},
+			{Name: "lazy1", URL: "https://github.com/test/lazy1.git", Fetch: "lazy"},
+			{Name: "non-lazy", URL: "https://github.com/test/non-lazy.git", Fetch: "eager"},
 		},
 	}
 	

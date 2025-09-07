@@ -123,7 +123,7 @@ func TestCurrentCommand(t *testing.T) {
 	})
 	
 	require.NoError(t, err)
-	assert.Contains(t, output, "Current: /")
+	assert.Contains(t, output, "Path: /")
 }
 
 func TestAddCommand(t *testing.T) {
@@ -141,7 +141,7 @@ func TestAddCommand(t *testing.T) {
 	})
 	
 	require.NoError(t, err)
-	assert.Contains(t, output, "Added repository: repo")
+	assert.Contains(t, output, "Successfully added: repo")
 }
 
 func TestRemoveCommand(t *testing.T) {
@@ -179,7 +179,7 @@ func TestRemoveCommand(t *testing.T) {
 	buf.ReadFrom(r)
 	output := buf.String()
 	
-	assert.Contains(t, output, "Removed repository: removeme")
+	assert.Contains(t, output, "Successfully removed: removeme")
 }
 
 func TestStatusCommand(t *testing.T) {
@@ -298,7 +298,7 @@ func TestUseCommand(t *testing.T) {
 	buf.ReadFrom(r)
 	output := buf.String()
 	
-	assert.Contains(t, output, "Now at: /")
+	assert.Contains(t, output, "Navigated to: root")
 }
 
 func TestPullCommand(t *testing.T) {

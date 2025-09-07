@@ -57,11 +57,44 @@ test:
 	@go test -v ./internal/...
 	@echo "Tests complete"
 
-## test-all: Run all tests including integration
-test-all:
-	@echo "Running all tests..."
-	@go test -v ./...
-	@echo "All tests complete"
+## test-all: Run all tests including integration and regression
+test-all: test-master
+
+## test-basic: Run basic regression tests
+test-basic:
+	@echo "Running basic regression tests..."
+	@./test/regression/regression_test.sh
+
+## test-extended: Run extended regression tests  
+test-extended:
+	@echo "Running extended regression tests..."
+	@./test/regression/extended_regression_test.sh
+
+## test-master: Run complete test suite
+test-master:
+	@echo "Running complete test suite..."
+	@./test/regression/master_test.sh
+
+## test-go: Run Go unit tests
+test-go:
+	@echo "Running Go unit tests..."
+	@go test ./... -cover
+
+## test-coverage: Generate test coverage report
+test-coverage:
+	@echo "Generating coverage report..."
+	@go test ./... -coverprofile=coverage.out
+	@go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated: coverage.html"
+
+## validate: Quick validation before commit
+validate: build test-basic test-go
+	@echo "✅ Validation complete - ready to commit"
+
+## release-check: Full validation before release
+release-check: clean build test-master test-coverage
+	@echo "🚀 Release validation complete"
+	@echo "Check TEST_SUITE_DOCUMENTATION.md for detailed results"
 
 ## install: Install production version
 install: build
@@ -138,9 +171,18 @@ help:
 	@echo "  make build-local    - Build local test binary"
 	@echo "  make clean          - Remove build artifacts"
 	@echo ""
+	@echo "Test targets:"
+	@echo "  make test           - Run Go unit tests"
+	@echo "  make test-basic     - Run basic regression tests (36 tests)"
+	@echo "  make test-extended  - Run extended regression tests (120 tests)"
+	@echo "  make test-master    - Run complete test suite (150+ tests)"
+	@echo "  make test-all       - Alias for test-master"
+	@echo "  make test-go        - Run Go unit tests with coverage"
+	@echo "  make test-coverage  - Generate HTML coverage report"
+	@echo "  make validate       - Quick validation (build + basic tests)"
+	@echo "  make release-check  - Full release validation"
+	@echo ""
 	@echo "Other targets:"
-	@echo "  make test           - Run tests"
-	@echo "  make test-all       - Run all tests including integration"
 	@echo "  make lint           - Run linters"
 	@echo "  make release        - Build release binaries for all platforms"
 

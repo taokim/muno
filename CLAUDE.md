@@ -235,6 +235,9 @@ go test ./test/...
 # Coverage report
 go test -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out
+
+# Regression tests (comprehensive end-to-end testing)
+./test/regression/regression_test.sh
 ```
 
 ### Testing Guidelines
@@ -243,6 +246,14 @@ go tool cover -html=coverage.out
 - Use table-driven tests for multiple test cases
 - Mock external dependencies appropriately
 - Test both success and error paths
+
+### Regression Testing
+For comprehensive end-to-end testing of all MUNO functionality, see the [Regression Test Suite](test/regression/README.md). This test suite validates:
+- Configuration persistence (add/remove commands)
+- Navigation and lazy loading
+- Git operations
+- Error handling
+- All 36 core MUNO features
 
 ## Extension Points
 

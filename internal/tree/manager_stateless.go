@@ -87,28 +87,14 @@ func (m *StatelessManager) ComputeFilesystemPath(logicalPath string) string {
 		}
 	}
 	
-	// For config nodes and intermediate directories, use the original logic with repos subdirs
+	// For config nodes and intermediate directories, use simple path structure
 	// Split path: /level1/level2 -> [level1, level2]
 	parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
 	
-	// Build filesystem path with repos/ subdirectories
-	fsPath := filepath.Join(m.workspacePath, reposDir)
-	for i, part := range parts {
-		fsPath = filepath.Join(fsPath, part)
-		// Add repos dir before next level (except last)
-		if i < len(parts)-1 {
-			// Check if the next level is a git repo
-			nextPath := "/" + strings.Join(parts[:i+2], "/")
-			nextNode, err := m.GetNodeByPath(nextPath)
-			if err == nil && nextNode != nil && nextNode.URL != "" {
-				// Don't add repos dir if next level is a git repo
-				continue
-			}
-			fsPath = filepath.Join(fsPath, reposDir)
-		}
-	}
-	
-	return fsPath
+	// Build filesystem path simply by joining parts
+	pathComponents := []string{m.workspacePath, reposDir}
+	pathComponents = append(pathComponents, parts...)
+	return filepath.Join(pathComponents...)
 }
 
 // GetNodeByPath finds a node by its logical path

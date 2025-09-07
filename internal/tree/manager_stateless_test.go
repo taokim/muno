@@ -32,7 +32,7 @@ func setupTestManager(t *testing.T) (*StatelessManager, string) {
 			{
 				Name: "child2",
 				URL:  "https://github.com/test/child2.git",
-				Lazy: true,
+				Fetch: "lazy",
 			},
 			{
 				Name:   "parent",
@@ -62,7 +62,7 @@ func setupTestManager(t *testing.T) (*StatelessManager, string) {
 			{
 				Name: "nested2",
 				URL:  "https://github.com/test/nested2.git",
-				Lazy: true,
+				Fetch: "lazy",
 			},
 		},
 	}
@@ -109,7 +109,7 @@ func TestStatelessManager_ComputeFilesystemPath(t *testing.T) {
 		{
 			name:         "nested path under config node",
 			logicalPath:  "/parent/nested1",
-			expectedPath: filepath.Join(tmpDir, "nodes", "parent", "nodes", "nested1"),
+			expectedPath: filepath.Join(tmpDir, "nodes", "parent", "nested1"),
 		},
 		{
 			name:         "relative path (git repo)",

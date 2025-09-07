@@ -182,6 +182,7 @@ Creates:
 				}
 			}
 			
+			fmt.Fprintf(cmd.OutOrStdout(), "Workspace '%s' initialized successfully\n", projectName)
 			return nil
 		},
 	}

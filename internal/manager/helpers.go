@@ -8,6 +8,7 @@ import (
 	"github.com/taokim/muno/internal/adapters"
 	"github.com/taokim/muno/internal/config"
 	"github.com/taokim/muno/internal/git"
+	"github.com/taokim/muno/internal/interfaces"
 	"github.com/taokim/muno/internal/tree"
 )
 
@@ -57,8 +58,8 @@ func LoadFromCurrentDir() (*Manager, error) {
 		return nil, fmt.Errorf("creating tree manager: %w", err)
 	}
 	
-	// Create tree adapter stub to implement TreeProvider interface
-	treeAdapter := adapters.NewTreeAdapter()
+	// Create tree adapter with the actual tree manager
+	treeAdapter := NewTreeAdapter(treeManager)
 	
 	// Create manager with all required providers
 	mgr, err := NewManager(ManagerOptions{
@@ -77,9 +78,6 @@ func LoadFromCurrentDir() (*Manager, error) {
 	mgr.workspace = workspaceRoot
 	mgr.config = cfg
 	mgr.initialized = true
-	
-	// Store the actual tree manager if needed (optional)
-	_ = treeManager // treeManager is available if needed for tree operations
 	
 	return mgr, nil
 }
@@ -107,8 +105,23 @@ func NewManagerForInit(projectPath string) (*Manager, error) {
 	fsAdapter := adapters.NewFileSystemAdapter()
 	uiAdapter := adapters.NewUIAdapter()
 	
-	// Create tree adapter stub to implement TreeProvider interface
-	treeAdapter := adapters.NewTreeAdapter()
+	// Create git interface for tree manager
+	gitCmd := git.New()
+	
+	// Create tree manager for initialization
+	treeManager, err := tree.NewManager(absPath, gitCmd)
+	if err != nil {
+		// For init, create with default tree state
+		treeManager = nil // We'll handle this during initialization
+	}
+	
+	// Create tree adapter - use stub for init since tree might not exist yet
+	var treeProvider interfaces.TreeProvider
+	if treeManager != nil {
+		treeProvider = NewTreeAdapter(treeManager)
+	} else {
+		treeProvider = adapters.NewTreeAdapter()
+	}
 	
 	// Create manager without loading config (since we're initializing)
 	mgr, err := NewManager(ManagerOptions{
@@ -116,7 +129,7 @@ func NewManagerForInit(projectPath string) (*Manager, error) {
 		GitProvider:     gitProvider,
 		FSProvider:      fsAdapter,
 		UIProvider:      uiAdapter,
-		TreeProvider:    treeAdapter,
+		TreeProvider:    treeProvider,
 		AutoLoadConfig:  false, // Don't auto-load since we're initializing
 	})
 	if err != nil {

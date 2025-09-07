@@ -373,7 +373,7 @@ When using `muno tree`, nodes are displayed with type indicators:
 ## File Locations
 
 - **Configuration file**: `muno.yaml` or `.muno.yaml` in workspace root
-- **State file**: `.muno-tree.json` (auto-generated, do not edit)
+- **Current path**: `.muno/current` (stores navigation position)
 - **Repositories**: `<workspace>/<repos_dir>/<node-name>/`
 - **Agent context**: `<workspace>/.muno/agent-context.md` (auto-generated)
 
@@ -835,8 +835,8 @@ muno tree | grep ERROR       # Find configuration errors
 # Run with verbose output
 MUNO_DEBUG=1 muno tree
 
-# Check state file
-cat .muno-tree.json | jq .
+# Check current position
+cat .muno/current
 
 # Verify git operations
 muno use backend/payment

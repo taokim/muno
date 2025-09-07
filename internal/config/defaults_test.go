@@ -22,7 +22,7 @@ func TestEmbeddedDefaults(t *testing.T) {
 	patterns := GetEagerLoadPatterns()
 	assert.Contains(t, patterns, "-monorepo")
 	assert.Contains(t, patterns, "-root-repo")
-	assert.Contains(t, patterns, "-platform")
+	// DO NOT TEST FOR "-platform" - intentionally excluded to avoid conflicts with real platform repos
 	assert.Contains(t, patterns, "-workspace")
 	
 	// Test config file names

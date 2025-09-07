@@ -135,7 +135,7 @@ func TestIsMetaRepo(t *testing.T) {
 		{
 			name:     "platform suffix",
 			repoName: "enterprise-platform",
-			expected: true,
+			expected: false, // platform suffix removed per user request to avoid confusion with real platform repos
 		},
 		{
 			name:     "workspace suffix",
@@ -187,7 +187,7 @@ func TestGetEffectiveLazy(t *testing.T) {
 			name: "node with explicit lazy true",
 			node: &config.NodeDefinition{
 				Name: "test",
-				Lazy: true,
+				Fetch: "lazy",
 			},
 			expectedLazy: true,
 		},
@@ -195,7 +195,7 @@ func TestGetEffectiveLazy(t *testing.T) {
 			name: "node with explicit lazy false",
 			node: &config.NodeDefinition{
 				Name: "test",
-				Lazy: false,
+				Fetch: "eager",
 			},
 			expectedLazy: true, // Default is true unless meta-repo
 		},
@@ -203,7 +203,7 @@ func TestGetEffectiveLazy(t *testing.T) {
 			name: "meta-repo is eager by default",
 			node: &config.NodeDefinition{
 				Name: "backend-monorepo",
-				Lazy: false,
+				Fetch: "eager",
 			},
 			expectedLazy: false,
 		},
@@ -211,7 +211,7 @@ func TestGetEffectiveLazy(t *testing.T) {
 			name: "meta-repo can be lazy if explicitly set",
 			node: &config.NodeDefinition{
 				Name: "backend-monorepo",
-				Lazy: true,
+				Fetch: "lazy",
 			},
 			expectedLazy: true,
 		},
@@ -219,7 +219,7 @@ func TestGetEffectiveLazy(t *testing.T) {
 			name: "regular repo defaults to lazy",
 			node: &config.NodeDefinition{
 				Name: "payment-service",
-				Lazy: false,
+				Fetch: "eager",
 			},
 			expectedLazy: true,
 		},

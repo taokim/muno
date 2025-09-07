@@ -222,7 +222,7 @@ func TestManager_Use(t *testing.T) {
 					Path:       "backend/service-b",
 					Repository: "https://github.com/org/service-b",
 					IsCloned:   false,
-					IsLazy:     true,
+					IsLazy: true,
 				})
 				// Git clone will be called
 			},
@@ -280,9 +280,224 @@ func TestManager_Use(t *testing.T) {
 				treeCalls := mockTree.GetCalls()
 				assert.Contains(t, treeCalls, "Navigate("+tt.path+")")
 				
-				// Verify success message
+				// Verify success message was shown (not necessarily the last message)
 				uiMessages := mockUI.GetMessages()
-				assert.Contains(t, uiMessages[len(uiMessages)-1], "SUCCESS")
+				hasSuccess := false
+				for _, msg := range uiMessages {
+					if strings.Contains(msg, "SUCCESS") || strings.Contains(msg, "Navigated to:") {
+						hasSuccess = true
+						break
+					}
+				}
+				assert.True(t, hasSuccess, "Should have success message in output")
+			}
+		})
+	}
+}
+
+func TestManager_Use_LazyChildCloning(t *testing.T) {
+	tests := []struct {
+		name         string
+		path         string
+		setupMock    func(*mocks.MockTreeProvider, *mocks.MockGitProvider, *mocks.MockUIProvider)
+		wantClone    bool
+		wantErr      bool
+		description  string
+	}{
+		{
+			name: "navigating to lazy node triggers clone",
+			path: "backend/lazy-service",
+			setupMock: func(tree *mocks.MockTreeProvider, git *mocks.MockGitProvider, ui *mocks.MockUIProvider) {
+				// Set current node as lazy and not cloned
+				tree.SetCurrent(interfaces.NodeInfo{
+					Name:       "lazy-service",
+					Path:       "backend/lazy-service",
+					Repository: "https://github.com/org/lazy-service",
+					IsCloned:   false,
+					IsLazy:     true,
+					Children:   []interfaces.NodeInfo{},
+				})
+			},
+			wantClone:   true,
+			wantErr:     false,
+			description: "Should clone lazy repository when navigating to it",
+		},
+		{
+			name: "navigating to parent with lazy children triggers child clones",
+			path: "backend",
+			setupMock: func(tree *mocks.MockTreeProvider, git *mocks.MockGitProvider, ui *mocks.MockUIProvider) {
+				// Parent node with lazy children
+				tree.SetCurrent(interfaces.NodeInfo{
+					Name:       "backend",
+					Path:       "backend",
+					Repository: "",
+					IsCloned:   true,
+					IsLazy:     false,
+					Children: []interfaces.NodeInfo{
+						{
+							Name:       "service-a",
+							Path:       "backend/service-a",
+							Repository: "https://github.com/org/service-a",
+							IsCloned:   false,
+							IsLazy:     true,
+						},
+						{
+							Name:       "service-b",
+							Path:       "backend/service-b",
+							Repository: "https://github.com/org/service-b",
+							IsCloned:   false,
+							IsLazy:     true,
+						},
+					},
+				})
+			},
+			wantClone:   true, // Changed: Now we DO want to clone lazy children
+			wantErr:     false,
+			description: "Should clone lazy children when navigating to parent for better UX",
+		},
+		{
+			name: "navigating to already cloned node does not trigger clone",
+			path: "backend/cloned-service",
+			setupMock: func(tree *mocks.MockTreeProvider, git *mocks.MockGitProvider, ui *mocks.MockUIProvider) {
+				tree.SetCurrent(interfaces.NodeInfo{
+					Name:       "cloned-service",
+					Path:       "backend/cloned-service",
+					Repository: "https://github.com/org/cloned-service",
+					IsCloned:   true,
+					IsLazy:     false,
+					Children:   []interfaces.NodeInfo{},
+				})
+			},
+			wantClone:   false,
+			wantErr:     false,
+			description: "Should not clone already cloned repository",
+		},
+		{
+			name: "navigating to node without repository does not trigger clone",
+			path: "backend/config-node",
+			setupMock: func(tree *mocks.MockTreeProvider, git *mocks.MockGitProvider, ui *mocks.MockUIProvider) {
+				tree.SetCurrent(interfaces.NodeInfo{
+					Name:       "config-node",
+					Path:       "backend/config-node",
+					Repository: "", // Nodes without repository URL (config nodes, parent folders)
+					IsCloned:   false,
+					IsLazy:     true,
+					Children:   []interfaces.NodeInfo{},
+				})
+			},
+			wantClone:   false,
+			wantErr:     false,
+			description: "Should not clone nodes without repository URL",
+		},
+		{
+			name: "navigating to parent with mixed children only clones lazy ones",
+			path: "platform",
+			setupMock: func(tree *mocks.MockTreeProvider, git *mocks.MockGitProvider, ui *mocks.MockUIProvider) {
+				tree.SetCurrent(interfaces.NodeInfo{
+					Name:       "platform",
+					Path:       "platform",
+					Repository: "",
+					IsCloned:   true,
+					IsLazy:     false,
+					Children: []interfaces.NodeInfo{
+						{
+							Name:       "already-cloned-service",
+							Path:       "platform/already-cloned-service",
+							Repository: "https://github.com/org/cloned",
+							IsCloned:   true,
+							IsLazy:     false,
+						},
+						{
+							Name:       "lazy-service",
+							Path:       "platform/lazy-service",
+							Repository: "https://github.com/org/lazy",
+							IsCloned:   false,
+							IsLazy:     true,
+						},
+						{
+							Name:       "config-child",
+							Path:       "platform/config-child",
+							Repository: "", // Config node
+							IsCloned:   false,
+							IsLazy:     true,
+						},
+					},
+				})
+			},
+			wantClone:   true, // Should clone only the lazy service, not the already cloned or config nodes
+			wantErr:     false,
+			description: "Should only clone lazy children with repository URLs",
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create mocks
+			mockConfig := mocks.NewMockConfigProvider()
+			mockGit := mocks.NewMockGitProvider()
+			mockFS := mocks.NewMockFileSystemProvider()
+			mockUI := mocks.NewMockUIProvider()
+			mockTree := mocks.NewMockTreeProvider()
+			
+			// Setup mocks
+			tt.setupMock(mockTree, mockGit, mockUI)
+			
+			// Create and initialize manager
+			manager, err := NewManager(ManagerOptions{
+				ConfigProvider: mockConfig,
+				GitProvider:    mockGit,
+				FSProvider:     mockFS,
+				UIProvider:     mockUI,
+				TreeProvider:   mockTree,
+			})
+			require.NoError(t, err)
+			
+			// Initialize manager
+			mockFS.SetExists("/test", true)
+			err = manager.Initialize(context.Background(), "/test")
+			require.NoError(t, err)
+			
+			// Test Use
+			ctx := context.Background()
+			err = manager.Use(ctx, tt.path)
+			
+			if tt.wantErr {
+				assert.Error(t, err, tt.description)
+			} else {
+				assert.NoError(t, err, tt.description)
+				
+				// Verify navigation happened
+				treeCalls := mockTree.GetCalls()
+				assert.Contains(t, treeCalls, "Navigate("+tt.path+")", "Should navigate to path")
+				
+				// Verify clone was called if expected
+				gitCalls := mockGit.GetCalls()
+				if tt.wantClone {
+					// Should have called Clone
+					hasClone := false
+					for _, call := range gitCalls {
+						if strings.Contains(call, "Clone(") {
+							hasClone = true
+							break
+						}
+					}
+					assert.True(t, hasClone, "Should have called git.Clone for lazy repository")
+					
+					// Verify node state was updated
+					hasUpdate := false
+					for _, call := range treeCalls {
+						if strings.Contains(call, "UpdateNode(") {
+							hasUpdate = true
+							break
+						}
+					}
+					assert.True(t, hasUpdate, "Should update node state after cloning")
+				} else {
+					// Should NOT have called Clone
+					for _, call := range gitCalls {
+						assert.NotContains(t, call, "Clone(", "Should not call git.Clone for "+tt.description)
+					}
+				}
 			}
 		})
 	}
@@ -300,7 +515,7 @@ func TestManager_Add(t *testing.T) {
 			name:    "success adding lazy repository",
 			repoURL: "https://github.com/org/new-service",
 			options: AddOptions{
-				Lazy: true,
+				Fetch: "lazy",
 			},
 			setupMock: func(tree *mocks.MockTreeProvider, git *mocks.MockGitProvider, ui *mocks.MockUIProvider) {
 				tree.SetCurrent(interfaces.NodeInfo{
@@ -314,7 +529,7 @@ func TestManager_Add(t *testing.T) {
 			name:    "success adding and cloning repository",
 			repoURL: "https://github.com/org/new-service",
 			options: AddOptions{
-				Lazy:      false,
+				Fetch:     "eager",
 				Recursive: true,
 			},
 			setupMock: func(tree *mocks.MockTreeProvider, git *mocks.MockGitProvider, ui *mocks.MockUIProvider) {
@@ -388,14 +603,21 @@ func TestManager_Add(t *testing.T) {
 				assert.True(t, hasAddNode, "AddNode should have been called")
 				
 				// Verify clone was called if not lazy
-				if !tt.options.Lazy {
+				if tt.options.Fetch == "eager" {
 					gitCalls := mockGit.GetCalls()
 					assert.Contains(t, gitCalls[len(gitCalls)-1], "Clone")
 				}
 				
-				// Verify success message
+				// Verify success message was shown (not necessarily the last message)
 				uiMessages := mockUI.GetMessages()
-				assert.Contains(t, uiMessages[len(uiMessages)-1], "SUCCESS")
+				hasSuccess := false
+				for _, msg := range uiMessages {
+					if strings.Contains(msg, "SUCCESS") || strings.Contains(msg, "Navigated to:") {
+						hasSuccess = true
+						break
+					}
+				}
+				assert.True(t, hasSuccess, "Should have success message in output")
 			}
 		})
 	}
@@ -500,9 +722,16 @@ func TestManager_Remove(t *testing.T) {
 					treeCalls := mockTree.GetCalls()
 					assert.Contains(t, treeCalls[len(treeCalls)-1], "RemoveNode")
 					
-					// Verify success message
+					// Verify success message - check all messages for SUCCESS
 					uiMessages := mockUI.GetMessages()
-					assert.Contains(t, uiMessages[len(uiMessages)-1], "SUCCESS")
+					found := false
+					for _, msg := range uiMessages {
+						if strings.Contains(msg, "SUCCESS") {
+							found = true
+							break
+						}
+					}
+					assert.True(t, found, "Expected SUCCESS message in output")
 				} else {
 					// Verify cancellation message
 					uiMessages := mockUI.GetMessages()

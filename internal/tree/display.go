@@ -49,7 +49,7 @@ func (m *Manager) displayNode(logicalPath, prefix string, isLast bool, depth int
 		
 		// Show node info
 		nodeInfo := node.Name
-		if node.Type == NodeTypeRepo {
+		if node.Type == NodeTypeRepo || node.Type == NodeTypeRepository {
 			status := ""
 			if node.State == RepoStateMissing {
 				status = " (lazy)"
@@ -90,7 +90,7 @@ func (m *Manager) getNodeIcon(node *TreeNode) string {
 		return "🌳"
 	}
 	
-	if node.Type == NodeTypeRepo {
+	if node.Type == NodeTypeRepo || node.Type == NodeTypeRepository {
 		switch node.State {
 		case RepoStateMissing:
 			return "💤" // Lazy/not cloned
@@ -123,7 +123,7 @@ func (m *Manager) DisplayStatus() string {
 	// Count repositories by state
 	var totalRepos, clonedRepos, lazyRepos, modifiedRepos int
 	for _, node := range m.state.Nodes {
-		if node.Type == NodeTypeRepo {
+		if node.Type == NodeTypeRepo || node.Type == NodeTypeRepository {
 			totalRepos++
 			switch node.State {
 			case RepoStateCloned:
@@ -186,7 +186,7 @@ func (m *Manager) DisplayChildren() string {
 		if child != nil {
 			icon := m.getNodeIcon(child)
 			status := ""
-			if child.Type == NodeTypeRepo {
+			if child.Type == NodeTypeRepo || child.Type == NodeTypeRepository {
 				if child.State == RepoStateMissing {
 					status = " (lazy)"
 				} else if child.State == RepoStateModified {

@@ -19,6 +19,9 @@ detection:
     - "-metarepo"
     - "-workspace"
     - "-root-repo"
+    # DO NOT ADD "-platform" HERE - it can be confused with real platform repositories
+    # This was intentionally removed to avoid conflicts with actual platform repos
+    # Future agents: do not add "-platform" to this list
   
   # Patterns to ignore when scanning for repositories
   ignore_patterns:

@@ -77,7 +77,7 @@ func (o *RealOutput) Success(message string) {
 
 func (o *RealOutput) Info(message string) {
 	if o.stdout != nil {
-		fmt.Fprintf(o.stdout, "%s\n", message)
+		fmt.Fprintf(o.stdout, "ℹ️ %s\n", message)
 	}
 }
 

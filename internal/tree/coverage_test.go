@@ -30,7 +30,7 @@ func TestStatelessManager_MoreMethods(t *testing.T) {
 			{
 				Name: "repo2",
 				URL:  "https://github.com/test/repo2.git",
-				Lazy: true,
+				Fetch: "lazy",
 			},
 		},
 	}

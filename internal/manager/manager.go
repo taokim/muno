@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 	
 	"github.com/mattn/go-isatty"
@@ -248,6 +249,77 @@ func (m *Manager) Use(ctx context.Context, path string) error {
 		m.uiProvider.Success("✅ Repository cloned successfully!")
 	}
 	
+	// Clone immediate lazy children (for better developer experience)
+	// This is especially useful for parent nodes that are mostly structural
+	lazyChildren := []interfaces.NodeInfo{}
+	for _, child := range node.Children {
+		if child.IsLazy && !child.IsCloned && child.Repository != "" {
+			lazyChildren = append(lazyChildren, child)
+		}
+	}
+	
+	if len(lazyChildren) > 0 {
+		m.uiProvider.Info("")
+		m.uiProvider.Info(fmt.Sprintf("🔄 Cloning %d lazy child repositories in parallel for better experience...", len(lazyChildren)))
+		
+		// Use sync.WaitGroup for parallel cloning
+		var wg sync.WaitGroup
+		cloneErrors := make(chan error, len(lazyChildren))
+		successCount := 0
+		var successMutex sync.Mutex
+		
+		for _, child := range lazyChildren {
+			wg.Add(1)
+			go func(childNode interfaces.NodeInfo) {
+				defer wg.Done()
+				
+				m.uiProvider.Info(fmt.Sprintf("📦 Cloning child: %s", childNode.Name))
+				
+				childPath := m.computeFilesystemPath(childNode.Path)
+				if err := m.gitProvider.Clone(childNode.Repository, childPath, interfaces.CloneOptions{
+					Recursive: false, // Don't recursively clone grandchildren
+				}); err != nil {
+					cloneErrors <- fmt.Errorf("failed to clone %s: %v", childNode.Name, err)
+					m.logProvider.Warn(fmt.Sprintf("Failed to clone child %s: %v", childNode.Name, err),
+						interfaces.Field{Key: "child", Value: childNode.Name},
+						interfaces.Field{Key: "error", Value: err})
+					return
+				}
+				
+				// Update child node state
+				childNode.IsCloned = true
+				if err := m.treeProvider.UpdateNode(childNode.Path, childNode); err != nil {
+					m.logProvider.Warn("Failed to update child node state",
+						interfaces.Field{Key: "child", Value: childNode.Name},
+						interfaces.Field{Key: "error", Value: err})
+				}
+				
+				successMutex.Lock()
+				successCount++
+				successMutex.Unlock()
+			}(child)
+		}
+		
+		// Wait for all goroutines to complete
+		wg.Wait()
+		close(cloneErrors)
+		
+		// Collect any errors
+		var errors []string
+		for err := range cloneErrors {
+			errors = append(errors, err.Error())
+		}
+		
+		if len(errors) > 0 {
+			m.logProvider.Warn(fmt.Sprintf("Some children failed to clone: %s", strings.Join(errors, "; ")),
+				interfaces.Field{Key: "errors", Value: errors})
+		}
+		
+		if successCount > 0 {
+			m.uiProvider.Success(fmt.Sprintf("✅ Successfully cloned %d/%d child repositories!", successCount, len(lazyChildren)))
+		}
+	}
+	
 	// Show navigation success with more info
 	m.uiProvider.Info("")
 	m.uiProvider.Success(fmt.Sprintf("📍 Navigated to: %s", node.Name))
@@ -304,6 +376,16 @@ func (m *Manager) Add(ctx context.Context, repoURL string, options AddOptions) e
 	// Add to tree
 	if err := m.treeProvider.AddNode(current.Path, newNode); err != nil {
 		return fmt.Errorf("failed to add node: %w", err)
+	}
+	
+	// Update config to persist the change
+	if m.config != nil && current.Path == "/" {
+		// Only support adding to root for now
+		m.config.Nodes = append(m.config.Nodes, config.NodeDefinition{
+			Name:  repoName,
+			URL:   repoURL,
+			Fetch: options.Fetch,
+		})
 	}
 	
 	// Clone immediately if not lazy
@@ -402,6 +484,18 @@ func (m *Manager) Remove(ctx context.Context, name string) error {
 	// Remove from tree
 	if err := m.treeProvider.RemoveNode(nodePath); err != nil {
 		return fmt.Errorf("failed to remove node: %w", err)
+	}
+	
+	// Update config to persist the change
+	if m.config != nil && current.Path == "/" {
+		// Only support removing from root for now
+		newNodes := []config.NodeDefinition{}
+		for _, nodeDef := range m.config.Nodes {
+			if nodeDef.Name != name {
+				newNodes = append(newNodes, nodeDef)
+			}
+		}
+		m.config.Nodes = newNodes
 	}
 	
 	// Save configuration
@@ -635,9 +729,7 @@ type DefaultLogProvider struct {
 }
 
 func (l *DefaultLogProvider) Info(msg string, fields ...interfaces.Field) {
-	if l.debug {
-		fmt.Printf("[INFO] %s\n", msg)
-	}
+	fmt.Printf("%s\n", msg)
 }
 
 func (l *DefaultLogProvider) Debug(msg string, fields ...interfaces.Field) {
@@ -1188,7 +1280,71 @@ func (m *Manager) StatusNode(path string, recursive bool) error {
 		return fmt.Errorf("getting status: %w", err)
 	}
 	
-	m.uiProvider.Info(fmt.Sprintf("%s: branch=%s clean=%v", node.Name, status.Branch, status.IsClean))
+	// Display basic status
+	statusMsg := fmt.Sprintf("%s: branch=%s", node.Name, status.Branch)
+	
+	// Add file counts if there are changes
+	if !status.IsClean {
+		details := []string{}
+		if status.HasUntracked {
+			untrackedCount := 0
+			for _, f := range status.Files {
+				if f.Status == "untracked" {
+					untrackedCount++
+				}
+			}
+			if untrackedCount > 0 {
+				details = append(details, fmt.Sprintf("%d untracked", untrackedCount))
+			}
+		}
+		if status.HasModified {
+			modifiedCount := 0
+			for _, f := range status.Files {
+				if f.Status == "modified" && !f.Staged {
+					modifiedCount++
+				}
+			}
+			if modifiedCount > 0 {
+				details = append(details, fmt.Sprintf("%d modified", modifiedCount))
+			}
+		}
+		if status.HasStaged {
+			stagedCount := 0
+			for _, f := range status.Files {
+				if f.Staged {
+					stagedCount++
+				}
+			}
+			if stagedCount > 0 {
+				details = append(details, fmt.Sprintf("%d staged", stagedCount))
+			}
+		}
+		
+		if len(details) > 0 {
+			statusMsg += " (" + strings.Join(details, ", ") + ")"
+		}
+		
+		// List changed files
+		for _, file := range status.Files {
+			prefix := "  "
+			if file.Staged {
+				prefix += "+"
+			} else if file.Status == "untracked" {
+				prefix += "?"
+			} else if file.Status == "modified" {
+				prefix += "M"
+			} else if file.Status == "deleted" {
+				prefix += "D"
+			} else if file.Status == "added" {
+				prefix += "A"
+			}
+			m.uiProvider.Info(fmt.Sprintf("%s %s", prefix, file.Path))
+		}
+	} else {
+		statusMsg += " (clean)"
+	}
+	
+	m.uiProvider.Info(statusMsg)
 	return nil
 }
 
@@ -1197,7 +1353,54 @@ func (m *Manager) showStatusRecursive(node interfaces.NodeInfo) error {
 	if err != nil {
 		m.uiProvider.Info(fmt.Sprintf("%s: error - %v", node.Name, err))
 	} else {
-		m.uiProvider.Info(fmt.Sprintf("%s: branch=%s clean=%v", node.Name, status.Branch, status.IsClean))
+		// Display basic status
+		statusMsg := fmt.Sprintf("%s: branch=%s", node.Name, status.Branch)
+		
+		// Add summary if there are changes
+		if !status.IsClean {
+			details := []string{}
+			if status.HasUntracked {
+				untrackedCount := 0
+				for _, f := range status.Files {
+					if f.Status == "untracked" {
+						untrackedCount++
+					}
+				}
+				if untrackedCount > 0 {
+					details = append(details, fmt.Sprintf("%d untracked", untrackedCount))
+				}
+			}
+			if status.HasModified {
+				modifiedCount := 0
+				for _, f := range status.Files {
+					if f.Status == "modified" && !f.Staged {
+						modifiedCount++
+					}
+				}
+				if modifiedCount > 0 {
+					details = append(details, fmt.Sprintf("%d modified", modifiedCount))
+				}
+			}
+			if status.HasStaged {
+				stagedCount := 0
+				for _, f := range status.Files {
+					if f.Staged {
+						stagedCount++
+					}
+				}
+				if stagedCount > 0 {
+					details = append(details, fmt.Sprintf("%d staged", stagedCount))
+				}
+			}
+			
+			if len(details) > 0 {
+				statusMsg += " (" + strings.Join(details, ", ") + ")"
+			}
+		} else {
+			statusMsg += " (clean)"
+		}
+		
+		m.uiProvider.Info(statusMsg)
 	}
 	
 	for _, child := range node.Children {

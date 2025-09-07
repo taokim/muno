@@ -41,8 +41,8 @@ func TestCustomReposDir(t *testing.T) {
 	}{
 		{"/", filepath.Join(tmpDir, customDir)},
 		{"/level1", filepath.Join(tmpDir, customDir, "level1")},
-		{"/level1/level2", filepath.Join(tmpDir, customDir, "level1", customDir, "level2")},
-		{"/a/b/c", filepath.Join(tmpDir, customDir, "a", customDir, "b", customDir, "c")},
+		{"/level1/level2", filepath.Join(tmpDir, customDir, "level1", "level2")},
+		{"/a/b/c", filepath.Join(tmpDir, customDir, "a", "b", "c")},
 	}
 	
 	for _, test := range tests {
@@ -84,8 +84,8 @@ func TestStatelessManagerCustomReposDir(t *testing.T) {
 	}{
 		{"/", filepath.Join(tmpDir, customDir)},
 		{"/level1", filepath.Join(tmpDir, customDir, "level1")},
-		{"/level1/level2", filepath.Join(tmpDir, customDir, "level1", customDir, "level2")},
-		{"/parent/child", filepath.Join(tmpDir, customDir, "parent", customDir, "child")},
+		{"/level1/level2", filepath.Join(tmpDir, customDir, "level1", "level2")},
+		{"/parent/child", filepath.Join(tmpDir, customDir, "parent", "child")},
 	}
 	
 	for _, test := range tests {

@@ -93,7 +93,7 @@ func TestStateManagement(t *testing.T) {
 			ReposDir: "repos",
 		},
 		Nodes: []config.NodeDefinition{
-			{Name: "repo1", URL: "https://github.com/test/repo1.git", Lazy: true},
+			{Name: "repo1", URL: "https://github.com/test/repo1.git", Fetch: "lazy"},
 		},
 	}
 	
@@ -212,8 +212,9 @@ func TestTreeNavigation(t *testing.T) {
 		t.Errorf("Current path = %s, want /level1/level2", mgr.state.CurrentPath)
 	}
 	
-	// Verify filesystem path - should be under repos directory
-	expectedFS := filepath.Join(tmpDir, config.GetDefaultReposDir(), "level1", "level2")
+	// Verify filesystem path - level1 is a top-level git repo (direct in workspace)
+	// level2 is nested under level1
+	expectedFS := filepath.Join(tmpDir, "level1", "level2")
 	actualFS := mgr.ComputeFilesystemPath("/level1/level2")
 	if actualFS != expectedFS {
 		t.Errorf("Filesystem path = %s, want %s", actualFS, expectedFS)

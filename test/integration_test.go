@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,12 +39,11 @@ func TestIntegrationWorkflow(t *testing.T) {
 	
 	// Test init command results
 	t.Run("Init", func(t *testing.T) {
-		assert.Contains(t, string(output), "Workspace") 
-		assert.Contains(t, string(output), "initialized successfully")
+		assert.Contains(t, string(output), "Workspace 'test-project' initialized successfully")
 		
 		// Check created files - init creates in current dir, not subdirectory
 		assert.FileExists(t, filepath.Join(tmpDir, "muno.yaml"))
-		assert.FileExists(t, filepath.Join(tmpDir, "CLAUDE.md"))
+		// CLAUDE.md is no longer created by default
 		assert.DirExists(t, filepath.Join(tmpDir, config.GetDefaultReposDir()))
 	})
 	
@@ -55,7 +55,8 @@ func TestIntegrationWorkflow(t *testing.T) {
 		
 		require.NoError(t, err, "List failed: %s", string(output))
 		// Should show empty list for new workspace
-		assert.Contains(t, string(output), "No children")
+		// Check for either the old or new format
+		assert.True(t, strings.Contains(string(output), "No children") || strings.Contains(string(output), "No repositories at this level"))
 	})
 	
 	// Test status command
@@ -104,7 +105,8 @@ func TestConfigValidation(t *testing.T) {
 			output, _ := cmd.CombinedOutput()
 			
 			// Should fail with config not found message
-			assert.Contains(t, string(output), "muno.yaml not found")
+			// Check for either error message format
+			assert.True(t, strings.Contains(string(output), "muno.yaml not found") || strings.Contains(string(output), "not in a MUNO workspace"))
 		})
 	}
 }

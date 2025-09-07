@@ -101,14 +101,13 @@ func TestIsInteractiveCommand(t *testing.T) {
 }
 
 func TestProcessAdapter_OpenInBrowser(t *testing.T) {
-	adapter := NewProcessAdapter()
+	// Skip this test to prevent opening browser during test runs
+	t.Skip("Skipping browser opening test to prevent actual browser launch")
 	
-	// This test just ensures the method doesn't panic
-	// Actual browser opening would require manual verification
-	err := adapter.OpenInBrowser("https://example.com")
-	// On systems without a browser command, this might fail
-	// but we're just checking it doesn't panic
-	_ = err
+	// If we want to test this without opening browser, we would need to:
+	// 1. Mock exec.Command
+	// 2. Or add a test mode flag to the adapter
+	// For now, we skip to prevent annoying browser popups during tests
 }
 
 func TestProcessAdapter_StartBackground(t *testing.T) {

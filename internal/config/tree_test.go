@@ -30,7 +30,7 @@ func TestConfigTreeLoadSave(t *testing.T) {
 			{
 				Name: "repo1",
 				URL:  "https://github.com/test/repo1.git",
-				Lazy: true,
+				Fetch: "lazy",
 			},
 			{
 				Name:   "meta1",

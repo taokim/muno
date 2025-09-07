@@ -1,0 +1,1909 @@
+=== RUN   TestIsReleaseVersion
+=== RUN   TestIsReleaseVersion/valid_release_version_v1.0.0
+=== RUN   TestIsReleaseVersion/valid_release_version_v0.4.0
+=== RUN   TestIsReleaseVersion/dev_version_with_commit_info
+=== RUN   TestIsReleaseVersion/dev_version_with_dash
+=== RUN   TestIsReleaseVersion/empty_version
+=== RUN   TestIsReleaseVersion/version_without_v_prefix
+=== RUN   TestIsReleaseVersion/just_v
+--- PASS: TestIsReleaseVersion (0.00s)
+    --- PASS: TestIsReleaseVersion/valid_release_version_v1.0.0 (0.00s)
+    --- PASS: TestIsReleaseVersion/valid_release_version_v0.4.0 (0.00s)
+    --- PASS: TestIsReleaseVersion/dev_version_with_commit_info (0.00s)
+    --- PASS: TestIsReleaseVersion/dev_version_with_dash (0.00s)
+    --- PASS: TestIsReleaseVersion/empty_version (0.00s)
+    --- PASS: TestIsReleaseVersion/version_without_v_prefix (0.00s)
+    --- PASS: TestIsReleaseVersion/just_v (0.00s)
+=== RUN   TestAgentCommand
+=== RUN   TestAgentCommand/agent_with_no_args
+=== RUN   TestAgentCommand/agent_with_specific_name
+=== RUN   TestAgentCommand/agent_with_name_and_path
+=== RUN   TestAgentCommand/agent_with_pass-through_args
+=== RUN   TestAgentCommand/agent_help
+--- PASS: TestAgentCommand (0.00s)
+    --- PASS: TestAgentCommand/agent_with_no_args (0.00s)
+    --- PASS: TestAgentCommand/agent_with_specific_name (0.00s)
+    --- PASS: TestAgentCommand/agent_with_name_and_path (0.00s)
+    --- PASS: TestAgentCommand/agent_with_pass-through_args (0.00s)
+    --- PASS: TestAgentCommand/agent_help (0.00s)
+=== RUN   TestClaudeCommand
+=== RUN   TestClaudeCommand/claude_with_no_args
+=== RUN   TestClaudeCommand/claude_with_path
+=== RUN   TestClaudeCommand/claude_with_pass-through_args
+=== RUN   TestClaudeCommand/claude_help
+--- PASS: TestClaudeCommand (0.00s)
+    --- PASS: TestClaudeCommand/claude_with_no_args (0.00s)
+    --- PASS: TestClaudeCommand/claude_with_path (0.00s)
+    --- PASS: TestClaudeCommand/claude_with_pass-through_args (0.00s)
+    --- PASS: TestClaudeCommand/claude_help (0.00s)
+=== RUN   TestGeminiCommand
+=== RUN   TestGeminiCommand/gemini_with_no_args
+=== RUN   TestGeminiCommand/gemini_with_path
+=== RUN   TestGeminiCommand/gemini_with_pass-through_args
+=== RUN   TestGeminiCommand/gemini_help
+--- PASS: TestGeminiCommand (0.00s)
+    --- PASS: TestGeminiCommand/gemini_with_no_args (0.00s)
+    --- PASS: TestGeminiCommand/gemini_with_path (0.00s)
+    --- PASS: TestGeminiCommand/gemini_with_pass-through_args (0.00s)
+    --- PASS: TestGeminiCommand/gemini_help (0.00s)
+=== RUN   TestAgentCommandIntegration
+=== RUN   TestAgentCommandIntegration/agent_default_claude
+[WARN] Not running in a terminal. Some agents may not work properly.
+[WARN] Consider using --print flag for non-interactive mode if supported by the agent.
+Error: Input must be provided either through stdin or as a prompt argument when using --print
+    app_coverage_test.go:306: 
+        	Error Trace:	/Users/musinsa/ws/muno/cmd/muno/app_coverage_test.go:306
+        	Error:      	Received unexpected error:
+        	            	claude exited with error: exit status 1
+        	Test:       	TestAgentCommandIntegration/agent_default_claude
+        	Messages:   	Command should succeed with mock process provider
+=== RUN   TestAgentCommandIntegration/agent_with_gemini
+[WARN] Not running in a terminal. Some agents may not work properly.
+[WARN] Consider using --print flag for non-interactive mode if supported by the agent.
+No input provided via stdin.
+    app_coverage_test.go:306: 
+        	Error Trace:	/Users/musinsa/ws/muno/cmd/muno/app_coverage_test.go:306
+        	Error:      	Received unexpected error:
+        	            	gemini exited with error: exit status 1
+        	Test:       	TestAgentCommandIntegration/agent_with_gemini
+        	Messages:   	Command should succeed with mock process provider
+=== RUN   TestAgentCommandIntegration/claude_command
+[WARN] Not running in a terminal. Some agents may not work properly.
+[WARN] Consider using --print flag for non-interactive mode if supported by the agent.
+Error: Input must be provided either through stdin or as a prompt argument when using --print
+    app_coverage_test.go:306: 
+        	Error Trace:	/Users/musinsa/ws/muno/cmd/muno/app_coverage_test.go:306
+        	Error:      	Received unexpected error:
+        	            	claude exited with error: exit status 1
+        	Test:       	TestAgentCommandIntegration/claude_command
+        	Messages:   	Command should succeed with mock process provider
+=== RUN   TestAgentCommandIntegration/gemini_command
+[WARN] Not running in a terminal. Some agents may not work properly.
+[WARN] Consider using --print flag for non-interactive mode if supported by the agent.
+No input provided via stdin.
+    app_coverage_test.go:306: 
+        	Error Trace:	/Users/musinsa/ws/muno/cmd/muno/app_coverage_test.go:306
+        	Error:      	Received unexpected error:
+        	            	gemini exited with error: exit status 1
+        	Test:       	TestAgentCommandIntegration/gemini_command
+        	Messages:   	Command should succeed with mock process provider
+--- FAIL: TestAgentCommandIntegration (11.90s)
+    --- FAIL: TestAgentCommandIntegration/agent_default_claude (4.88s)
+    --- FAIL: TestAgentCommandIntegration/agent_with_gemini (1.65s)
+    --- FAIL: TestAgentCommandIntegration/claude_command (4.27s)
+    --- FAIL: TestAgentCommandIntegration/gemini_command (1.09s)
+=== RUN   TestFormatVersionDetailsMore
+=== RUN   TestFormatVersionDetailsMore/release_version
+=== RUN   TestFormatVersionDetailsMore/dev_version_with_commit
+=== RUN   TestFormatVersionDetailsMore/dirty_version
+=== RUN   TestFormatVersionDetailsMore/dev_not_in_git
+--- PASS: TestFormatVersionDetailsMore (0.00s)
+    --- PASS: TestFormatVersionDetailsMore/release_version (0.00s)
+    --- PASS: TestFormatVersionDetailsMore/dev_version_with_commit (0.00s)
+    --- PASS: TestFormatVersionDetailsMore/dirty_version (0.00s)
+    --- PASS: TestFormatVersionDetailsMore/dev_not_in_git (0.00s)
+=== RUN   TestNewAddCmdEdgeCases
+--- PASS: TestNewAddCmdEdgeCases (0.00s)
+=== RUN   TestNewRemoveCmdEdgeCases
+--- PASS: TestNewRemoveCmdEdgeCases (0.00s)
+=== RUN   TestNewCurrentCmdMore
+--- PASS: TestNewCurrentCmdMore (0.00s)
+=== RUN   TestAppCommands
+--- PASS: TestAppCommands (0.00s)
+=== RUN   TestInitCommand
+    app_test.go:66: 
+        	Error Trace:	/Users/musinsa/ws/muno/cmd/muno/app_test.go:66
+        	Error:      	"" does not contain "Workspace 'test-project' initialized successfully"
+        	Test:       	TestInitCommand
+--- FAIL: TestInitCommand (0.00s)
+=== RUN   TestTreeCommand
+--- PASS: TestTreeCommand (0.00s)
+=== RUN   TestListCommand
+--- PASS: TestListCommand (0.00s)
+=== RUN   TestCurrentCommand
+    app_test.go:126: 
+        	Error Trace:	/Users/musinsa/ws/muno/cmd/muno/app_test.go:126
+        	Error:      	"📍 Current Position\n─────────────────\n  Path: /\n  Name: root\n  Status: ⏳ Not cloned\n" does not contain "Current: /"
+        	Test:       	TestCurrentCommand
+--- FAIL: TestCurrentCommand (0.00s)
+=== RUN   TestAddCommand
+    app_test.go:144: 
+        	Error Trace:	/Users/musinsa/ws/muno/cmd/muno/app_test.go:144
+        	Error:      	"\n✅ ✅ Successfully added: repo\n   URL: https://github.com/test/repo.git\n   Status: 💤 Lazy (will clone on first use)\n   Location: /repo\n" does not contain "Added repository: repo"
+        	Test:       	TestAddCommand
+--- FAIL: TestAddCommand (0.00s)
+=== RUN   TestRemoveCommand
+
+✅ ✅ Successfully added: removeme
+   URL: https://github.com/test/removeme.git
+   Status: 💤 Lazy (will clone on first use)
+   Location: /removeme
+    app_test.go:182: 
+        	Error Trace:	/Users/musinsa/ws/muno/cmd/muno/app_test.go:182
+        	Error:      	"Remove removeme and all its contents? (y/n) \n✅ 🗑️  Successfully removed: removeme\n   Path was: /removeme\n   Config: Updated\n" does not contain "Removed repository: removeme"
+        	Test:       	TestRemoveCommand
+--- FAIL: TestRemoveCommand (0.00s)
+=== RUN   TestStatusCommand
+--- PASS: TestStatusCommand (0.00s)
+=== RUN   TestVersionCommand
+--- PASS: TestVersionCommand (0.00s)
+=== RUN   TestHelpCommand
+--- PASS: TestHelpCommand (0.00s)
+=== RUN   TestCloneCommand
+
+✅ ✅ Successfully added: repo
+   URL: https://github.com/test/repo.git
+   Status: 💤 Lazy (will clone on first use)
+   Location: /repo
+Error: cloning repo: exit status 128
+Usage:
+  muno clone [flags]
+
+Flags:
+  -h, --help        help for clone
+  -r, --recursive   Clone recursively in subtree
+
+--- PASS: TestCloneCommand (0.30s)
+=== RUN   TestUseCommand
+    app_test.go:301: 
+        	Error Trace:	/Users/musinsa/ws/muno/cmd/muno/app_test.go:301
+        	Error:      	"\n✅ 📍 Navigated to: root\n   Path: /\n" does not contain "Now at: /"
+        	Test:       	TestUseCommand
+--- FAIL: TestUseCommand (0.00s)
+=== RUN   TestPullCommand
+Error: exit status 128
+Usage:
+  muno pull [path] [flags]
+
+Flags:
+  -a, --all         Pull all cloned repositories in workspace
+  -f, --force       Force pull, overriding local changes
+  -h, --help        help for pull
+  -r, --recursive   Pull recursively in subtree
+
+--- PASS: TestPullCommand (0.01s)
+=== RUN   TestPushCommand
+Error: exit status 128
+Usage:
+  muno push [path] [flags]
+
+Flags:
+  -h, --help        help for push
+  -r, --recursive   Push recursively in subtree
+
+    app_test.go:361: 
+        	Error Trace:	/Users/musinsa/ws/muno/cmd/muno/app_test.go:361
+        	Error:      	Should be true
+        	Test:       	TestPushCommand
+--- FAIL: TestPushCommand (0.01s)
+=== RUN   TestCommitCommand
+Error: exit status 128
+Usage:
+  muno commit [path] [flags]
+
+Flags:
+  -h, --help             help for commit
+  -m, --message string   Commit message (required)
+  -r, --recursive        Commit recursively in subtree
+
+    app_test.go:391: 
+        	Error Trace:	/Users/musinsa/ws/muno/cmd/muno/app_test.go:391
+        	Error:      	Should be true
+        	Test:       	TestCommitCommand
+--- FAIL: TestCommitCommand (0.01s)
+=== RUN   TestInvalidCommand
+--- PASS: TestInvalidCommand (0.00s)
+FAIL
+FAIL	github.com/taokim/muno/cmd/muno	12.682s
+=== RUN   TestRealCommandExecutor_Execute
+=== RUN   TestRealCommandExecutor_Execute/Simple_echo_command
+=== RUN   TestRealCommandExecutor_Execute/Command_with_exit_code
+=== RUN   TestRealCommandExecutor_Execute/Non-existent_command
+=== RUN   TestRealCommandExecutor_Execute/Print_working_directory
+--- PASS: TestRealCommandExecutor_Execute (0.01s)
+    --- PASS: TestRealCommandExecutor_Execute/Simple_echo_command (0.00s)
+    --- PASS: TestRealCommandExecutor_Execute/Command_with_exit_code (0.00s)
+    --- PASS: TestRealCommandExecutor_Execute/Non-existent_command (0.00s)
+    --- PASS: TestRealCommandExecutor_Execute/Print_working_directory (0.00s)
+=== RUN   TestRealCommandExecutor_ExecuteWithInput
+=== RUN   TestRealCommandExecutor_ExecuteWithInput/Command_with_stdin_input
+=== RUN   TestRealCommandExecutor_ExecuteWithInput/Grep_with_stdin
+--- PASS: TestRealCommandExecutor_ExecuteWithInput (0.01s)
+    --- PASS: TestRealCommandExecutor_ExecuteWithInput/Command_with_stdin_input (0.00s)
+    --- PASS: TestRealCommandExecutor_ExecuteWithInput/Grep_with_stdin (0.00s)
+=== RUN   TestRealCommandExecutor_ExecuteInDir
+=== RUN   TestRealCommandExecutor_ExecuteInDir/Execute_in_specific_directory
+=== RUN   TestRealCommandExecutor_ExecuteInDir/Execute_pwd_in_directory
+--- PASS: TestRealCommandExecutor_ExecuteInDir (0.01s)
+    --- PASS: TestRealCommandExecutor_ExecuteInDir/Execute_in_specific_directory (0.01s)
+    --- PASS: TestRealCommandExecutor_ExecuteInDir/Execute_pwd_in_directory (0.00s)
+=== RUN   TestRealCommandExecutor_ExecuteWithEnv
+=== RUN   TestRealCommandExecutor_ExecuteWithEnv/Execute_with_custom_environment
+=== RUN   TestRealCommandExecutor_ExecuteWithEnv/Multiple_environment_variables
+--- PASS: TestRealCommandExecutor_ExecuteWithEnv (0.01s)
+    --- PASS: TestRealCommandExecutor_ExecuteWithEnv/Execute_with_custom_environment (0.00s)
+    --- PASS: TestRealCommandExecutor_ExecuteWithEnv/Multiple_environment_variables (0.01s)
+=== RUN   TestRealCommandExecutor_Start
+=== RUN   TestRealCommandExecutor_Start/Start_and_wait_for_command
+=== RUN   TestRealCommandExecutor_Start/Start_command_and_get_PID
+=== RUN   TestRealCommandExecutor_Start/Start_non-existent_command
+--- PASS: TestRealCommandExecutor_Start (0.00s)
+    --- PASS: TestRealCommandExecutor_Start/Start_and_wait_for_command (0.00s)
+    --- PASS: TestRealCommandExecutor_Start/Start_command_and_get_PID (0.00s)
+    --- PASS: TestRealCommandExecutor_Start/Start_non-existent_command (0.00s)
+=== RUN   TestRealCommandExecutor_StartInDir
+=== RUN   TestRealCommandExecutor_StartInDir/Start_command_in_directory
+--- PASS: TestRealCommandExecutor_StartInDir (0.00s)
+    --- PASS: TestRealCommandExecutor_StartInDir/Start_command_in_directory (0.00s)
+=== RUN   TestProcessWrapper
+=== RUN   TestProcessWrapper/Process_operations
+=== RUN   TestProcessWrapper/Process_pipes
+--- PASS: TestProcessWrapper (0.00s)
+    --- PASS: TestProcessWrapper/Process_operations (0.00s)
+    --- PASS: TestProcessWrapper/Process_pipes (0.00s)
+=== RUN   TestRealCommandExecutor_Integration
+=== RUN   TestRealCommandExecutor_Integration/Complex_command_chain
+=== RUN   TestRealCommandExecutor_Integration/Environment_variable_usage
+--- PASS: TestRealCommandExecutor_Integration (0.01s)
+    --- PASS: TestRealCommandExecutor_Integration/Complex_command_chain (0.00s)
+    --- PASS: TestRealCommandExecutor_Integration/Environment_variable_usage (0.01s)
+=== RUN   TestConfigAdapter
+=== RUN   TestConfigAdapter/NewConfigAdapter
+=== RUN   TestConfigAdapter/Load_non-existent_file
+=== RUN   TestConfigAdapter/Load_invalid_YAML
+=== RUN   TestConfigAdapter/Load_valid_muno.yaml_config
+=== RUN   TestConfigAdapter/Load_generic_YAML_config
+=== RUN   TestConfigAdapter/Save_config
+=== RUN   TestConfigAdapter/Save_overwrites_existing_file
+=== RUN   TestConfigAdapter/Exists
+=== RUN   TestConfigAdapter/Watch
+=== RUN   TestConfigAdapter/Load_JSON_config
+--- PASS: TestConfigAdapter (0.01s)
+    --- PASS: TestConfigAdapter/NewConfigAdapter (0.00s)
+    --- PASS: TestConfigAdapter/Load_non-existent_file (0.00s)
+    --- PASS: TestConfigAdapter/Load_invalid_YAML (0.00s)
+    --- PASS: TestConfigAdapter/Load_valid_muno.yaml_config (0.00s)
+    --- PASS: TestConfigAdapter/Load_generic_YAML_config (0.00s)
+    --- PASS: TestConfigAdapter/Save_config (0.00s)
+    --- PASS: TestConfigAdapter/Save_overwrites_existing_file (0.00s)
+    --- PASS: TestConfigAdapter/Exists (0.00s)
+    --- PASS: TestConfigAdapter/Watch (0.00s)
+    --- PASS: TestConfigAdapter/Load_JSON_config (0.00s)
+=== RUN   TestRealOutput_ColoredMethods
+=== RUN   TestRealOutput_ColoredMethods/Success_method
+=== RUN   TestRealOutput_ColoredMethods/Info_method
+    coverage_improvement_test.go:28: 
+        	Error Trace:	/Users/musinsa/ws/muno/internal/adapters/coverage_improvement_test.go:28
+        	Error:      	"Information message\n" does not contain "ℹ️"
+        	Test:       	TestRealOutput_ColoredMethods/Info_method
+=== RUN   TestRealOutput_ColoredMethods/Warning_method
+=== RUN   TestRealOutput_ColoredMethods/Danger_method
+--- FAIL: TestRealOutput_ColoredMethods (0.00s)
+    --- PASS: TestRealOutput_ColoredMethods/Success_method (0.00s)
+    --- FAIL: TestRealOutput_ColoredMethods/Info_method (0.00s)
+    --- PASS: TestRealOutput_ColoredMethods/Warning_method (0.00s)
+    --- PASS: TestRealOutput_ColoredMethods/Danger_method (0.00s)
+=== RUN   TestRealOutput_FormattingMethods
+=== RUN   TestRealOutput_FormattingMethods/Bold_method
+=== RUN   TestRealOutput_FormattingMethods/Italic_method
+=== RUN   TestRealOutput_FormattingMethods/Underline_method
+=== RUN   TestRealOutput_FormattingMethods/Color_method
+--- PASS: TestRealOutput_FormattingMethods (0.00s)
+    --- PASS: TestRealOutput_FormattingMethods/Bold_method (0.00s)
+    --- PASS: TestRealOutput_FormattingMethods/Italic_method (0.00s)
+    --- PASS: TestRealOutput_FormattingMethods/Underline_method (0.00s)
+    --- PASS: TestRealOutput_FormattingMethods/Color_method (0.00s)
+=== RUN   TestRealOutput_WriteMethod
+=== RUN   TestRealOutput_WriteMethod/Write_method
+--- PASS: TestRealOutput_WriteMethod (0.00s)
+    --- PASS: TestRealOutput_WriteMethod/Write_method (0.00s)
+=== RUN   TestRealFileWrapper_Methods
+=== RUN   TestRealFileWrapper_Methods/File_operations
+=== RUN   TestRealFileWrapper_Methods/Write_operations
+--- PASS: TestRealFileWrapper_Methods (0.01s)
+    --- PASS: TestRealFileWrapper_Methods/File_operations (0.01s)
+    --- PASS: TestRealFileWrapper_Methods/Write_operations (0.00s)
+=== RUN   TestProcessWrapper_AdditionalMethods
+=== RUN   TestProcessWrapper_AdditionalMethods/Signal_method
+=== RUN   TestProcessWrapper_AdditionalMethods/Kill_already_terminated_process
+--- PASS: TestProcessWrapper_AdditionalMethods (0.00s)
+    --- PASS: TestProcessWrapper_AdditionalMethods/Signal_method (0.00s)
+    --- PASS: TestProcessWrapper_AdditionalMethods/Kill_already_terminated_process (0.00s)
+=== RUN   TestRealCommandExecutor_StartInDir_Additional
+=== RUN   TestRealCommandExecutor_StartInDir_Additional/StartInDir_with_valid_directory
+--- PASS: TestRealCommandExecutor_StartInDir_Additional (0.00s)
+    --- PASS: TestRealCommandExecutor_StartInDir_Additional/StartInDir_with_valid_directory (0.00s)
+=== RUN   TestGitBranchMethod
+--- PASS: TestGitBranchMethod (0.08s)
+=== RUN   TestRealFileSystem_FileOperations
+=== RUN   TestRealFileSystem_FileOperations/Create_and_Open
+=== RUN   TestRealFileSystem_FileOperations/Remove
+=== RUN   TestRealFileSystem_FileOperations/RemoveAll
+=== RUN   TestRealFileSystem_FileOperations/Rename
+--- PASS: TestRealFileSystem_FileOperations (0.00s)
+    --- PASS: TestRealFileSystem_FileOperations/Create_and_Open (0.00s)
+    --- PASS: TestRealFileSystem_FileOperations/Remove (0.00s)
+    --- PASS: TestRealFileSystem_FileOperations/RemoveAll (0.00s)
+    --- PASS: TestRealFileSystem_FileOperations/Rename (0.00s)
+=== RUN   TestRealFileSystem_DirectoryOperations
+=== RUN   TestRealFileSystem_DirectoryOperations/Mkdir
+=== RUN   TestRealFileSystem_DirectoryOperations/MkdirAll
+=== RUN   TestRealFileSystem_DirectoryOperations/ReadDir
+--- PASS: TestRealFileSystem_DirectoryOperations (0.00s)
+    --- PASS: TestRealFileSystem_DirectoryOperations/Mkdir (0.00s)
+    --- PASS: TestRealFileSystem_DirectoryOperations/MkdirAll (0.00s)
+    --- PASS: TestRealFileSystem_DirectoryOperations/ReadDir (0.00s)
+=== RUN   TestRealFileSystem_FileInfo
+=== RUN   TestRealFileSystem_FileInfo/Stat
+=== RUN   TestRealFileSystem_FileInfo/Lstat
+=== RUN   TestRealFileSystem_FileInfo/Exists
+=== RUN   TestRealFileSystem_FileInfo/IsDir
+--- PASS: TestRealFileSystem_FileInfo (0.00s)
+    --- PASS: TestRealFileSystem_FileInfo/Stat (0.00s)
+    --- PASS: TestRealFileSystem_FileInfo/Lstat (0.00s)
+    --- PASS: TestRealFileSystem_FileInfo/Exists (0.00s)
+    --- PASS: TestRealFileSystem_FileInfo/IsDir (0.00s)
+=== RUN   TestRealFileSystem_PathOperations
+=== RUN   TestRealFileSystem_PathOperations/Getwd
+=== RUN   TestRealFileSystem_PathOperations/Chdir
+=== RUN   TestRealFileSystem_PathOperations/TempDir
+--- PASS: TestRealFileSystem_PathOperations (0.00s)
+    --- PASS: TestRealFileSystem_PathOperations/Getwd (0.00s)
+    --- PASS: TestRealFileSystem_PathOperations/Chdir (0.00s)
+    --- PASS: TestRealFileSystem_PathOperations/TempDir (0.00s)
+=== RUN   TestRealFileSystem_FileContent
+=== RUN   TestRealFileSystem_FileContent/ReadFile_and_WriteFile
+=== RUN   TestRealFileSystem_FileContent/WriteFile_with_permissions
+--- PASS: TestRealFileSystem_FileContent (0.00s)
+    --- PASS: TestRealFileSystem_FileContent/ReadFile_and_WriteFile (0.00s)
+    --- PASS: TestRealFileSystem_FileContent/WriteFile_with_permissions (0.00s)
+=== RUN   TestRealFileSystem_Symlink
+=== RUN   TestRealFileSystem_Symlink/Symlink_and_Readlink
+--- PASS: TestRealFileSystem_Symlink (0.00s)
+    --- PASS: TestRealFileSystem_Symlink/Symlink_and_Readlink (0.00s)
+=== RUN   TestFileWrapper
+=== RUN   TestFileWrapper/Write_and_Read
+=== RUN   TestFileWrapper/File_methods
+--- PASS: TestFileWrapper (0.01s)
+    --- PASS: TestFileWrapper/Write_and_Read (0.00s)
+    --- PASS: TestFileWrapper/File_methods (0.00s)
+=== RUN   TestAbsPath
+=== RUN   TestAbsPath/relative_path
+=== RUN   TestAbsPath/absolute_path
+=== RUN   TestAbsPath/home_directory
+=== RUN   TestAbsPath/current_directory
+=== RUN   TestAbsPath/parent_directory
+--- PASS: TestAbsPath (0.00s)
+    --- PASS: TestAbsPath/relative_path (0.00s)
+    --- PASS: TestAbsPath/absolute_path (0.00s)
+    --- PASS: TestAbsPath/home_directory (0.00s)
+    --- PASS: TestAbsPath/current_directory (0.00s)
+    --- PASS: TestAbsPath/parent_directory (0.00s)
+=== RUN   TestFileSystemAdapter_Exists
+--- PASS: TestFileSystemAdapter_Exists (0.00s)
+=== RUN   TestFileSystemAdapter_CreateRemove
+--- PASS: TestFileSystemAdapter_CreateRemove (0.00s)
+=== RUN   TestFileSystemAdapter_RemoveAll
+--- PASS: TestFileSystemAdapter_RemoveAll (0.00s)
+=== RUN   TestFileSystemAdapter_Directories
+--- PASS: TestFileSystemAdapter_Directories (0.00s)
+=== RUN   TestFileSystemAdapter_ReadWriteFile
+--- PASS: TestFileSystemAdapter_ReadWriteFile (0.00s)
+=== RUN   TestFileSystemAdapter_ReadDir
+--- PASS: TestFileSystemAdapter_ReadDir (0.00s)
+=== RUN   TestFileSystemAdapter_Stat
+--- PASS: TestFileSystemAdapter_Stat (0.00s)
+=== RUN   TestFileSystemAdapter_Symlink
+--- PASS: TestFileSystemAdapter_Symlink (0.00s)
+=== RUN   TestFileSystemAdapter_Rename
+--- PASS: TestFileSystemAdapter_Rename (0.00s)
+=== RUN   TestFileSystemAdapter_Copy
+--- PASS: TestFileSystemAdapter_Copy (0.00s)
+=== RUN   TestFileSystemAdapter_Walk
+--- PASS: TestFileSystemAdapter_Walk (0.00s)
+=== RUN   TestRealGit_ExtendedOperations
+=== RUN   TestRealGit_ExtendedOperations/Branch_operations
+=== RUN   TestRealGit_ExtendedOperations/Tag_operations
+=== RUN   TestRealGit_ExtendedOperations/Reset_operations
+=== RUN   TestRealGit_ExtendedOperations/Diff_operations
+=== RUN   TestRealGit_ExtendedOperations/Log_operations
+=== RUN   TestRealGit_ExtendedOperations/Remote_operations
+=== RUN   TestRealGit_ExtendedOperations/Status_operations
+=== RUN   TestRealGit_ExtendedOperations/CommitWithOptions
+--- PASS: TestRealGit_ExtendedOperations (0.42s)
+    --- PASS: TestRealGit_ExtendedOperations/Branch_operations (0.06s)
+    --- PASS: TestRealGit_ExtendedOperations/Tag_operations (0.03s)
+    --- PASS: TestRealGit_ExtendedOperations/Reset_operations (0.07s)
+    --- PASS: TestRealGit_ExtendedOperations/Diff_operations (0.02s)
+    --- PASS: TestRealGit_ExtendedOperations/Log_operations (0.04s)
+    --- PASS: TestRealGit_ExtendedOperations/Remote_operations (0.03s)
+    --- PASS: TestRealGit_ExtendedOperations/Status_operations (0.04s)
+    --- PASS: TestRealGit_ExtendedOperations/CommitWithOptions (0.04s)
+=== RUN   TestRealGit_NetworkOperations
+    git_extended_test.go:230: Skipping network operations in unit tests
+--- SKIP: TestRealGit_NetworkOperations (0.00s)
+=== RUN   TestRealGit_DiffWithBranch
+--- PASS: TestRealGit_DiffWithBranch (0.23s)
+=== RUN   TestRealGit_Clone
+=== RUN   TestRealGit_Clone/Clone_non-existent_repo
+=== RUN   TestRealGit_Clone/Clone_with_mock_executor
+--- PASS: TestRealGit_Clone (0.36s)
+    --- PASS: TestRealGit_Clone/Clone_non-existent_repo (0.36s)
+    --- PASS: TestRealGit_Clone/Clone_with_mock_executor (0.00s)
+=== RUN   TestRealGit_CloneWithOptions
+=== RUN   TestRealGit_CloneWithOptions/Clone_with_branch
+=== RUN   TestRealGit_CloneWithOptions/Clone_with_depth
+--- PASS: TestRealGit_CloneWithOptions (0.00s)
+    --- PASS: TestRealGit_CloneWithOptions/Clone_with_branch (0.00s)
+    --- PASS: TestRealGit_CloneWithOptions/Clone_with_depth (0.00s)
+=== RUN   TestRealGit_Status
+=== RUN   TestRealGit_Status/Clean_repository
+=== RUN   TestRealGit_Status/Modified_file
+=== RUN   TestRealGit_Status/New_file
+--- PASS: TestRealGit_Status (0.17s)
+    --- PASS: TestRealGit_Status/Clean_repository (0.02s)
+    --- PASS: TestRealGit_Status/Modified_file (0.02s)
+    --- PASS: TestRealGit_Status/New_file (0.02s)
+=== RUN   TestRealGit_Add
+=== RUN   TestRealGit_Add/Add_specific_file
+=== RUN   TestRealGit_Add/Add_all_files
+--- PASS: TestRealGit_Add (0.18s)
+    --- PASS: TestRealGit_Add/Add_specific_file (0.03s)
+    --- PASS: TestRealGit_Add/Add_all_files (0.05s)
+=== RUN   TestRealGit_Commit
+=== RUN   TestRealGit_Commit/Commit_with_message
+=== RUN   TestRealGit_Commit/Commit_with_nothing_staged
+--- PASS: TestRealGit_Commit (0.21s)
+    --- PASS: TestRealGit_Commit/Commit_with_message (0.05s)
+    --- PASS: TestRealGit_Commit/Commit_with_nothing_staged (0.01s)
+=== RUN   TestRealGit_Branch
+=== RUN   TestRealGit_Branch/Create_branch
+=== RUN   TestRealGit_Branch/Switch_branch
+=== RUN   TestRealGit_Branch/Current_branch
+=== RUN   TestRealGit_Branch/List_branches
+=== RUN   TestRealGit_Branch/Delete_branch
+--- PASS: TestRealGit_Branch (0.19s)
+    --- PASS: TestRealGit_Branch/Create_branch (0.02s)
+    --- PASS: TestRealGit_Branch/Switch_branch (0.03s)
+    --- PASS: TestRealGit_Branch/Current_branch (0.01s)
+    --- PASS: TestRealGit_Branch/List_branches (0.01s)
+    --- PASS: TestRealGit_Branch/Delete_branch (0.05s)
+=== RUN   TestRealGit_Remote
+=== RUN   TestRealGit_Remote/Add_remote
+=== RUN   TestRealGit_Remote/List_remotes
+=== RUN   TestRealGit_Remote/Remove_remote
+--- PASS: TestRealGit_Remote (0.14s)
+    --- PASS: TestRealGit_Remote/Add_remote (0.03s)
+    --- PASS: TestRealGit_Remote/List_remotes (0.01s)
+    --- PASS: TestRealGit_Remote/Remove_remote (0.02s)
+=== RUN   TestRealGit_Diff
+=== RUN   TestRealGit_Diff/Diff_unstaged_changes
+=== RUN   TestRealGit_Diff/Diff_staged_changes
+--- PASS: TestRealGit_Diff (0.10s)
+    --- PASS: TestRealGit_Diff/Diff_unstaged_changes (0.01s)
+    --- PASS: TestRealGit_Diff/Diff_staged_changes (0.03s)
+=== RUN   TestRealGit_Log
+=== RUN   TestRealGit_Log/Get_log
+=== RUN   TestRealGit_Log/Limited_log
+--- PASS: TestRealGit_Log (0.23s)
+    --- PASS: TestRealGit_Log/Get_log (0.01s)
+    --- PASS: TestRealGit_Log/Limited_log (0.10s)
+=== RUN   TestRealGit_IsRepo
+=== RUN   TestRealGit_IsRepo/Valid_repo
+=== RUN   TestRealGit_IsRepo/Not_a_repo
+=== RUN   TestRealGit_IsRepo/Non-existent_directory
+--- PASS: TestRealGit_IsRepo (0.07s)
+    --- PASS: TestRealGit_IsRepo/Valid_repo (0.07s)
+    --- PASS: TestRealGit_IsRepo/Not_a_repo (0.00s)
+    --- PASS: TestRealGit_IsRepo/Non-existent_directory (0.00s)
+=== RUN   TestRealGit_RemoteURL
+=== RUN   TestRealGit_RemoteURL/Get_remote_URL
+--- PASS: TestRealGit_RemoteURL (0.09s)
+    --- PASS: TestRealGit_RemoteURL/Get_remote_URL (0.02s)
+=== RUN   TestRealGit_HasChanges
+=== RUN   TestRealGit_HasChanges/No_changes
+=== RUN   TestRealGit_HasChanges/With_changes
+--- PASS: TestRealGit_HasChanges (0.09s)
+    --- PASS: TestRealGit_HasChanges/No_changes (0.02s)
+    --- PASS: TestRealGit_HasChanges/With_changes (0.01s)
+=== RUN   TestRealGit_ListBranchesExtended
+--- PASS: TestRealGit_ListBranchesExtended (0.10s)
+=== RUN   TestGitInterfaceWrapper_BasicOperations
+=== RUN   TestGitInterfaceWrapper_BasicOperations/Clone
+=== RUN   TestGitInterfaceWrapper_BasicOperations/Status
+=== RUN   TestGitInterfaceWrapper_BasicOperations/Commit
+=== RUN   TestGitInterfaceWrapper_BasicOperations/Push
+=== RUN   TestGitInterfaceWrapper_BasicOperations/Pull
+--- PASS: TestGitInterfaceWrapper_BasicOperations (0.00s)
+    --- PASS: TestGitInterfaceWrapper_BasicOperations/Clone (0.00s)
+    --- PASS: TestGitInterfaceWrapper_BasicOperations/Status (0.00s)
+    --- PASS: TestGitInterfaceWrapper_BasicOperations/Commit (0.00s)
+    --- PASS: TestGitInterfaceWrapper_BasicOperations/Push (0.00s)
+    --- PASS: TestGitInterfaceWrapper_BasicOperations/Pull (0.00s)
+=== RUN   TestGitInterfaceWrapper_AddOperations
+=== RUN   TestGitInterfaceWrapper_AddOperations/Add_with_dot_pattern_calls_AddAll
+=== RUN   TestGitInterfaceWrapper_AddOperations/Add_with_specific_file
+=== RUN   TestGitInterfaceWrapper_AddOperations/Add_with_wildcard_pattern
+--- PASS: TestGitInterfaceWrapper_AddOperations (0.00s)
+    --- PASS: TestGitInterfaceWrapper_AddOperations/Add_with_dot_pattern_calls_AddAll (0.00s)
+    --- PASS: TestGitInterfaceWrapper_AddOperations/Add_with_specific_file (0.00s)
+    --- PASS: TestGitInterfaceWrapper_AddOperations/Add_with_wildcard_pattern (0.00s)
+=== RUN   TestGitInterfaceWrapper_ErrorHandling
+=== RUN   TestGitInterfaceWrapper_ErrorHandling/Clone_error
+=== RUN   TestGitInterfaceWrapper_ErrorHandling/Commit_error
+=== RUN   TestGitInterfaceWrapper_ErrorHandling/Status_error
+--- PASS: TestGitInterfaceWrapper_ErrorHandling (0.00s)
+    --- PASS: TestGitInterfaceWrapper_ErrorHandling/Clone_error (0.00s)
+    --- PASS: TestGitInterfaceWrapper_ErrorHandling/Commit_error (0.00s)
+    --- PASS: TestGitInterfaceWrapper_ErrorHandling/Status_error (0.00s)
+=== RUN   TestGitInterfaceWrapper_NilGit
+=== RUN   TestGitInterfaceWrapper_NilGit/Operations_with_nil_git
+--- PASS: TestGitInterfaceWrapper_NilGit (0.00s)
+    --- PASS: TestGitInterfaceWrapper_NilGit/Operations_with_nil_git (0.00s)
+=== RUN   TestRealOutput_Print
+=== RUN   TestRealOutput_Print/Simple_message
+=== RUN   TestRealOutput_Print/Empty_message
+=== RUN   TestRealOutput_Print/Message_with_newline
+=== RUN   TestRealOutput_Print/Message_with_special_characters
+--- PASS: TestRealOutput_Print (0.00s)
+    --- PASS: TestRealOutput_Print/Simple_message (0.00s)
+    --- PASS: TestRealOutput_Print/Empty_message (0.00s)
+    --- PASS: TestRealOutput_Print/Message_with_newline (0.00s)
+    --- PASS: TestRealOutput_Print/Message_with_special_characters (0.00s)
+=== RUN   TestRealOutput_Println
+=== RUN   TestRealOutput_Println/Simple_message
+=== RUN   TestRealOutput_Println/Empty_message
+=== RUN   TestRealOutput_Println/Message_with_existing_newline
+--- PASS: TestRealOutput_Println (0.00s)
+    --- PASS: TestRealOutput_Println/Simple_message (0.00s)
+    --- PASS: TestRealOutput_Println/Empty_message (0.00s)
+    --- PASS: TestRealOutput_Println/Message_with_existing_newline (0.00s)
+=== RUN   TestRealOutput_Printf
+=== RUN   TestRealOutput_Printf/Simple_format
+=== RUN   TestRealOutput_Printf/Multiple_arguments
+=== RUN   TestRealOutput_Printf/No_arguments
+=== RUN   TestRealOutput_Printf/Various_types
+--- PASS: TestRealOutput_Printf (0.00s)
+    --- PASS: TestRealOutput_Printf/Simple_format (0.00s)
+    --- PASS: TestRealOutput_Printf/Multiple_arguments (0.00s)
+    --- PASS: TestRealOutput_Printf/No_arguments (0.00s)
+    --- PASS: TestRealOutput_Printf/Various_types (0.00s)
+=== RUN   TestRealOutput_Error
+=== RUN   TestRealOutput_Error/Simple_error
+=== RUN   TestRealOutput_Error/Empty_error
+=== RUN   TestRealOutput_Error/Multi-line_error
+--- PASS: TestRealOutput_Error (0.00s)
+    --- PASS: TestRealOutput_Error/Simple_error (0.00s)
+    --- PASS: TestRealOutput_Error/Empty_error (0.00s)
+    --- PASS: TestRealOutput_Error/Multi-line_error (0.00s)
+=== RUN   TestRealOutput_Errorln
+=== RUN   TestRealOutput_Errorln/Simple_error
+=== RUN   TestRealOutput_Errorln/Empty_error
+=== RUN   TestRealOutput_Errorln/Error_with_existing_newline
+--- PASS: TestRealOutput_Errorln (0.00s)
+    --- PASS: TestRealOutput_Errorln/Simple_error (0.00s)
+    --- PASS: TestRealOutput_Errorln/Empty_error (0.00s)
+    --- PASS: TestRealOutput_Errorln/Error_with_existing_newline (0.00s)
+=== RUN   TestRealOutput_Errorf
+=== RUN   TestRealOutput_Errorf/Simple_error_format
+=== RUN   TestRealOutput_Errorf/Error_with_code
+=== RUN   TestRealOutput_Errorf/No_arguments
+--- PASS: TestRealOutput_Errorf (0.00s)
+    --- PASS: TestRealOutput_Errorf/Simple_error_format (0.00s)
+    --- PASS: TestRealOutput_Errorf/Error_with_code (0.00s)
+    --- PASS: TestRealOutput_Errorf/No_arguments (0.00s)
+=== RUN   TestRealOutput_Mixed
+=== RUN   TestRealOutput_Mixed/Mixed_stdout_and_stderr
+=== RUN   TestRealOutput_Mixed/Sequential_operations
+--- PASS: TestRealOutput_Mixed (0.00s)
+    --- PASS: TestRealOutput_Mixed/Mixed_stdout_and_stderr (0.00s)
+    --- PASS: TestRealOutput_Mixed/Sequential_operations (0.00s)
+=== RUN   TestRealOutput_LargeOutput
+=== RUN   TestRealOutput_LargeOutput/Large_stdout_output
+=== RUN   TestRealOutput_LargeOutput/Large_stderr_output
+--- PASS: TestRealOutput_LargeOutput (0.00s)
+    --- PASS: TestRealOutput_LargeOutput/Large_stdout_output (0.00s)
+    --- PASS: TestRealOutput_LargeOutput/Large_stderr_output (0.00s)
+=== RUN   TestRealOutput_SpecialCharacters
+=== RUN   TestRealOutput_SpecialCharacters/Unicode_characters
+=== RUN   TestRealOutput_SpecialCharacters/Tab_characters
+=== RUN   TestRealOutput_SpecialCharacters/Carriage_return
+=== RUN   TestRealOutput_SpecialCharacters/Null_bytes
+=== RUN   TestRealOutput_SpecialCharacters/ANSI_escape_codes
+--- PASS: TestRealOutput_SpecialCharacters (0.00s)
+    --- PASS: TestRealOutput_SpecialCharacters/Unicode_characters (0.00s)
+    --- PASS: TestRealOutput_SpecialCharacters/Tab_characters (0.00s)
+    --- PASS: TestRealOutput_SpecialCharacters/Carriage_return (0.00s)
+    --- PASS: TestRealOutput_SpecialCharacters/Null_bytes (0.00s)
+    --- PASS: TestRealOutput_SpecialCharacters/ANSI_escape_codes (0.00s)
+=== RUN   TestRealOutput_NilWriters
+=== RUN   TestRealOutput_NilWriters/Nil_stdout
+=== RUN   TestRealOutput_NilWriters/Nil_stderr
+=== RUN   TestRealOutput_NilWriters/Both_nil
+--- PASS: TestRealOutput_NilWriters (0.00s)
+    --- PASS: TestRealOutput_NilWriters/Nil_stdout (0.00s)
+    --- PASS: TestRealOutput_NilWriters/Nil_stderr (0.00s)
+    --- PASS: TestRealOutput_NilWriters/Both_nil (0.00s)
+=== RUN   TestProcessAdapter_Execute
+--- PASS: TestProcessAdapter_Execute (0.01s)
+=== RUN   TestProcessAdapter_ExecuteShell
+--- PASS: TestProcessAdapter_ExecuteShell (0.01s)
+=== RUN   TestIsInteractiveCommand
+=== RUN   TestIsInteractiveCommand/claude_after_cd
+=== RUN   TestIsInteractiveCommand/claude_with_args
+=== RUN   TestIsInteractiveCommand/gemini
+=== RUN   TestIsInteractiveCommand/vim
+=== RUN   TestIsInteractiveCommand/non-interactive
+=== RUN   TestIsInteractiveCommand/echo
+=== RUN   TestIsInteractiveCommand/standalone_claude
+=== RUN   TestIsInteractiveCommand/standalone_claude_with_args
+--- PASS: TestIsInteractiveCommand (0.00s)
+    --- PASS: TestIsInteractiveCommand/claude_after_cd (0.00s)
+    --- PASS: TestIsInteractiveCommand/claude_with_args (0.00s)
+    --- PASS: TestIsInteractiveCommand/gemini (0.00s)
+    --- PASS: TestIsInteractiveCommand/vim (0.00s)
+    --- PASS: TestIsInteractiveCommand/non-interactive (0.00s)
+    --- PASS: TestIsInteractiveCommand/echo (0.00s)
+    --- PASS: TestIsInteractiveCommand/standalone_claude (0.00s)
+    --- PASS: TestIsInteractiveCommand/standalone_claude_with_args (0.00s)
+=== RUN   TestProcessAdapter_OpenInBrowser
+--- PASS: TestProcessAdapter_OpenInBrowser (0.00s)
+=== RUN   TestProcessAdapter_StartBackground
+--- PASS: TestProcessAdapter_StartBackground (0.01s)
+=== RUN   TestNewTreeAdapter
+--- PASS: TestNewTreeAdapter (0.00s)
+=== RUN   TestTreeAdapterStub_Load
+--- PASS: TestTreeAdapterStub_Load (0.00s)
+=== RUN   TestTreeAdapterStub_Navigate
+--- PASS: TestTreeAdapterStub_Navigate (0.00s)
+=== RUN   TestTreeAdapterStub_GetCurrent
+--- PASS: TestTreeAdapterStub_GetCurrent (0.00s)
+=== RUN   TestTreeAdapterStub_GetTree
+--- PASS: TestTreeAdapterStub_GetTree (0.00s)
+=== RUN   TestTreeAdapterStub_GetNode
+--- PASS: TestTreeAdapterStub_GetNode (0.00s)
+=== RUN   TestTreeAdapterStub_AddNode
+--- PASS: TestTreeAdapterStub_AddNode (0.00s)
+=== RUN   TestTreeAdapterStub_RemoveNode
+--- PASS: TestTreeAdapterStub_RemoveNode (0.00s)
+=== RUN   TestTreeAdapterStub_UpdateNode
+--- PASS: TestTreeAdapterStub_UpdateNode (0.00s)
+=== RUN   TestTreeAdapterStub_ListChildren
+--- PASS: TestTreeAdapterStub_ListChildren (0.00s)
+=== RUN   TestTreeAdapterStub_GetPath
+--- PASS: TestTreeAdapterStub_GetPath (0.00s)
+=== RUN   TestTreeAdapterStub_SetPath
+--- PASS: TestTreeAdapterStub_SetPath (0.00s)
+=== RUN   TestTreeAdapterStub_GetState
+--- PASS: TestTreeAdapterStub_GetState (0.00s)
+=== RUN   TestTreeAdapterStub_SetState
+--- PASS: TestTreeAdapterStub_SetState (0.00s)
+=== RUN   TestNewUIAdapter
+--- PASS: TestNewUIAdapter (0.00s)
+=== RUN   TestUIAdapter_Info
+    ui_adapter_test.go:41: 
+        	Error Trace:	/Users/musinsa/ws/muno/internal/adapters/ui_adapter_test.go:41
+        	Error:      	"test info message\n" does not contain "ℹ️  test info message"
+        	Test:       	TestUIAdapter_Info
+--- FAIL: TestUIAdapter_Info (0.00s)
+=== RUN   TestUIAdapter_Success
+--- PASS: TestUIAdapter_Success (0.00s)
+=== RUN   TestUIAdapter_Warning
+--- PASS: TestUIAdapter_Warning (0.00s)
+=== RUN   TestUIAdapter_Error
+--- PASS: TestUIAdapter_Error (0.00s)
+=== RUN   TestUIAdapter_Debug
+--- PASS: TestUIAdapter_Debug (0.00s)
+=== RUN   TestUIAdapter_Confirm
+=== RUN   TestUIAdapter_Confirm/Yes
+=== RUN   TestUIAdapter_Confirm/YES
+=== RUN   TestUIAdapter_Confirm/yes
+=== RUN   TestUIAdapter_Confirm/No
+=== RUN   TestUIAdapter_Confirm/NO
+=== RUN   TestUIAdapter_Confirm/no
+=== RUN   TestUIAdapter_Confirm/Empty
+=== RUN   TestUIAdapter_Confirm/Other
+--- PASS: TestUIAdapter_Confirm (0.00s)
+    --- PASS: TestUIAdapter_Confirm/Yes (0.00s)
+    --- PASS: TestUIAdapter_Confirm/YES (0.00s)
+    --- PASS: TestUIAdapter_Confirm/yes (0.00s)
+    --- PASS: TestUIAdapter_Confirm/No (0.00s)
+    --- PASS: TestUIAdapter_Confirm/NO (0.00s)
+    --- PASS: TestUIAdapter_Confirm/no (0.00s)
+    --- PASS: TestUIAdapter_Confirm/Empty (0.00s)
+    --- PASS: TestUIAdapter_Confirm/Other (0.00s)
+=== RUN   TestUIAdapter_Select
+--- PASS: TestUIAdapter_Select (0.00s)
+=== RUN   TestUIAdapter_MultiSelect
+--- PASS: TestUIAdapter_MultiSelect (0.00s)
+=== RUN   TestUIAdapter_Progress
+--- PASS: TestUIAdapter_Progress (0.00s)
+=== RUN   TestConsoleProgress_Error
+--- PASS: TestConsoleProgress_Error (0.00s)
+FAIL
+FAIL	github.com/taokim/muno/internal/adapters	3.367s
+=== RUN   TestWorkspaceHierarchy
+--- PASS: TestWorkspaceHierarchy (0.00s)
+=== RUN   TestRecursiveScopes
+--- PASS: TestRecursiveScopes (0.00s)
+=== RUN   TestSmartLoading
+=== RUN   TestSmartLoading/meta-repo_eager_by_default
+=== RUN   TestSmartLoading/monorepo_eager_by_pattern
+=== RUN   TestSmartLoading/service_lazy_by_default
+=== RUN   TestSmartLoading/explicit_lazy_override
+=== RUN   TestSmartLoading/explicit_eager_override
+--- PASS: TestSmartLoading (0.00s)
+    --- PASS: TestSmartLoading/meta-repo_eager_by_default (0.00s)
+    --- PASS: TestSmartLoading/monorepo_eager_by_pattern (0.00s)
+    --- PASS: TestSmartLoading/service_lazy_by_default (0.00s)
+    --- PASS: TestSmartLoading/explicit_lazy_override (0.00s)
+    --- PASS: TestSmartLoading/explicit_eager_override (0.00s)
+=== RUN   TestPerformanceOptimization
+--- PASS: TestPerformanceOptimization (0.00s)
+=== RUN   TestMetaRepoDetection
+=== RUN   TestMetaRepoDetection/backend-repo_suffix
+=== RUN   TestMetaRepoDetection/frontend-monorepo_suffix
+=== RUN   TestMetaRepoDetection/payments-rc_suffix
+=== RUN   TestMetaRepoDetection/platform-meta_suffix
+=== RUN   TestMetaRepoDetection/payment-service
+=== RUN   TestMetaRepoDetection/fraud-detection-api
+=== RUN   TestMetaRepoDetection/web-app
+=== RUN   TestMetaRepoDetection/utils
+=== RUN   TestMetaRepoDetection/repo-in-middle
+=== RUN   TestMetaRepoDetection/meta-in-middle
+=== RUN   TestMetaRepoDetection/UPPERCASE-REPO
+=== RUN   TestMetaRepoDetection/MixedCase-Meta
+--- PASS: TestMetaRepoDetection (0.00s)
+    --- PASS: TestMetaRepoDetection/backend-repo_suffix (0.00s)
+    --- PASS: TestMetaRepoDetection/frontend-monorepo_suffix (0.00s)
+    --- PASS: TestMetaRepoDetection/payments-rc_suffix (0.00s)
+    --- PASS: TestMetaRepoDetection/platform-meta_suffix (0.00s)
+    --- PASS: TestMetaRepoDetection/payment-service (0.00s)
+    --- PASS: TestMetaRepoDetection/fraud-detection-api (0.00s)
+    --- PASS: TestMetaRepoDetection/web-app (0.00s)
+    --- PASS: TestMetaRepoDetection/utils (0.00s)
+    --- PASS: TestMetaRepoDetection/repo-in-middle (0.00s)
+    --- PASS: TestMetaRepoDetection/meta-in-middle (0.00s)
+    --- PASS: TestMetaRepoDetection/UPPERCASE-REPO (0.00s)
+    --- PASS: TestMetaRepoDetection/MixedCase-Meta (0.00s)
+=== RUN   TestRepositoryIsLazy
+=== RUN   TestRepositoryIsLazy/meta-repo_is_eager
+=== RUN   TestRepositoryIsLazy/regular_repo_is_lazy
+=== RUN   TestRepositoryIsLazy/explicit_lazy_true
+=== RUN   TestRepositoryIsLazy/explicit_lazy_false
+--- PASS: TestRepositoryIsLazy (0.00s)
+    --- PASS: TestRepositoryIsLazy/meta-repo_is_eager (0.00s)
+    --- PASS: TestRepositoryIsLazy/regular_repo_is_lazy (0.00s)
+    --- PASS: TestRepositoryIsLazy/explicit_lazy_true (0.00s)
+    --- PASS: TestRepositoryIsLazy/explicit_lazy_false (0.00s)
+=== RUN   TestCustomPatterns
+=== RUN   TestCustomPatterns/backend-workspace
+=== RUN   TestCustomPatterns/payment-platform
+=== RUN   TestCustomPatterns/payment-service
+=== RUN   TestCustomPatterns/fraud-api
+=== RUN   TestCustomPatterns/common-lib
+=== RUN   TestCustomPatterns/random-name
+--- PASS: TestCustomPatterns (0.00s)
+    --- PASS: TestCustomPatterns/backend-workspace (0.00s)
+    --- PASS: TestCustomPatterns/payment-platform (0.00s)
+    --- PASS: TestCustomPatterns/payment-service (0.00s)
+    --- PASS: TestCustomPatterns/fraud-api (0.00s)
+    --- PASS: TestCustomPatterns/common-lib (0.00s)
+    --- PASS: TestCustomPatterns/random-name (0.00s)
+=== RUN   TestConfigValidation
+=== RUN   TestConfigValidation/valid_config
+=== RUN   TestConfigValidation/missing_workspace_name
+=== RUN   TestConfigValidation/no_repositories
+=== RUN   TestConfigValidation/invalid_regex_pattern
+--- PASS: TestConfigValidation (0.00s)
+    --- PASS: TestConfigValidation/valid_config (0.00s)
+    --- PASS: TestConfigValidation/missing_workspace_name (0.00s)
+    --- PASS: TestConfigValidation/no_repositories (0.00s)
+    --- PASS: TestConfigValidation/invalid_regex_pattern (0.00s)
+=== RUN   TestConfigYAML
+--- PASS: TestConfigYAML (0.00s)
+=== RUN   TestConfigSaveLoad
+--- PASS: TestConfigSaveLoad (0.00s)
+=== RUN   TestRecursiveWorkspaceDetection
+--- PASS: TestRecursiveWorkspaceDetection (0.00s)
+=== RUN   TestEmbeddedDefaults
+    defaults_test.go:25: 
+        	Error Trace:	/Users/musinsa/ws/muno/internal/config/defaults_test.go:25
+        	Error:      	[]string{"-monorepo", "-munorepo", "-muno", "-metarepo", "-workspace", "-root-repo"} does not contain "-platform"
+        	Test:       	TestEmbeddedDefaults
+--- FAIL: TestEmbeddedDefaults (0.00s)
+=== RUN   TestConfigurationOverride
+=== RUN   TestConfigurationOverride/empty_config_uses_defaults
+=== RUN   TestConfigurationOverride/partial_override_-_name_only
+=== RUN   TestConfigurationOverride/partial_override_-_repos_dir_only
+=== RUN   TestConfigurationOverride/full_override
+--- PASS: TestConfigurationOverride (0.00s)
+    --- PASS: TestConfigurationOverride/empty_config_uses_defaults (0.00s)
+    --- PASS: TestConfigurationOverride/partial_override_-_name_only (0.00s)
+    --- PASS: TestConfigurationOverride/partial_override_-_repos_dir_only (0.00s)
+    --- PASS: TestConfigurationOverride/full_override (0.00s)
+=== RUN   TestMergeWithDefaults
+=== RUN   TestMergeWithDefaults/nil_config_gets_defaults
+=== RUN   TestMergeWithDefaults/empty_config_gets_defaults
+=== RUN   TestMergeWithDefaults/partial_config_merges_with_defaults
+=== RUN   TestMergeWithDefaults/full_config_overrides_defaults
+--- PASS: TestMergeWithDefaults (0.00s)
+    --- PASS: TestMergeWithDefaults/nil_config_gets_defaults (0.00s)
+    --- PASS: TestMergeWithDefaults/empty_config_gets_defaults (0.00s)
+    --- PASS: TestMergeWithDefaults/partial_config_merges_with_defaults (0.00s)
+    --- PASS: TestMergeWithDefaults/full_config_overrides_defaults (0.00s)
+=== RUN   TestDefaultsYAMLParsing
+--- PASS: TestDefaultsYAMLParsing (0.00s)
+=== RUN   TestLoadState
+--- PASS: TestLoadState (0.00s)
+=== RUN   TestSaveState
+--- PASS: TestSaveState (0.00s)
+=== RUN   TestSetGetCurrentNode
+--- PASS: TestSetGetCurrentNode (0.00s)
+=== RUN   TestAddRemoveSession
+--- PASS: TestAddRemoveSession (0.00s)
+=== RUN   TestUpdateSessionActivity
+--- PASS: TestUpdateSessionActivity (2.00s)
+=== RUN   TestLoadStateWithInvalidJSON
+--- PASS: TestLoadStateWithInvalidJSON (0.00s)
+=== RUN   TestSaveStateWithInvalidPath
+--- PASS: TestSaveStateWithInvalidPath (0.00s)
+=== RUN   TestDefaultConfig
+--- PASS: TestDefaultConfig (0.00s)
+=== RUN   TestGetRepository
+--- PASS: TestGetRepository (0.00s)
+=== RUN   TestGetChildWorkspaces
+--- PASS: TestGetChildWorkspaces (0.00s)
+=== RUN   TestGetLocalRepositories
+--- PASS: TestGetLocalRepositories (0.00s)
+=== RUN   TestExtractRepoName
+=== RUN   TestExtractRepoName/https://github.com/org/repo.git
+=== RUN   TestExtractRepoName/https://github.com/org/repo
+=== RUN   TestExtractRepoName/git@github.com:org/repo.git
+=== RUN   TestExtractRepoName/repo.git
+=== RUN   TestExtractRepoName/repo
+=== RUN   TestExtractRepoName//path/to/repo
+=== RUN   TestExtractRepoName/#00
+--- PASS: TestExtractRepoName (0.00s)
+    --- PASS: TestExtractRepoName/https://github.com/org/repo.git (0.00s)
+    --- PASS: TestExtractRepoName/https://github.com/org/repo (0.00s)
+    --- PASS: TestExtractRepoName/git@github.com:org/repo.git (0.00s)
+    --- PASS: TestExtractRepoName/repo.git (0.00s)
+    --- PASS: TestExtractRepoName/repo (0.00s)
+    --- PASS: TestExtractRepoName//path/to/repo (0.00s)
+    --- PASS: TestExtractRepoName/#00 (0.00s)
+=== RUN   TestDefaultConfigTree
+--- PASS: TestDefaultConfigTree (0.00s)
+=== RUN   TestConfigTreeLoadSave
+--- PASS: TestConfigTreeLoadSave (0.00s)
+=== RUN   TestConfigTreeValidate
+=== RUN   TestConfigTreeValidate/valid_config
+=== RUN   TestConfigTreeValidate/empty_workspace_name
+=== RUN   TestConfigTreeValidate/empty_repos_dir
+=== RUN   TestConfigTreeValidate/node_with_both_URL_and_Config
+=== RUN   TestConfigTreeValidate/node_with_neither_URL_nor_Config
+=== RUN   TestConfigTreeValidate/node_without_name
+=== RUN   TestConfigTreeValidate/duplicate_node_names
+--- PASS: TestConfigTreeValidate (0.00s)
+    --- PASS: TestConfigTreeValidate/valid_config (0.00s)
+    --- PASS: TestConfigTreeValidate/empty_workspace_name (0.00s)
+    --- PASS: TestConfigTreeValidate/empty_repos_dir (0.00s)
+    --- PASS: TestConfigTreeValidate/node_with_both_URL_and_Config (0.00s)
+    --- PASS: TestConfigTreeValidate/node_with_neither_URL_nor_Config (0.00s)
+    --- PASS: TestConfigTreeValidate/node_without_name (0.00s)
+    --- PASS: TestConfigTreeValidate/duplicate_node_names (0.00s)
+=== RUN   TestGetReposDir
+--- PASS: TestGetReposDir (0.00s)
+=== RUN   TestLoadTreeWithInvalidFile
+--- PASS: TestLoadTreeWithInvalidFile (0.00s)
+FAIL
+FAIL	github.com/taokim/muno/internal/config	2.825s
+?   	github.com/taokim/muno/internal/constants	[no test files]
+=== RUN   TestDefaultExecutorOptions
+--- PASS: TestDefaultExecutorOptions (0.00s)
+=== RUN   TestBuildTargetPaths
+=== RUN   TestBuildTargetPaths/include_root
+  ⚠️  repo3: not cloned, skipping
+=== RUN   TestBuildTargetPaths/exclude_root
+  ⚠️  repo3: not cloned, skipping
+=== RUN   TestBuildTargetPaths/no_root_option
+  ⚠️  repo3: not cloned, skipping
+--- PASS: TestBuildTargetPaths (0.00s)
+    --- PASS: TestBuildTargetPaths/include_root (0.00s)
+    --- PASS: TestBuildTargetPaths/exclude_root (0.00s)
+    --- PASS: TestBuildTargetPaths/no_root_option (0.00s)
+=== RUN   TestExecuteCommand
+--- PASS: TestExecuteCommand (0.11s)
+=== RUN   TestExecuteInRepos_NoRepos
+--- PASS: TestExecuteInRepos_NoRepos (0.00s)
+=== RUN   TestExecuteInRepos_Parallel
+--- PASS: TestExecuteInRepos_Parallel (0.28s)
+=== RUN   TestExecuteInRepos_Sequential
+--- PASS: TestExecuteInRepos_Sequential (0.07s)
+=== RUN   TestCommit
+📝 Found changes in 1 repositories: repo1
+
+➕ Adding changes...
+
+💾 Committing with message: "Test commit"
+--- PASS: TestCommit (0.10s)
+=== RUN   TestForAllWithOptions
+🔧 Running: git status -s
+   Including root repository
+   Targets: 1 repositories
+   Mode: Parallel (max 4)
+============================================================
+  → repo1: ✅
+============================================================
+📊 Summary: 1 succeeded, 0 failed (total: 1)
+🔧 Running command in all repositories: echo test
+
+[repo1]
+test
+--- PASS: TestForAllWithOptions (0.07s)
+=== RUN   TestManager_Construction
+--- PASS: TestManager_Construction (0.00s)
+=== RUN   TestCloneRepo_ExistingRepo
+  ✓ test (already exists)
+--- PASS: TestCloneRepo_ExistingRepo (0.00s)
+=== RUN   TestGetRepoStatus_NotExist
+--- PASS: TestGetRepoStatus_NotExist (0.00s)
+=== RUN   TestStatus_Concurrent
+--- PASS: TestStatus_Concurrent (0.03s)
+=== RUN   TestClone_Errors
+  → Cloning fail2...
+  → Cloning fail1...
+fatal: 'bad-url' 저장소가 없습니다
+fatal: 'bad-url' 저장소가 없습니다
+--- PASS: TestClone_Errors (0.01s)
+=== RUN   TestSync_MixedRepos
+🔄 Syncing repositories...
+  → Cloning new...
+fatal: 'bad-url' 저장소가 없습니다
+--- PASS: TestSync_MixedRepos (0.01s)
+=== RUN   TestForAll_HandlesErrors
+🔧 Running command in all repositories: false 
+
+[exists]
+  ❌ Error: exit status 1
+  ⚠️  missing: not cloned
+--- PASS: TestForAll_HandlesErrors (0.00s)
+=== RUN   TestGetRepositories_Immutable
+--- PASS: TestGetRepositories_Immutable (0.00s)
+=== RUN   TestCloneRepo_DirectoryCreation
+  → Cloning nested...
+fatal: 'url' 저장소가 없습니다
+--- PASS: TestCloneRepo_DirectoryCreation (0.01s)
+=== RUN   TestSyncRepo_CloneIfMissing
+  → Cloning new...
+fatal: 'url' 저장소가 없습니다
+--- PASS: TestSyncRepo_CloneIfMissing (0.01s)
+=== RUN   TestClone_ErrorAggregation
+  → Cloning repo4...
+  → Cloning repo1...
+  → Cloning repo2...
+  → Cloning repo3...
+  → Cloning repo0...
+fatal: 'bad-url' 저장소가 없습니다
+fatal: 'bad-url' 저장소가 없습니다
+fatal: 'bad-url' 저장소가 없습니다
+fatal: 'bad-url' 저장소가 없습니다
+fatal: 'bad-url' 저장소가 없습니다
+--- PASS: TestClone_ErrorAggregation (0.01s)
+=== RUN   TestRepository_AllFields
+--- PASS: TestRepository_AllFields (0.00s)
+=== RUN   TestStatus_AllFields
+--- PASS: TestStatus_AllFields (0.00s)
+=== RUN   TestCloneMissing
+🔍 Checking for missing repositories...
+  → Cloning missing...
+  → Cloning existing...
+'/var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestCloneMissing4192655127/001/missing'에 복제합니다...
+'/var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestCloneMissing4192655127/001/existing'에 복제합니다...
+fatal: repository 'https://example.com/missing.git/' not found
+fatal: repository 'https://example.com/existing.git/' not found
+--- PASS: TestCloneMissing (0.70s)
+=== RUN   TestPush
+⬆️  Pushing to remote repositories...
+  ⚠️  repo1: not cloned, skipping
+--- PASS: TestPush (0.00s)
+=== RUN   TestPushWithOptions
+⬆️  Pushing to origin main...
+🔧 Running: git push origin main
+   Targets: 1 repositories
+   Mode: Sequential
+============================================================
+  → repo1: ❌
+============================================================
+📊 Summary: 0 succeeded, 1 failed (total: 1)
+
+❌ Failed repositories:
+  - repo1: exit status 1
+--- PASS: TestPushWithOptions (0.03s)
+=== RUN   TestPull
+⬇️  Pulling from remote repositories...
+  ⚠️  repo1: not cloned, skipping
+--- PASS: TestPull (0.00s)
+=== RUN   TestPullWithOptions
+⬇️  Pulling from remote repositories...
+🔧 Running: git pull 
+   Targets: 1 repositories
+   Mode: Sequential
+============================================================
+  → repo1: ❌
+============================================================
+📊 Summary: 0 succeeded, 1 failed (total: 1)
+
+❌ Failed repositories:
+  - repo1: exit status 1
+--- PASS: TestPullWithOptions (0.05s)
+=== RUN   TestFetch
+🔄 Fetching from remote repositories...
+  ⚠️  repo1: not cloned, skipping
+--- PASS: TestFetch (0.00s)
+=== RUN   TestFetchWithOptions
+🔄 Fetching from remote repositories...
+🔧 Running: git fetch --all
+   Targets: 1 repositories
+   Mode: Sequential
+============================================================
+  → repo1: ✅
+============================================================
+📊 Summary: 1 succeeded, 0 failed (total: 1)
+--- PASS: TestFetchWithOptions (0.04s)
+=== RUN   TestDefaultCommandRunner
+=== RUN   TestDefaultCommandRunner/Run_command
+=== RUN   TestDefaultCommandRunner/Run_invalid_command
+=== RUN   TestDefaultCommandRunner/Output_command
+=== RUN   TestDefaultCommandRunner/Output_invalid_command
+=== RUN   TestDefaultCommandRunner/CombinedOutput_command
+=== RUN   TestDefaultCommandRunner/CombinedOutput_invalid_command
+--- PASS: TestDefaultCommandRunner (0.01s)
+    --- PASS: TestDefaultCommandRunner/Run_command (0.00s)
+    --- PASS: TestDefaultCommandRunner/Run_invalid_command (0.00s)
+    --- PASS: TestDefaultCommandRunner/Output_command (0.00s)
+    --- PASS: TestDefaultCommandRunner/Output_invalid_command (0.00s)
+    --- PASS: TestDefaultCommandRunner/CombinedOutput_command (0.00s)
+    --- PASS: TestDefaultCommandRunner/CombinedOutput_invalid_command (0.00s)
+=== RUN   TestDefaultFileChecker
+=== RUN   TestDefaultFileChecker/FileExists_with_existing_file
+=== RUN   TestDefaultFileChecker/FileExists_with_non-existent_file
+=== RUN   TestDefaultFileChecker/FileExists_with_directory
+=== RUN   TestDefaultFileChecker/DirExists_with_existing_directory
+=== RUN   TestDefaultFileChecker/DirExists_with_non-existent_directory
+=== RUN   TestDefaultFileChecker/DirExists_with_file
+--- PASS: TestDefaultFileChecker (0.00s)
+    --- PASS: TestDefaultFileChecker/FileExists_with_existing_file (0.00s)
+    --- PASS: TestDefaultFileChecker/FileExists_with_non-existent_file (0.00s)
+    --- PASS: TestDefaultFileChecker/FileExists_with_directory (0.00s)
+    --- PASS: TestDefaultFileChecker/DirExists_with_existing_directory (0.00s)
+    --- PASS: TestDefaultFileChecker/DirExists_with_non-existent_directory (0.00s)
+    --- PASS: TestDefaultFileChecker/DirExists_with_file (0.00s)
+=== RUN   TestInterfaceImplementation
+=== RUN   TestInterfaceImplementation/MockCommandRunner
+=== RUN   TestInterfaceImplementation/MockFileChecker
+--- PASS: TestInterfaceImplementation (0.00s)
+    --- PASS: TestInterfaceImplementation/MockCommandRunner (0.00s)
+    --- PASS: TestInterfaceImplementation/MockFileChecker (0.00s)
+=== RUN   TestMockGit
+=== RUN   TestMockGit/Clone
+=== RUN   TestMockGit/Pull
+=== RUN   TestMockGit/Status
+=== RUN   TestMockGit/Commit
+=== RUN   TestMockGit/Push
+=== RUN   TestMockGit/Add
+--- PASS: TestMockGit (0.00s)
+    --- PASS: TestMockGit/Clone (0.00s)
+    --- PASS: TestMockGit/Pull (0.00s)
+    --- PASS: TestMockGit/Status (0.00s)
+    --- PASS: TestMockGit/Commit (0.00s)
+    --- PASS: TestMockGit/Push (0.00s)
+    --- PASS: TestMockGit/Add (0.00s)
+=== RUN   TestGit_Simple
+=== RUN   TestGit_Simple/Clone
+=== RUN   TestGit_Simple/Pull
+=== RUN   TestGit_Simple/Add
+=== RUN   TestGit_Simple/Commit
+=== RUN   TestGit_Simple/Push
+=== RUN   TestGit_Simple/Status
+=== RUN   TestGit_Simple/Status_with_non-git_directory
+--- PASS: TestGit_Simple (0.51s)
+    --- PASS: TestGit_Simple/Clone (0.29s)
+    --- PASS: TestGit_Simple/Pull (0.04s)
+    --- PASS: TestGit_Simple/Add (0.04s)
+    --- PASS: TestGit_Simple/Commit (0.06s)
+    --- PASS: TestGit_Simple/Push (0.03s)
+    --- PASS: TestGit_Simple/Status (0.04s)
+    --- PASS: TestGit_Simple/Status_with_non-git_directory (0.01s)
+=== RUN   TestGit_GetRemotes
+=== RUN   TestGit_GetRemotes/GetRemotes_with_valid_repo
+=== RUN   TestGit_GetRemotes/GetRemotes_with_no_remotes
+=== RUN   TestGit_GetRemotes/GetRemotes_with_non-git_directory
+--- PASS: TestGit_GetRemotes (0.08s)
+    --- PASS: TestGit_GetRemotes/GetRemotes_with_valid_repo (0.04s)
+    --- PASS: TestGit_GetRemotes/GetRemotes_with_no_remotes (0.03s)
+    --- PASS: TestGit_GetRemotes/GetRemotes_with_non-git_directory (0.01s)
+=== RUN   TestGit_CurrentBranch
+=== RUN   TestGit_CurrentBranch/CurrentBranch_with_valid_repo
+=== RUN   TestGit_CurrentBranch/CurrentBranch_with_detached_HEAD
+=== RUN   TestGit_CurrentBranch/CurrentBranch_with_non-git_directory
+--- PASS: TestGit_CurrentBranch (0.10s)
+    --- PASS: TestGit_CurrentBranch/CurrentBranch_with_valid_repo (0.06s)
+    --- PASS: TestGit_CurrentBranch/CurrentBranch_with_detached_HEAD (0.03s)
+    --- PASS: TestGit_CurrentBranch/CurrentBranch_with_non-git_directory (0.01s)
+PASS
+ok  	github.com/taokim/muno/internal/git	(cached)
+?   	github.com/taokim/muno/internal/interfaces	[no test files]
+=== RUN   TestGitProviderAdapter
+=== RUN   TestGitProviderAdapter/Clone
+=== RUN   TestGitProviderAdapter/Pull
+=== RUN   TestGitProviderAdapter/Push
+=== RUN   TestGitProviderAdapter/Status
+=== RUN   TestGitProviderAdapter/Commit
+=== RUN   TestGitProviderAdapter/Add
+=== RUN   TestGitProviderAdapter/GetRemoteURL
+=== RUN   TestGitProviderAdapter/Branch
+=== RUN   TestGitProviderAdapter/Checkout
+=== RUN   TestGitProviderAdapter/Fetch
+=== RUN   TestGitProviderAdapter/Remove
+=== RUN   TestGitProviderAdapter/SetRemoteURL
+--- PASS: TestGitProviderAdapter (0.00s)
+    --- PASS: TestGitProviderAdapter/Clone (0.00s)
+    --- PASS: TestGitProviderAdapter/Pull (0.00s)
+    --- PASS: TestGitProviderAdapter/Push (0.00s)
+    --- PASS: TestGitProviderAdapter/Status (0.00s)
+    --- PASS: TestGitProviderAdapter/Commit (0.00s)
+    --- PASS: TestGitProviderAdapter/Add (0.00s)
+    --- PASS: TestGitProviderAdapter/GetRemoteURL (0.00s)
+    --- PASS: TestGitProviderAdapter/Branch (0.00s)
+    --- PASS: TestGitProviderAdapter/Checkout (0.00s)
+    --- PASS: TestGitProviderAdapter/Fetch (0.00s)
+    --- PASS: TestGitProviderAdapter/Remove (0.00s)
+    --- PASS: TestGitProviderAdapter/SetRemoteURL (0.00s)
+=== RUN   TestGitProviderAdapterWithNilGit
+=== RUN   TestGitProviderAdapterWithNilGit/Status_with_nil_git
+--- PASS: TestGitProviderAdapterWithNilGit (0.00s)
+    --- PASS: TestGitProviderAdapterWithNilGit/Status_with_nil_git (0.00s)
+=== RUN   TestTreeProviderAdapter
+=== RUN   TestTreeProviderAdapter/Load
+--- PASS: TestTreeProviderAdapter (0.00s)
+    --- PASS: TestTreeProviderAdapter/Load (0.00s)
+=== RUN   TestManager_StartAgent
+=== RUN   TestManager_StartAgent/successful_start_with_claude
+[WARN] Not running in a terminal. Some agents may not work properly.
+[WARN] Consider using --print flag for non-interactive mode if supported by the agent.
+    manager_additional_test.go:181: 
+        	Error Trace:	/Users/musinsa/ws/muno/internal/manager/manager_additional_test.go:181
+        	Error:      	Received unexpected error:
+        	            	failed to run claude: chdir /workspace/repos/test/repo: no such file or directory
+        	Test:       	TestManager_StartAgent/successful_start_with_claude
+=== RUN   TestManager_StartAgent/successful_start_with_gemini
+[WARN] Not running in a terminal. Some agents may not work properly.
+[WARN] Consider using --print flag for non-interactive mode if supported by the agent.
+    manager_additional_test.go:181: 
+        	Error Trace:	/Users/musinsa/ws/muno/internal/manager/manager_additional_test.go:181
+        	Error:      	Received unexpected error:
+        	            	failed to run gemini: chdir /workspace/repos/test/repo: no such file or directory
+        	Test:       	TestManager_StartAgent/successful_start_with_gemini
+=== RUN   TestManager_StartAgent/default_to_claude_when_agent_not_specified
+[WARN] Not running in a terminal. Some agents may not work properly.
+[WARN] Consider using --print flag for non-interactive mode if supported by the agent.
+    manager_additional_test.go:181: 
+        	Error Trace:	/Users/musinsa/ws/muno/internal/manager/manager_additional_test.go:181
+        	Error:      	Received unexpected error:
+        	            	failed to run claude: chdir /workspace/repos/test/repo: no such file or directory
+        	Test:       	TestManager_StartAgent/default_to_claude_when_agent_not_specified
+=== RUN   TestManager_StartAgent/successful_with_agent_args
+[WARN] Not running in a terminal. Some agents may not work properly.
+[WARN] Consider using --print flag for non-interactive mode if supported by the agent.
+    manager_additional_test.go:181: 
+        	Error Trace:	/Users/musinsa/ws/muno/internal/manager/manager_additional_test.go:181
+        	Error:      	Received unexpected error:
+        	            	failed to run gemini: chdir /workspace/repos/test/repo: no such file or directory
+        	Test:       	TestManager_StartAgent/successful_with_agent_args
+=== RUN   TestManager_StartAgent/successful_without_path_uses_current
+[WARN] Not running in a terminal. Some agents may not work properly.
+[WARN] Consider using --print flag for non-interactive mode if supported by the agent.
+    manager_additional_test.go:181: 
+        	Error Trace:	/Users/musinsa/ws/muno/internal/manager/manager_additional_test.go:181
+        	Error:      	Received unexpected error:
+        	            	failed to run claude: chdir /workspace/repos/current/node: no such file or directory
+        	Test:       	TestManager_StartAgent/successful_without_path_uses_current
+=== RUN   TestManager_StartAgent/fails_when_not_initialized
+=== RUN   TestManager_StartAgent/fails_when_getting_current_node_fails
+[WARN] Not running in a terminal. Some agents may not work properly.
+[WARN] Consider using --print flag for non-interactive mode if supported by the agent.
+    manager_additional_test.go:178: 
+        	Error Trace:	/Users/musinsa/ws/muno/internal/manager/manager_additional_test.go:178
+        	Error:      	"failed to run claude: chdir /workspace: no such file or directory" does not contain "getting current node"
+        	Test:       	TestManager_StartAgent/fails_when_getting_current_node_fails
+=== RUN   TestManager_StartAgent/fails_when_getting_node_fails
+=== RUN   TestManager_StartAgent/fails_when_execute_shell_fails
+[WARN] Not running in a terminal. Some agents may not work properly.
+[WARN] Consider using --print flag for non-interactive mode if supported by the agent.
+    manager_additional_test.go:178: 
+        	Error Trace:	/Users/musinsa/ws/muno/internal/manager/manager_additional_test.go:178
+        	Error:      	"failed to run cursor: chdir /workspace/repos/test/repo: no such file or directory" does not contain "starting cursor"
+        	Test:       	TestManager_StartAgent/fails_when_execute_shell_fails
+=== RUN   TestManager_StartAgent/fails_when_exit_code_is_non-zero
+[WARN] Not running in a terminal. Some agents may not work properly.
+[WARN] Consider using --print flag for non-interactive mode if supported by the agent.
+    manager_additional_test.go:178: 
+        	Error Trace:	/Users/musinsa/ws/muno/internal/manager/manager_additional_test.go:178
+        	Error:      	"failed to run copilot: chdir /workspace/repos/test/repo: no such file or directory" does not contain "copilot exited with code 1"
+        	Test:       	TestManager_StartAgent/fails_when_exit_code_is_non-zero
+--- FAIL: TestManager_StartAgent (0.00s)
+    --- FAIL: TestManager_StartAgent/successful_start_with_claude (0.00s)
+    --- FAIL: TestManager_StartAgent/successful_start_with_gemini (0.00s)
+    --- FAIL: TestManager_StartAgent/default_to_claude_when_agent_not_specified (0.00s)
+    --- FAIL: TestManager_StartAgent/successful_with_agent_args (0.00s)
+    --- FAIL: TestManager_StartAgent/successful_without_path_uses_current (0.00s)
+    --- PASS: TestManager_StartAgent/fails_when_not_initialized (0.00s)
+    --- FAIL: TestManager_StartAgent/fails_when_getting_current_node_fails (0.00s)
+    --- PASS: TestManager_StartAgent/fails_when_getting_node_fails (0.00s)
+    --- FAIL: TestManager_StartAgent/fails_when_execute_shell_fails (0.00s)
+    --- FAIL: TestManager_StartAgent/fails_when_exit_code_is_non-zero (0.00s)
+=== RUN   TestManager_StartClaude
+=== RUN   TestManager_StartClaude/successful_start_with_path
+=== RUN   TestManager_StartClaude/successful_start_without_path_uses_current
+=== RUN   TestManager_StartClaude/fails_when_not_initialized
+=== RUN   TestManager_StartClaude/fails_when_getting_current_node_fails
+=== RUN   TestManager_StartClaude/fails_when_getting_node_fails
+=== RUN   TestManager_StartClaude/fails_when_execute_shell_fails
+=== RUN   TestManager_StartClaude/fails_when_exit_code_is_non-zero
+--- PASS: TestManager_StartClaude (0.00s)
+    --- PASS: TestManager_StartClaude/successful_start_with_path (0.00s)
+    --- PASS: TestManager_StartClaude/successful_start_without_path_uses_current (0.00s)
+    --- PASS: TestManager_StartClaude/fails_when_not_initialized (0.00s)
+    --- PASS: TestManager_StartClaude/fails_when_getting_current_node_fails (0.00s)
+    --- PASS: TestManager_StartClaude/fails_when_getting_node_fails (0.00s)
+    --- PASS: TestManager_StartClaude/fails_when_execute_shell_fails (0.00s)
+    --- PASS: TestManager_StartClaude/fails_when_exit_code_is_non-zero (0.00s)
+=== RUN   TestManager_Close_Extended
+=== RUN   TestManager_Close_Extended/successful_close_without_plugins
+=== RUN   TestManager_Close_Extended/close_with_plugin_unload_error
+[WARN] Failed to unload plugin
+=== RUN   TestManager_Close_Extended/close_with_metrics_flush_error
+[WARN] Failed to flush metrics
+=== RUN   TestManager_Close_Extended/close_with_both_errors
+[WARN] Failed to unload plugin
+[WARN] Failed to flush metrics
+=== RUN   TestManager_Close_Extended/close_with_nil_providers
+=== RUN   TestManager_Close_Extended/nil_providers
+--- PASS: TestManager_Close_Extended (0.00s)
+    --- PASS: TestManager_Close_Extended/successful_close_without_plugins (0.00s)
+    --- PASS: TestManager_Close_Extended/close_with_plugin_unload_error (0.00s)
+    --- PASS: TestManager_Close_Extended/close_with_metrics_flush_error (0.00s)
+    --- PASS: TestManager_Close_Extended/close_with_both_errors (0.00s)
+    --- PASS: TestManager_Close_Extended/close_with_nil_providers (0.00s)
+    --- PASS: TestManager_Close_Extended/nil_providers (0.00s)
+=== RUN   TestManager_ClearCurrent
+=== RUN   TestManager_ClearCurrent/successful_clear
+=== RUN   TestManager_ClearCurrent/fails_when_not_initialized
+    manager_additional_test.go:570: 
+        	Error Trace:	/Users/musinsa/ws/muno/internal/manager/manager_additional_test.go:570
+        	Error:      	An error is expected but got nil.
+        	Test:       	TestManager_ClearCurrent/fails_when_not_initialized
+--- FAIL: TestManager_ClearCurrent (0.00s)
+    --- PASS: TestManager_ClearCurrent/successful_clear (0.00s)
+    --- FAIL: TestManager_ClearCurrent/fails_when_not_initialized (0.00s)
+panic: runtime error: invalid memory address or nil pointer dereference [recovered, repanicked]
+[signal SIGSEGV: segmentation violation code=0x2 addr=0x0 pc=0x101543878]
+
+goroutine 52 [running]:
+testing.tRunner.func1.2({0x101755aa0, 0x101ceff30})
+	/opt/homebrew/Cellar/go/1.25.1/libexec/src/testing/testing.go:1872 +0x190
+testing.tRunner.func1()
+	/opt/homebrew/Cellar/go/1.25.1/libexec/src/testing/testing.go:1875 +0x31c
+panic({0x101755aa0?, 0x101ceff30?})
+	/opt/homebrew/Cellar/go/1.25.1/libexec/src/runtime/panic.go:783 +0x120
+github.com/taokim/muno/internal/manager.TestManager_ClearCurrent.func1(0x14000272fc0)
+	/Users/musinsa/ws/muno/internal/manager/manager_additional_test.go:572 +0xe8
+testing.tRunner(0x14000272fc0, 0x14000268960)
+	/opt/homebrew/Cellar/go/1.25.1/libexec/src/testing/testing.go:1934 +0xc8
+created by testing.(*T).Run in goroutine 50
+	/opt/homebrew/Cellar/go/1.25.1/libexec/src/testing/testing.go:1997 +0x364
+FAIL	github.com/taokim/muno/internal/manager	1.579s
+?   	github.com/taokim/muno/internal/mocks	[no test files]
+?   	github.com/taokim/muno/internal/plugin	[no test files]
+=== RUN   TestStatelessManager_MoreMethods
+=== RUN   TestStatelessManager_MoreMethods/GetNodeByPath_with_nested_path_parts
+=== RUN   TestStatelessManager_MoreMethods/UseNode_with_auto-clone
+Auto-cloning repository: repo1
+=== RUN   TestStatelessManager_MoreMethods/UseNode_with_relative_path
+=== RUN   TestStatelessManager_MoreMethods/AddRepo_non-lazy_with_clone
+Cloning https://github.com/test/new.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_MoreMethods187691272/001/new-repo
+=== RUN   TestStatelessManager_MoreMethods/RemoveNode_removes_from_filesystem
+=== RUN   TestStatelessManager_MoreMethods/RemoveNode_with_empty_path_parts
+=== RUN   TestStatelessManager_MoreMethods/ListChildren_for_nested_path
+=== RUN   TestStatelessManager_MoreMethods/DisplayStatus_with_various_states
+=== RUN   TestStatelessManager_MoreMethods/DisplayTree_with_modified_repos
+=== RUN   TestStatelessManager_MoreMethods/DisplayTree_with_config_reference
+=== RUN   TestStatelessManager_MoreMethods/CloneLazyRepos_with_recursive_and_config
+Cloning https://github.com/test/repo2.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_MoreMethods187691272/001/repo2
+Cloning https://github.com/test/new.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_MoreMethods187691272/001/new-repo
+Cloning https://github.com/test/with-config.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_MoreMethods187691272/001/with-config
+--- PASS: TestStatelessManager_MoreMethods (0.04s)
+    --- PASS: TestStatelessManager_MoreMethods/GetNodeByPath_with_nested_path_parts (0.00s)
+    --- PASS: TestStatelessManager_MoreMethods/UseNode_with_auto-clone (0.00s)
+    --- PASS: TestStatelessManager_MoreMethods/UseNode_with_relative_path (0.00s)
+    --- PASS: TestStatelessManager_MoreMethods/AddRepo_non-lazy_with_clone (0.00s)
+    --- PASS: TestStatelessManager_MoreMethods/RemoveNode_removes_from_filesystem (0.00s)
+    --- PASS: TestStatelessManager_MoreMethods/RemoveNode_with_empty_path_parts (0.00s)
+    --- PASS: TestStatelessManager_MoreMethods/ListChildren_for_nested_path (0.00s)
+    --- PASS: TestStatelessManager_MoreMethods/DisplayStatus_with_various_states (0.01s)
+    --- PASS: TestStatelessManager_MoreMethods/DisplayTree_with_modified_repos (0.01s)
+    --- PASS: TestStatelessManager_MoreMethods/DisplayTree_with_config_reference (0.01s)
+    --- PASS: TestStatelessManager_MoreMethods/CloneLazyRepos_with_recursive_and_config (0.00s)
+=== RUN   TestConfigResolver_Basic
+--- PASS: TestConfigResolver_Basic (0.00s)
+=== RUN   TestGetRepoState_EdgeCases
+=== RUN   TestGetRepoState_EdgeCases/Empty_path
+=== RUN   TestGetRepoState_EdgeCases/Non-existent_path
+=== RUN   TestGetRepoState_EdgeCases/Path_without_.git
+=== RUN   TestGetRepoState_EdgeCases/Path_with_.git_directory
+--- PASS: TestGetRepoState_EdgeCases (0.06s)
+    --- PASS: TestGetRepoState_EdgeCases/Empty_path (0.00s)
+    --- PASS: TestGetRepoState_EdgeCases/Non-existent_path (0.00s)
+    --- PASS: TestGetRepoState_EdgeCases/Path_without_.git (0.00s)
+    --- PASS: TestGetRepoState_EdgeCases/Path_with_.git_directory (0.05s)
+=== RUN   TestTreeHelpers
+=== RUN   TestTreeHelpers/GetConfigRefStatus
+=== RUN   TestTreeHelpers/CreateConfigRefMarker
+--- PASS: TestTreeHelpers (0.00s)
+    --- PASS: TestTreeHelpers/GetConfigRefStatus (0.00s)
+    --- PASS: TestTreeHelpers/CreateConfigRefMarker (0.00s)
+=== RUN   TestDisplayMethods
+Cloning https://github.com/test/repo1.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestDisplayMethods3148832411/001/repo1
+Cloning https://github.com/test/nested.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestDisplayMethods3148832411/001/repo1/nested
+=== RUN   TestDisplayMethods/DisplayTree
+=== RUN   TestDisplayMethods/DisplayTreeWithDepth
+=== RUN   TestDisplayMethods/DisplayStatus
+=== RUN   TestDisplayMethods/DisplayPath
+Auto-cloning repository: repo1
+=== RUN   TestDisplayMethods/DisplayChildren
+--- PASS: TestDisplayMethods (0.00s)
+    --- PASS: TestDisplayMethods/DisplayTree (0.00s)
+    --- PASS: TestDisplayMethods/DisplayTreeWithDepth (0.00s)
+    --- PASS: TestDisplayMethods/DisplayStatus (0.00s)
+    --- PASS: TestDisplayMethods/DisplayPath (0.00s)
+    --- PASS: TestDisplayMethods/DisplayChildren (0.00s)
+=== RUN   TestCustomReposDir
+    manager_config_test.go:50: 
+        	Error Trace:	/Users/musinsa/ws/muno/internal/tree/manager_config_test.go:50
+        	Error:      	Not equal: 
+        	            	expected: "/var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestCustomReposDir3370180885/001/repositories/level1/repositories/level2"
+        	            	actual  : "/var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestCustomReposDir3370180885/001/repositories/level1/level2"
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1 +1 @@
+        	            	-/var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestCustomReposDir3370180885/001/repositories/level1/repositories/level2
+        	            	+/var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestCustomReposDir3370180885/001/repositories/level1/level2
+        	Test:       	TestCustomReposDir
+        	Messages:   	Path for /level1/level2 should use custom repos_dir 'repositories'
+    manager_config_test.go:50: 
+        	Error Trace:	/Users/musinsa/ws/muno/internal/tree/manager_config_test.go:50
+        	Error:      	Not equal: 
+        	            	expected: "/var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestCustomReposDir3370180885/001/repositories/a/repositories/b/repositories/c"
+        	            	actual  : "/var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestCustomReposDir3370180885/001/repositories/a/b/c"
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1 +1 @@
+        	            	-/var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestCustomReposDir3370180885/001/repositories/a/repositories/b/repositories/c
+        	            	+/var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestCustomReposDir3370180885/001/repositories/a/b/c
+        	Test:       	TestCustomReposDir
+        	Messages:   	Path for /a/b/c should use custom repos_dir 'repositories'
+--- FAIL: TestCustomReposDir (0.00s)
+=== RUN   TestStatelessManagerCustomReposDir
+--- PASS: TestStatelessManagerCustomReposDir (0.00s)
+=== RUN   TestManagerGetters
+=== RUN   TestManagerGetters/GetCurrentPath
+=== RUN   TestManagerGetters/GetNode
+=== RUN   TestManagerGetters/GetState
+--- PASS: TestManagerGetters (0.00s)
+    --- PASS: TestManagerGetters/GetCurrentPath (0.00s)
+    --- PASS: TestManagerGetters/GetNode (0.00s)
+    --- PASS: TestManagerGetters/GetState (0.00s)
+=== RUN   TestManagerListChildren
+Cloning https://github.com/test/child1.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestManagerListChildren718865693/001/repos/child1
+=== RUN   TestManagerListChildren/ListChildrenOfRoot
+=== RUN   TestManagerListChildren/ListChildrenOfCurrentNode
+=== RUN   TestManagerListChildren/ListChildrenOfNonExistentNode
+--- PASS: TestManagerListChildren (0.00s)
+    --- PASS: TestManagerListChildren/ListChildrenOfRoot (0.00s)
+    --- PASS: TestManagerListChildren/ListChildrenOfCurrentNode (0.00s)
+    --- PASS: TestManagerListChildren/ListChildrenOfNonExistentNode (0.00s)
+=== RUN   TestManagerCloneLazyRepos
+=== RUN   TestManagerCloneLazyRepos/CloneCurrentNodeNonRecursive
+Cloning https://github.com/test/lazy1.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestManagerCloneLazyRepos2478193739/001/lazy1
+Cloning https://github.com/test/non-lazy.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestManagerCloneLazyRepos2478193739/001/non-lazy
+=== RUN   TestManagerCloneLazyRepos/CloneRecursive
+--- PASS: TestManagerCloneLazyRepos (0.00s)
+    --- PASS: TestManagerCloneLazyRepos/CloneCurrentNodeNonRecursive (0.00s)
+    --- PASS: TestManagerCloneLazyRepos/CloneRecursive (0.00s)
+=== RUN   TestManagerRemoveNodeEdgeCases
+=== RUN   TestManagerRemoveNodeEdgeCases/RemoveRootNode
+=== RUN   TestManagerRemoveNodeEdgeCases/RemoveNonExistentNode
+=== RUN   TestManagerRemoveNodeEdgeCases/RemoveNodeWithCurrentInside
+Cloning https://github.com/test/parent.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestManagerRemoveNodeEdgeCases3247601162/001/repos/parent
+Cloning https://github.com/test/child.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestManagerRemoveNodeEdgeCases3247601162/001/repos/parent/child
+Warning: Repository added to memory but not persisted (non-root additions not yet supported)
+--- PASS: TestManagerRemoveNodeEdgeCases (0.00s)
+    --- PASS: TestManagerRemoveNodeEdgeCases/RemoveRootNode (0.00s)
+    --- PASS: TestManagerRemoveNodeEdgeCases/RemoveNonExistentNode (0.00s)
+    --- PASS: TestManagerRemoveNodeEdgeCases/RemoveNodeWithCurrentInside (0.00s)
+=== RUN   TestManagerStateFileOperations
+Cloning https://github.com/test/repo1.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestManagerStateFileOperations1586728080/001/repos/repo1
+Cloning repo1 from https://github.com/test/repo1.git...
+--- PASS: TestManagerStateFileOperations (0.00s)
+=== RUN   TestManagerPathNormalization
+Cloning https://github.com/test/level1.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestManagerPathNormalization3069328451/001/repos/level1
+Cloning https://github.com/test/level2.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestManagerPathNormalization3069328451/001/repos/level1/level2
+Warning: Repository added to memory but not persisted (non-root additions not yet supported)
+=== RUN   TestManagerPathNormalization/RelativePathNavigation
+=== RUN   TestManagerPathNormalization/AddRepoWithRelativePath
+Cloning https://github.com/test/level3.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestManagerPathNormalization3069328451/001/repos/level1/level2/level3
+Warning: Repository added to memory but not persisted (non-root additions not yet supported)
+=== RUN   TestManagerPathNormalization/RemoveWithRelativePath
+Warning: Repository removed from memory but not persisted (non-root removals not yet supported)
+--- PASS: TestManagerPathNormalization (0.01s)
+    --- PASS: TestManagerPathNormalization/RelativePathNavigation (0.00s)
+    --- PASS: TestManagerPathNormalization/AddRepoWithRelativePath (0.00s)
+    --- PASS: TestManagerPathNormalization/RemoveWithRelativePath (0.00s)
+=== RUN   TestManagerErrorConditions
+=== RUN   TestManagerErrorConditions/AddDuplicateChild
+Cloning https://github.com/test/child1.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestManagerErrorConditions4222438033/001/repos/child
+=== RUN   TestManagerErrorConditions/NavigateToLazyRepoWithAutoClone
+Auto-cloning lazy repository: lazy
+--- PASS: TestManagerErrorConditions (0.00s)
+    --- PASS: TestManagerErrorConditions/AddDuplicateChild (0.00s)
+    --- PASS: TestManagerErrorConditions/NavigateToLazyRepoWithAutoClone (0.00s)
+=== RUN   TestComputeFilesystemPathEdgeCases
+--- PASS: TestComputeFilesystemPathEdgeCases (0.00s)
+=== RUN   TestSimplifiedStateIntegration
+Cloning https://github.com/test/level1.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestSimplifiedStateIntegration2484089473/001/repos/level1
+Cloning https://github.com/test/level2.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestSimplifiedStateIntegration2484089473/001/repos/level1/level2
+Warning: Repository added to memory but not persisted (non-root additions not yet supported)
+Warning: Repository added to memory but not persisted (non-root additions not yet supported)
+Cloning https://github.com/test/shared.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestSimplifiedStateIntegration2484089473/001/repos/shared
+Warning: Repository added to memory but not persisted (non-root additions not yet supported)
+=== RUN   TestSimplifiedStateIntegration/FilesystemPathComputation
+    manager_integration_test.go:59: ComputeFilesystemPath(/level1) = /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestSimplifiedStateIntegration2484089473/001/repos/level1, want /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestSimplifiedStateIntegration2484089473/001/level1
+    manager_integration_test.go:59: ComputeFilesystemPath(/level1/level2) = /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestSimplifiedStateIntegration2484089473/001/repos/level1/level2, want /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestSimplifiedStateIntegration2484089473/001/level1/level2
+    manager_integration_test.go:59: ComputeFilesystemPath(/level1/level2/level3) = /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestSimplifiedStateIntegration2484089473/001/repos/level1/level2/level3, want /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestSimplifiedStateIntegration2484089473/001/level1/level2/level3
+    manager_integration_test.go:59: ComputeFilesystemPath(/shared) = /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestSimplifiedStateIntegration2484089473/001/repos/shared, want /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestSimplifiedStateIntegration2484089473/001/shared
+    manager_integration_test.go:59: ComputeFilesystemPath(/level1/sibling) = /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestSimplifiedStateIntegration2484089473/001/repos/level1/sibling, want /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestSimplifiedStateIntegration2484089473/001/level1/sibling
+=== RUN   TestSimplifiedStateIntegration/StateFileVerification
+    manager_integration_test.go:69: Failed to read state file: open /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestSimplifiedStateIntegration2484089473/001/.muno-tree.json: no such file or directory
+=== RUN   TestSimplifiedStateIntegration/NavigationStateUpdate
+    manager_integration_test.go:158: Failed to read state file after navigation: open /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestSimplifiedStateIntegration2484089473/001/.muno-tree.json: no such file or directory
+--- FAIL: TestSimplifiedStateIntegration (0.01s)
+    --- FAIL: TestSimplifiedStateIntegration/FilesystemPathComputation (0.00s)
+    --- FAIL: TestSimplifiedStateIntegration/StateFileVerification (0.00s)
+    --- FAIL: TestSimplifiedStateIntegration/NavigationStateUpdate (0.00s)
+=== RUN   TestTreeDisplay
+Cloning https://github.com/test/repo1.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestTreeDisplay1597143154/001/repos/repo1
+Cloning https://github.com/test/subrepo.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestTreeDisplay1597143154/001/repos/repo1/subrepo
+Warning: Repository added to memory but not persisted (non-root additions not yet supported)
+    manager_integration_test.go:201: Tree display:
+        🌳 Workspace 📍
+        ├─ 📦 repo1
+        │   └─ 📦 subrepo
+        └─ 💤 repo2 (lazy)
+    manager_integration_test.go:218: Status display:
+        === Tree Status ===
+        Current Path: /
+        Total Nodes: 4
+        Repositories: 3 total (2 cloned, 1 lazy, 0 modified)
+        Filesystem Path: /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestTreeDisplay1597143154/001/repos
+--- PASS: TestTreeDisplay (0.00s)
+=== RUN   TestComputeFilesystemPath
+--- PASS: TestComputeFilesystemPath (0.00s)
+=== RUN   TestStateManagement
+--- PASS: TestStateManagement (0.00s)
+=== RUN   TestAddRepo
+Cloning https://github.com/test/repo.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestAddRepo961277951/001/repos/test-repo
+--- PASS: TestAddRepo (0.01s)
+=== RUN   TestTreeNavigation
+Cloning https://github.com/test/level1.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestTreeNavigation2535736385/001/repos/level1
+Cloning https://github.com/test/level2.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestTreeNavigation2535736385/001/repos/level1/level2
+Warning: Repository added to memory but not persisted (non-root additions not yet supported)
+Warning: Repository added to memory but not persisted (non-root additions not yet supported)
+Auto-cloning lazy repository: level3
+--- PASS: TestTreeNavigation (0.01s)
+=== RUN   TestRemoveNode
+Cloning https://github.com/test/parent.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestRemoveNode3265022249/001/repos/parent
+Cloning https://github.com/test/child1.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestRemoveNode3265022249/001/repos/parent/child1
+Warning: Repository added to memory but not persisted (non-root additions not yet supported)
+Cloning https://github.com/test/child2.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestRemoveNode3265022249/001/repos/parent/child2
+Warning: Repository added to memory but not persisted (non-root additions not yet supported)
+Warning: Repository removed from memory but not persisted (non-root removals not yet supported)
+--- PASS: TestRemoveNode (0.00s)
+=== RUN   TestStatelessManager_ComputeFilesystemPath
+=== RUN   TestStatelessManager_ComputeFilesystemPath/root_path
+=== RUN   TestStatelessManager_ComputeFilesystemPath/empty_path_defaults_to_root
+=== RUN   TestStatelessManager_ComputeFilesystemPath/child_path_(git_repo)
+=== RUN   TestStatelessManager_ComputeFilesystemPath/config_node_path
+=== RUN   TestStatelessManager_ComputeFilesystemPath/nested_path_under_config_node
+=== RUN   TestStatelessManager_ComputeFilesystemPath/relative_path_(git_repo)
+--- PASS: TestStatelessManager_ComputeFilesystemPath (0.00s)
+    --- PASS: TestStatelessManager_ComputeFilesystemPath/root_path (0.00s)
+    --- PASS: TestStatelessManager_ComputeFilesystemPath/empty_path_defaults_to_root (0.00s)
+    --- PASS: TestStatelessManager_ComputeFilesystemPath/child_path_(git_repo) (0.00s)
+    --- PASS: TestStatelessManager_ComputeFilesystemPath/config_node_path (0.00s)
+    --- PASS: TestStatelessManager_ComputeFilesystemPath/nested_path_under_config_node (0.00s)
+    --- PASS: TestStatelessManager_ComputeFilesystemPath/relative_path_(git_repo) (0.00s)
+=== RUN   TestStatelessManager_GetNodeByPath
+=== RUN   TestStatelessManager_GetNodeByPath/get_root_returns_nil
+=== RUN   TestStatelessManager_GetNodeByPath/get_child
+=== RUN   TestStatelessManager_GetNodeByPath/get_nested_through_parent_config
+=== RUN   TestStatelessManager_GetNodeByPath/non-existent_path
+=== RUN   TestStatelessManager_GetNodeByPath/empty_path_defaults_to_root
+--- PASS: TestStatelessManager_GetNodeByPath (0.00s)
+    --- PASS: TestStatelessManager_GetNodeByPath/get_root_returns_nil (0.00s)
+    --- PASS: TestStatelessManager_GetNodeByPath/get_child (0.00s)
+    --- PASS: TestStatelessManager_GetNodeByPath/get_nested_through_parent_config (0.00s)
+    --- PASS: TestStatelessManager_GetNodeByPath/non-existent_path (0.00s)
+    --- PASS: TestStatelessManager_GetNodeByPath/empty_path_defaults_to_root (0.00s)
+=== RUN   TestStatelessManager_UseNode
+=== RUN   TestStatelessManager_UseNode/navigate_to_child
+Auto-cloning repository: child1
+=== RUN   TestStatelessManager_UseNode/navigate_to_nested
+=== RUN   TestStatelessManager_UseNode/navigate_to_root
+=== RUN   TestStatelessManager_UseNode/invalid_path
+--- PASS: TestStatelessManager_UseNode (0.00s)
+    --- PASS: TestStatelessManager_UseNode/navigate_to_child (0.00s)
+    --- PASS: TestStatelessManager_UseNode/navigate_to_nested (0.00s)
+    --- PASS: TestStatelessManager_UseNode/navigate_to_root (0.00s)
+    --- PASS: TestStatelessManager_UseNode/invalid_path (0.00s)
+=== RUN   TestStatelessManager_AddRepo
+=== RUN   TestStatelessManager_AddRepo/add_repository_to_root
+Cloning https://github.com/test/new-repo.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_AddRepo646906730/001/new-repo
+=== RUN   TestStatelessManager_AddRepo/add_lazy_repository
+=== RUN   TestStatelessManager_AddRepo/add_to_non-existent_parent
+Cloning https://github.com/test/fail.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_AddRepo646906730/001/nodes/nonexistent/nodes/fail-repo
+--- PASS: TestStatelessManager_AddRepo (0.00s)
+    --- PASS: TestStatelessManager_AddRepo/add_repository_to_root (0.00s)
+    --- PASS: TestStatelessManager_AddRepo/add_lazy_repository (0.00s)
+    --- PASS: TestStatelessManager_AddRepo/add_to_non-existent_parent (0.00s)
+=== RUN   TestStatelessManager_RemoveNode
+=== RUN   TestStatelessManager_RemoveNode/remove_existing_child
+=== RUN   TestStatelessManager_RemoveNode/cannot_remove_root
+=== RUN   TestStatelessManager_RemoveNode/remove_non-existent_node
+--- PASS: TestStatelessManager_RemoveNode (0.00s)
+    --- PASS: TestStatelessManager_RemoveNode/remove_existing_child (0.00s)
+    --- PASS: TestStatelessManager_RemoveNode/cannot_remove_root (0.00s)
+    --- PASS: TestStatelessManager_RemoveNode/remove_non-existent_node (0.00s)
+=== RUN   TestStatelessManager_ListChildren
+=== RUN   TestStatelessManager_ListChildren/list_root_children
+=== RUN   TestStatelessManager_ListChildren/list_parent_children
+=== RUN   TestStatelessManager_ListChildren/list_leaf_node_children
+=== RUN   TestStatelessManager_ListChildren/list_non-existent_node
+--- PASS: TestStatelessManager_ListChildren (0.00s)
+    --- PASS: TestStatelessManager_ListChildren/list_root_children (0.00s)
+    --- PASS: TestStatelessManager_ListChildren/list_parent_children (0.00s)
+    --- PASS: TestStatelessManager_ListChildren/list_leaf_node_children (0.00s)
+    --- PASS: TestStatelessManager_ListChildren/list_non-existent_node (0.00s)
+=== RUN   TestStatelessManager_CloneLazyRepos
+=== RUN   TestStatelessManager_CloneLazyRepos/clone_lazy_repos_at_root
+Cloning https://github.com/test/child1.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_CloneLazyReposclone_lazy_repos_at_root3885361719/001/child1
+Cloning https://github.com/test/child2.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_CloneLazyReposclone_lazy_repos_at_root3885361719/001/child2
+=== RUN   TestStatelessManager_CloneLazyRepos/clone_recursively
+Cloning https://github.com/test/child1.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_CloneLazyReposclone_recursively1891994877/001/child1
+Cloning https://github.com/test/child2.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_CloneLazyReposclone_recursively1891994877/001/child2
+=== RUN   TestStatelessManager_CloneLazyRepos/clone_at_non-existent_path
+Cloning https://github.com/test/child1.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_CloneLazyReposclone_at_non-existent_path2371861097/001/child1
+Cloning https://github.com/test/child2.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_CloneLazyReposclone_at_non-existent_path2371861097/001/child2
+--- PASS: TestStatelessManager_CloneLazyRepos (0.01s)
+    --- PASS: TestStatelessManager_CloneLazyRepos/clone_lazy_repos_at_root (0.00s)
+    --- PASS: TestStatelessManager_CloneLazyRepos/clone_recursively (0.00s)
+    --- PASS: TestStatelessManager_CloneLazyRepos/clone_at_non-existent_path (0.00s)
+=== RUN   TestStatelessManager_DisplayMethods
+=== RUN   TestStatelessManager_DisplayMethods/DisplayTree
+=== RUN   TestStatelessManager_DisplayMethods/DisplayStatus
+=== RUN   TestStatelessManager_DisplayMethods/DisplayPath
+=== RUN   TestStatelessManager_DisplayMethods/DisplayChildren
+=== RUN   TestStatelessManager_DisplayMethods/DisplayTreeWithDepth
+--- PASS: TestStatelessManager_DisplayMethods (0.00s)
+    --- PASS: TestStatelessManager_DisplayMethods/DisplayTree (0.00s)
+    --- PASS: TestStatelessManager_DisplayMethods/DisplayStatus (0.00s)
+    --- PASS: TestStatelessManager_DisplayMethods/DisplayPath (0.00s)
+    --- PASS: TestStatelessManager_DisplayMethods/DisplayChildren (0.00s)
+    --- PASS: TestStatelessManager_DisplayMethods/DisplayTreeWithDepth (0.00s)
+=== RUN   TestStatelessManager_GetCurrentPath
+--- PASS: TestStatelessManager_GetCurrentPath (0.00s)
+=== RUN   TestGetNodeKind
+=== RUN   TestGetNodeKind/node_with_URL_only
+=== RUN   TestGetNodeKind/node_with_config_only
+=== RUN   TestGetNodeKind/node_with_both_URL_and_config
+=== RUN   TestGetNodeKind/node_with_neither_URL_nor_config
+--- PASS: TestGetNodeKind (0.00s)
+    --- PASS: TestGetNodeKind/node_with_URL_only (0.00s)
+    --- PASS: TestGetNodeKind/node_with_config_only (0.00s)
+    --- PASS: TestGetNodeKind/node_with_both_URL_and_config (0.00s)
+    --- PASS: TestGetNodeKind/node_with_neither_URL_nor_config (0.00s)
+=== RUN   TestResolveConfigPath
+=== RUN   TestResolveConfigPath/node_with_relative_config
+=== RUN   TestResolveConfigPath/node_with_absolute_config
+=== RUN   TestResolveConfigPath/node_with_no_config
+=== RUN   TestResolveConfigPath/node_with_simple_config_filename
+--- PASS: TestResolveConfigPath (0.00s)
+    --- PASS: TestResolveConfigPath/node_with_relative_config (0.00s)
+    --- PASS: TestResolveConfigPath/node_with_absolute_config (0.00s)
+    --- PASS: TestResolveConfigPath/node_with_no_config (0.00s)
+    --- PASS: TestResolveConfigPath/node_with_simple_config_filename (0.00s)
+=== RUN   TestIsMetaRepo
+=== RUN   TestIsMetaRepo/monorepo_suffix
+=== RUN   TestIsMetaRepo/muno_suffix
+=== RUN   TestIsMetaRepo/metarepo_suffix
+=== RUN   TestIsMetaRepo/platform_suffix
+    node_types_test.go:175: 
+        	Error Trace:	/Users/musinsa/ws/muno/internal/tree/node_types_test.go:175
+        	Error:      	Not equal: 
+        	            	expected: true
+        	            	actual  : false
+        	Test:       	TestIsMetaRepo/platform_suffix
+=== RUN   TestIsMetaRepo/workspace_suffix
+=== RUN   TestIsMetaRepo/root-repo_suffix
+=== RUN   TestIsMetaRepo/regular_repo
+=== RUN   TestIsMetaRepo/case_insensitive
+=== RUN   TestIsMetaRepo/contains_but_not_suffix
+=== RUN   TestIsMetaRepo/empty_name
+--- FAIL: TestIsMetaRepo (0.00s)
+    --- PASS: TestIsMetaRepo/monorepo_suffix (0.00s)
+    --- PASS: TestIsMetaRepo/muno_suffix (0.00s)
+    --- PASS: TestIsMetaRepo/metarepo_suffix (0.00s)
+    --- FAIL: TestIsMetaRepo/platform_suffix (0.00s)
+    --- PASS: TestIsMetaRepo/workspace_suffix (0.00s)
+    --- PASS: TestIsMetaRepo/root-repo_suffix (0.00s)
+    --- PASS: TestIsMetaRepo/regular_repo (0.00s)
+    --- PASS: TestIsMetaRepo/case_insensitive (0.00s)
+    --- PASS: TestIsMetaRepo/contains_but_not_suffix (0.00s)
+    --- PASS: TestIsMetaRepo/empty_name (0.00s)
+=== RUN   TestGetEffectiveLazy
+=== RUN   TestGetEffectiveLazy/node_with_explicit_lazy_true
+=== RUN   TestGetEffectiveLazy/node_with_explicit_lazy_false
+=== RUN   TestGetEffectiveLazy/meta-repo_is_eager_by_default
+=== RUN   TestGetEffectiveLazy/meta-repo_can_be_lazy_if_explicitly_set
+=== RUN   TestGetEffectiveLazy/regular_repo_defaults_to_lazy
+--- PASS: TestGetEffectiveLazy (0.00s)
+    --- PASS: TestGetEffectiveLazy/node_with_explicit_lazy_true (0.00s)
+    --- PASS: TestGetEffectiveLazy/node_with_explicit_lazy_false (0.00s)
+    --- PASS: TestGetEffectiveLazy/meta-repo_is_eager_by_default (0.00s)
+    --- PASS: TestGetEffectiveLazy/meta-repo_can_be_lazy_if_explicitly_set (0.00s)
+    --- PASS: TestGetEffectiveLazy/regular_repo_defaults_to_lazy (0.00s)
+=== RUN   TestAutoDiscoverConfig
+=== RUN   TestAutoDiscoverConfig/discovers_muno.yaml
+=== RUN   TestAutoDiscoverConfig/discovers_.muno.yaml
+=== RUN   TestAutoDiscoverConfig/discovers_muno.yml
+=== RUN   TestAutoDiscoverConfig/discovers_.muno.yml
+=== RUN   TestAutoDiscoverConfig/no_config_file_found
+=== RUN   TestAutoDiscoverConfig/empty_path
+=== RUN   TestAutoDiscoverConfig/prefers_muno.yaml_over_other_formats
+=== RUN   TestAutoDiscoverConfig/non-existent_directory
+--- PASS: TestAutoDiscoverConfig (0.01s)
+    --- PASS: TestAutoDiscoverConfig/discovers_muno.yaml (0.00s)
+    --- PASS: TestAutoDiscoverConfig/discovers_.muno.yaml (0.00s)
+    --- PASS: TestAutoDiscoverConfig/discovers_muno.yml (0.00s)
+    --- PASS: TestAutoDiscoverConfig/discovers_.muno.yml (0.00s)
+    --- PASS: TestAutoDiscoverConfig/no_config_file_found (0.00s)
+    --- PASS: TestAutoDiscoverConfig/empty_path (0.00s)
+    --- PASS: TestAutoDiscoverConfig/prefers_muno.yaml_over_other_formats (0.00s)
+    --- PASS: TestAutoDiscoverConfig/non-existent_directory (0.00s)
+=== RUN   TestStatusFunctions
+=== RUN   TestStatusFunctions/GetRepoState
+=== RUN   TestStatusFunctions/GetConfigRefStatus
+=== RUN   TestStatusFunctions/CreateConfigRefMarker
+--- PASS: TestStatusFunctions (0.06s)
+    --- PASS: TestStatusFunctions/GetRepoState (0.05s)
+    --- PASS: TestStatusFunctions/GetConfigRefStatus (0.00s)
+    --- PASS: TestStatusFunctions/CreateConfigRefMarker (0.00s)
+=== RUN   TestManager_EdgeCases
+=== RUN   TestManager_EdgeCases/GetState_returns_state
+=== RUN   TestManager_EdgeCases/GetNode_with_various_paths
+=== RUN   TestManager_EdgeCases/ComputeFilesystemPath_edge_cases
+=== RUN   TestManager_EdgeCases/UseNode_with_auto-clone
+Auto-cloning lazy repository: lazy-repo
+=== RUN   TestManager_EdgeCases/AddRepo_with_clone_failure_rollback
+Cloning https://github.com/test/fail.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestManager_EdgeCases2587689460/001/repos/fail-repo
+=== RUN   TestManager_EdgeCases/RemoveNode_navigates_to_parent_if_current_removed
+Auto-cloning lazy repository: temp-repo
+=== RUN   TestManager_EdgeCases/RemoveNode_with_nested_path
+Warning: Repository added to memory but not persisted (non-root additions not yet supported)
+Auto-cloning lazy repository: child
+=== RUN   TestManager_EdgeCases/CloneLazyRepos_recursive
+Warning: Repository added to memory but not persisted (non-root additions not yet supported)
+Cloning https://github.com/test/l1.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestManager_EdgeCases2587689460/001/repos/level1
+Cloning https://github.com/test/l2.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestManager_EdgeCases2587689460/001/repos/level1/level2
+=== RUN   TestManager_EdgeCases/CloneLazyRepos_non-recursive
+Warning: Repository added to memory but not persisted (non-root additions not yet supported)
+Cloning https://github.com/test/top.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestManager_EdgeCases2587689460/001/repos/top
+--- PASS: TestManager_EdgeCases (0.03s)
+    --- PASS: TestManager_EdgeCases/GetState_returns_state (0.00s)
+    --- PASS: TestManager_EdgeCases/GetNode_with_various_paths (0.00s)
+    --- PASS: TestManager_EdgeCases/ComputeFilesystemPath_edge_cases (0.00s)
+    --- PASS: TestManager_EdgeCases/UseNode_with_auto-clone (0.00s)
+    --- PASS: TestManager_EdgeCases/AddRepo_with_clone_failure_rollback (0.00s)
+    --- PASS: TestManager_EdgeCases/RemoveNode_navigates_to_parent_if_current_removed (0.00s)
+    --- PASS: TestManager_EdgeCases/RemoveNode_with_nested_path (0.00s)
+    --- PASS: TestManager_EdgeCases/CloneLazyRepos_recursive (0.01s)
+    --- PASS: TestManager_EdgeCases/CloneLazyRepos_non-recursive (0.02s)
+=== RUN   TestManager_StateFileCorruption
+--- PASS: TestManager_StateFileCorruption (0.00s)
+=== RUN   TestStatelessManager_EdgeCases
+=== RUN   TestStatelessManager_EdgeCases/GetCurrentPath
+=== RUN   TestStatelessManager_EdgeCases/UseNode_with_relative_path
+Auto-cloning repository: test
+=== RUN   TestStatelessManager_EdgeCases/GetNodeByPath_with_empty_parts
+=== RUN   TestStatelessManager_EdgeCases/RemoveNode_invalid_paths
+=== RUN   TestStatelessManager_EdgeCases/DisplayChildren_at_various_paths
+=== RUN   TestStatelessManager_EdgeCases/DisplayStatus_with_various_states
+=== RUN   TestStatelessManager_EdgeCases/ComputeFilesystemPath_with_various_inputs
+    tree_coverage_improvement_test.go:304: 
+        	Error Trace:	/Users/musinsa/ws/muno/internal/tree/tree_coverage_improvement_test.go:304
+        	Error:      	Not equal: 
+        	            	expected: "/var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_EdgeCases93334880/001/repos/a/b/c"
+        	            	actual  : "/var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_EdgeCases93334880/001/repos/a/repos/b/repos/c"
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1 +1 @@
+        	            	-/var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_EdgeCases93334880/001/repos/a/b/c
+        	            	+/var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_EdgeCases93334880/001/repos/a/repos/b/repos/c
+        	Test:       	TestStatelessManager_EdgeCases/ComputeFilesystemPath_with_various_inputs
+=== RUN   TestStatelessManager_EdgeCases/CloneLazyRepos_with_config_nodes
+Cloning https://github.com/test/test.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestStatelessManager_EdgeCases93334880/001/test
+--- FAIL: TestStatelessManager_EdgeCases (0.00s)
+    --- PASS: TestStatelessManager_EdgeCases/GetCurrentPath (0.00s)
+    --- PASS: TestStatelessManager_EdgeCases/UseNode_with_relative_path (0.00s)
+    --- PASS: TestStatelessManager_EdgeCases/GetNodeByPath_with_empty_parts (0.00s)
+    --- PASS: TestStatelessManager_EdgeCases/RemoveNode_invalid_paths (0.00s)
+    --- PASS: TestStatelessManager_EdgeCases/DisplayChildren_at_various_paths (0.00s)
+    --- PASS: TestStatelessManager_EdgeCases/DisplayStatus_with_various_states (0.00s)
+    --- FAIL: TestStatelessManager_EdgeCases/ComputeFilesystemPath_with_various_inputs (0.00s)
+    --- PASS: TestStatelessManager_EdgeCases/CloneLazyRepos_with_config_nodes (0.00s)
+=== RUN   TestTreeNode_Methods
+=== RUN   TestTreeNode_Methods/Node_fields
+--- PASS: TestTreeNode_Methods (0.00s)
+    --- PASS: TestTreeNode_Methods/Node_fields (0.00s)
+=== RUN   TestConfigResolver
+=== RUN   TestConfigResolver/Resolver_creation
+=== RUN   TestConfigResolver/LoadNodeConfig_with_missing_file
+=== RUN   TestConfigResolver/LoadNodeConfig_with_valid_config
+--- PASS: TestConfigResolver (0.00s)
+    --- PASS: TestConfigResolver/Resolver_creation (0.00s)
+    --- PASS: TestConfigResolver/LoadNodeConfig_with_missing_file (0.00s)
+    --- PASS: TestConfigResolver/LoadNodeConfig_with_valid_config (0.00s)
+=== RUN   TestRepoStates
+=== RUN   TestRepoStates/RepoState_constants
+=== RUN   TestRepoStates/NodeType_constants
+--- PASS: TestRepoStates (0.00s)
+    --- PASS: TestRepoStates/RepoState_constants (0.00s)
+    --- PASS: TestRepoStates/NodeType_constants (0.00s)
+=== RUN   TestManager_DisplayMethods
+Cloning https://github.com/test/repo1.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestManager_DisplayMethods3332899840/001/repos/repo1
+Cloning https://github.com/test/nested.git to /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestManager_DisplayMethods3332899840/001/repos/repo1/nested
+Warning: Repository added to memory but not persisted (non-root additions not yet supported)
+=== RUN   TestManager_DisplayMethods/DisplayTree
+=== RUN   TestManager_DisplayMethods/DisplayTreeWithDepth
+=== RUN   TestManager_DisplayMethods/DisplayStatus
+=== RUN   TestManager_DisplayMethods/DisplayPath
+--- PASS: TestManager_DisplayMethods (0.00s)
+    --- PASS: TestManager_DisplayMethods/DisplayTree (0.00s)
+    --- PASS: TestManager_DisplayMethods/DisplayTreeWithDepth (0.00s)
+    --- PASS: TestManager_DisplayMethods/DisplayStatus (0.00s)
+    --- PASS: TestManager_DisplayMethods/DisplayPath (0.00s)
+=== RUN   TestTreeNodeMethods
+=== RUN   TestTreeNodeMethods/IsRoot
+=== RUN   TestTreeNodeMethods/IsLeaf
+=== RUN   TestTreeNodeMethods/HasLazyRepos
+=== RUN   TestTreeNodeMethods/NeedsClone
+--- PASS: TestTreeNodeMethods (0.00s)
+    --- PASS: TestTreeNodeMethods/IsRoot (0.00s)
+    --- PASS: TestTreeNodeMethods/IsLeaf (0.00s)
+    --- PASS: TestTreeNodeMethods/HasLazyRepos (0.00s)
+    --- PASS: TestTreeNodeMethods/NeedsClone (0.00s)
+=== RUN   TestTreeStateStructure
+--- PASS: TestTreeStateStructure (0.00s)
+FAIL
+FAIL	github.com/taokim/muno/internal/tree	2.073s
+=== RUN   TestIntegrationWorkflow
+    integration_test.go:36: Init output: 
+=== RUN   TestIntegrationWorkflow/Init
+    integration_test.go:41: 
+        	Error Trace:	/Users/musinsa/ws/muno/test/integration_test.go:41
+        	Error:      	"" does not contain "Workspace"
+        	Test:       	TestIntegrationWorkflow/Init
+    integration_test.go:42: 
+        	Error Trace:	/Users/musinsa/ws/muno/test/integration_test.go:42
+        	Error:      	"" does not contain "initialized successfully"
+        	Test:       	TestIntegrationWorkflow/Init
+    integration_test.go:46: 
+        	Error Trace:	/Users/musinsa/ws/muno/test/integration_test.go:46
+        	Error:      	unable to find file "/var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestIntegrationWorkflow1663513356/001/CLAUDE.md"
+        	Test:       	TestIntegrationWorkflow/Init
+=== RUN   TestIntegrationWorkflow/List
+    integration_test.go:58: 
+        	Error Trace:	/Users/musinsa/ws/muno/test/integration_test.go:58
+        	Error:      	"📂 Current: /\n─────────────────\n  📭 No repositories at this level\n\n  💡 Tip: Use 'muno add <repo-url>' to add repositories\n" does not contain "No children"
+        	Test:       	TestIntegrationWorkflow/List
+=== RUN   TestIntegrationWorkflow/Status
+=== RUN   TestIntegrationWorkflow/Pull
+    integration_test.go:79: Pull output: 📦 Pulling: root
+           Path: /var/folders/1c/9r08y0pd1b15z2ylxfr_l6p80000gn/T/TestIntegrationWorkflow1663513356/001/repos
+        ❌    ❌ Failed: exit status 128
+        Error: exit status 128
+        Usage:
+          muno pull [path] [flags]
+        
+        Flags:
+          -a, --all         Pull all cloned repositories in workspace
+          -f, --force       Force pull, overriding local changes
+          -h, --help        help for pull
+          -r, --recursive   Pull recursively in subtree
+        
+        Error: exit status 128
+--- FAIL: TestIntegrationWorkflow (1.29s)
+    --- FAIL: TestIntegrationWorkflow/Init (0.00s)
+    --- FAIL: TestIntegrationWorkflow/List (0.01s)
+    --- PASS: TestIntegrationWorkflow/Status (0.01s)
+    --- PASS: TestIntegrationWorkflow/Pull (0.02s)
+=== RUN   TestConfigValidation
+=== RUN   TestConfigValidation/Command_list
+    integration_test.go:107: 
+        	Error Trace:	/Users/musinsa/ws/muno/test/integration_test.go:107
+        	Error:      	"Error: loading workspace: not in a MUNO workspace (no muno.yaml found)\nUsage:\n  muno list [flags]\n\nAliases:\n  list, ls\n\nFlags:\n  -h, --help        help for list\n  -r, --recursive   List recursively\n\nError: loading workspace: not in a MUNO workspace (no muno.yaml found)\n" does not contain "muno.yaml not found"
+        	Test:       	TestConfigValidation/Command_list
+=== RUN   TestConfigValidation/Command_start_wms
+    integration_test.go:107: 
+        	Error Trace:	/Users/musinsa/ws/muno/test/integration_test.go:107
+        	Error:      	"Error: loading workspace: not in a MUNO workspace (no muno.yaml found)\nUsage:\n  muno start [path] [flags]\n\nFlags:\n  -h, --help   help for start\n\nError: loading workspace: not in a MUNO workspace (no muno.yaml found)\n" does not contain "muno.yaml not found"
+        	Test:       	TestConfigValidation/Command_start_wms
+=== RUN   TestConfigValidation/Command_status_wms
+    integration_test.go:107: 
+        	Error Trace:	/Users/musinsa/ws/muno/test/integration_test.go:107
+        	Error:      	"Error: loading workspace: not in a MUNO workspace (no muno.yaml found)\nUsage:\n  muno status [path] [flags]\n\nFlags:\n  -h, --help        help for status\n  -r, --recursive   Show status recursively\n\nError: loading workspace: not in a MUNO workspace (no muno.yaml found)\n" does not contain "muno.yaml not found"
+        	Test:       	TestConfigValidation/Command_status_wms
+=== RUN   TestConfigValidation/Command_pull_wms
+    integration_test.go:107: 
+        	Error Trace:	/Users/musinsa/ws/muno/test/integration_test.go:107
+        	Error:      	"Error: loading workspace: not in a MUNO workspace (no muno.yaml found)\nUsage:\n  muno pull [path] [flags]\n\nFlags:\n  -a, --all         Pull all cloned repositories in workspace\n  -f, --force       Force pull, overriding local changes\n  -h, --help        help for pull\n  -r, --recursive   Pull recursively in subtree\n\nError: loading workspace: not in a MUNO workspace (no muno.yaml found)\n" does not contain "muno.yaml not found"
+        	Test:       	TestConfigValidation/Command_pull_wms
+--- FAIL: TestConfigValidation (0.92s)
+    --- FAIL: TestConfigValidation/Command_list (0.29s)
+    --- FAIL: TestConfigValidation/Command_start_wms (0.01s)
+    --- FAIL: TestConfigValidation/Command_status_wms (0.01s)
+    --- FAIL: TestConfigValidation/Command_pull_wms (0.01s)
+FAIL
+FAIL	github.com/taokim/muno/test	3.519s
+=== RUN   TestCompleteWorkflow
+    workflow_test.go:19: This test needs to be rewritten for the tree-based architecture without v2 config structure
+--- SKIP: TestCompleteWorkflow (0.00s)
+PASS
+ok  	github.com/taokim/muno/test/e2e	(cached)
+FAIL

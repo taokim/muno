@@ -108,6 +108,9 @@ git clone https://github.com/taokim/muno.git
 cd muno
 make build
 sudo make install
+
+# Verify installation with regression tests
+./test/regression/regression_test.sh
 ```
 
 ### Go Install
@@ -377,6 +380,27 @@ muno api visualize             # Visualize API dependencies
 - [AI Agent Guide](docs/AI_AGENT_GUIDE.md) - Comprehensive guide for AI agents to organize repositories
 - [CLAUDE.md](CLAUDE.md) - Instructions for Claude Code integration
 - [Examples](examples/) - Sample configurations and use cases
+
+## Testing
+
+MUNO includes comprehensive testing to ensure reliability:
+
+### Unit Tests
+```bash
+go test ./...
+```
+
+### Regression Tests
+For end-to-end testing of all MUNO functionality:
+```bash
+./test/regression/regression_test.sh
+```
+
+See the [Regression Test Documentation](test/regression/README.md) for details on:
+- Running the complete test suite (36 tests)
+- Validating persistence of add/remove operations
+- Testing navigation and lazy loading
+- Troubleshooting test failures
 
 ## License
 

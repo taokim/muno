@@ -183,9 +183,11 @@ func (c *ConfigTree) Validate() error {
 
 // GetReposDir returns the configured repos directory name
 func (c *ConfigTree) GetReposDir() string {
-	// If ReposDir is explicitly set (even to empty string or "."), use it
-	// Only use default if it's not set at all (which happens after merging with defaults)
-	// An empty string or "." means the workspace root is the repos directory
+	// If ReposDir is empty, return the default
+	if c.Workspace.ReposDir == "" {
+		return GetDefaultReposDir()
+	}
+	// Otherwise return the configured value
 	return c.Workspace.ReposDir
 }
 

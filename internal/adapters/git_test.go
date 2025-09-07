@@ -118,11 +118,14 @@ func TestRealGit_Status(t *testing.T) {
 	t.Run("Clean repository", func(t *testing.T) {
 		status, err := git.Status(repoDir)
 		require.NoError(t, err)
+		// Debug output
+		t.Logf("Git status output: %q", status)
 		assert.True(t, 
 			strings.Contains(status, "nothing to commit") ||
 			strings.Contains(status, "working tree clean") ||
 			strings.Contains(status, "커밋할 사항 없음") ||
-			strings.Contains(status, "작업 트리 깨끗함"))
+			strings.Contains(status, "작업 트리 깨끗함") ||
+			strings.Contains(status, "작업 폴더 깨끗함"))
 	})
 	
 	t.Run("Modified file", func(t *testing.T) {

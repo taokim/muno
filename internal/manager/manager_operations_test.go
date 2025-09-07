@@ -292,7 +292,7 @@ func TestManager_PullNode(t *testing.T) {
 			}
 
 			// Execute
-			err := manager.PullNode(tt.path, tt.recursive)
+			err := manager.PullNode(tt.path, tt.recursive, false)
 
 			// Assert
 			if tt.wantErr {
