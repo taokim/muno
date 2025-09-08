@@ -11,7 +11,7 @@ import (
 	"github.com/taokim/muno/internal/config"
 
 	"github.com/taokim/muno/internal/interfaces"
-	"github.com/taokim/muno/internal/tree"
+
 )
 
 // FilesystemNavigator implements TreeNavigator by reading directly from the filesystem.
@@ -19,7 +19,7 @@ import (
 type FilesystemNavigator struct {
 	workspace    string
 	config       *config.ConfigTree
-	resolver     *tree.ConfigResolver
+	resolver     *ConfigResolver
 	gitCmd       interfaces.GitInterface
 	currentPath  string
 	currentFile  string // Path to .muno/current file
@@ -51,7 +51,7 @@ func NewFilesystemNavigator(workspace string, cfg *config.ConfigTree, gitCmd int
 		}
 	}
 
-	resolver := tree.NewConfigResolver(workspace)
+	resolver := NewConfigResolver(workspace)
 	currentFile := filepath.Join(workspace, ".muno", "current")
 
 	nav := &FilesystemNavigator{
@@ -213,7 +213,12 @@ func (n *FilesystemNavigator) GetNodeStatus(nodePath string) (*NodeStatus, error
 
 	// Check if it's a repository
 	if node.Type == NodeTypeRepo {
-		status.State = RepoState(tree.GetRepoState(fsPath))
+		// Check filesystem state
+		if _, err := os.Stat(filepath.Join(fsPath, ".git")); os.IsNotExist(err) {
+			status.State = RepoStateMissing
+		} else {
+			status.State = RepoStateCloned
+		}
 		status.Cloned = (status.State != RepoStateMissing)
 		
 		// Check if it's configured as lazy
