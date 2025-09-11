@@ -98,13 +98,12 @@ func (m *Manager) ComputeFilesystemPath(logicalPath string) string {
 	// Check if this node is a git repository
 	node := m.state.Nodes[logicalPath]
 	if node != nil && node.URL != "" {
-		// For git repository nodes, place them directly in workspace (for top-level)
-		// or in their parent directory (for nested)
+		// For git repository nodes, place them in the repos directory
 		parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
 		
-		// If it's a top-level repo, put it directly in workspace
+		// If it's a top-level repo, put it in the repos directory
 		if len(parts) == 1 {
-			return filepath.Join(m.workspacePath, parts[0])
+			return filepath.Join(m.workspacePath, reposDir, parts[0])
 		}
 		
 		// For nested repos, compute parent path and add repo name
@@ -580,13 +579,8 @@ func (m *Manager) buildTreeFromConfig() error {
 			}
 		}
 		
-		// Create directory for node (lazy or config nodes get empty dirs)
+		// Clone eager repositories (only create directory when cloning)
 		nodeDir := m.ComputeFilesystemPath(nodePath)
-		if err := os.MkdirAll(nodeDir, 0755); err != nil {
-			fmt.Printf("Warning: Failed to create directory for %s: %v\n", nodeDef.Name, err)
-		}
-		
-		// Clone eager repositories
 		if nodeDef.URL != "" && !nodeDef.IsLazy() {
 			if _, err := os.Stat(filepath.Join(nodeDir, ".git")); os.IsNotExist(err) {
 				fmt.Printf("Cloning %s from %s...\n", nodeDef.Name, nodeDef.URL)

@@ -249,14 +249,15 @@ func (m *Manager) Use(ctx context.Context, path string) error {
 		m.uiProvider.Success("✅ Repository cloned successfully!")
 	}
 	
-	// Clone immediate lazy children (for better developer experience)
-	// This is especially useful for parent nodes that are mostly structural
+	// Don't auto-clone lazy children - they should only be cloned when explicitly navigated to
+	// This preserves the lazy loading behavior as intended
 	lazyChildren := []interfaces.NodeInfo{}
-	for _, child := range node.Children {
-		if child.IsLazy && !child.IsCloned && child.Repository != "" {
-			lazyChildren = append(lazyChildren, child)
-		}
-	}
+	// Commenting out auto-cloning logic to preserve lazy behavior
+	// for _, child := range node.Children {
+	// 	if child.IsLazy && !child.IsCloned && child.Repository != "" {
+	// 		lazyChildren = append(lazyChildren, child)
+	// 	}
+	// }
 	
 	if len(lazyChildren) > 0 {
 		m.uiProvider.Info("")

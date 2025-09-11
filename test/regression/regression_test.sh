@@ -3,7 +3,9 @@
 # MUNO Regression Test Suite
 # Comprehensive testing for all MUNO functionality
 
-set -e
+# Don't use set -e as it causes the script to exit on test failures
+# We want to run all tests even if some fail
+set +e
 
 # Colors for output
 RED='\033[0;31m'
@@ -197,28 +199,28 @@ run_tests() {
     echo -e "${MAGENTA}▶ Navigation - Eager Repositories${NC}"
     test_case "Navigate to root" "$MUNO_BIN use /"
     test_case "Navigate to eager repo" "$MUNO_BIN use backend-monorepo"
-    test_case "Eager repo auto-cloned" "[[ -d '$WORKSPACE_DIR/backend-monorepo/.git' ]]"
+    test_case "Eager repo auto-cloned" "[[ -d '$WORKSPACE_DIR/nodes/backend-monorepo/.git' ]]"
     test_case "Navigate to another eager repo" "$MUNO_BIN use /frontend-app"
     test_case "Return to root" "$MUNO_BIN use /"
     echo ""
     
     # Navigation - Lazy Repositories
     echo -e "${MAGENTA}▶ Navigation - Lazy Repositories${NC}"
-    test_case "Lazy repo not cloned initially" "[[ ! -d '$WORKSPACE_DIR/payment-service/.git' ]]"
+    test_case "Lazy repo not cloned initially" "[[ ! -d '$WORKSPACE_DIR/nodes/payment-service/.git' ]]"
     test_case "Navigate to lazy repo" "$MUNO_BIN use payment-service"
-    test_case "Lazy repo auto-cloned on nav" "[[ -d '$WORKSPACE_DIR/payment-service/.git' ]]"
+    test_case "Lazy repo auto-cloned on nav" "[[ -d '$WORKSPACE_DIR/nodes/payment-service/.git' ]]"
     test_case "Return to root" "$MUNO_BIN use /"
     echo ""
     
     # Clone Operations
     echo -e "${MAGENTA}▶ Clone Operations${NC}"
     # Remove a lazy repo first to test cloning
-    if [[ -d "$WORKSPACE_DIR/user-service" ]]; then
-        rm -rf "$WORKSPACE_DIR/user-service"
+    if [[ -d "$WORKSPACE_DIR/nodes/user-service" ]]; then
+        rm -rf "$WORKSPACE_DIR/nodes/user-service"
     fi
-    test_case "Lazy repo successfully removed" "[[ ! -d '$WORKSPACE_DIR/user-service/.git' ]]"
+    test_case "Lazy repo successfully removed" "[[ ! -d '$WORKSPACE_DIR/nodes/user-service/.git' ]]"
     test_case "Navigate to trigger clone" "$MUNO_BIN use user-service"
-    test_case "Lazy repo cloned on navigation" "[[ -d '$WORKSPACE_DIR/user-service/.git' ]]"
+    test_case "Lazy repo cloned on navigation" "[[ -d '$WORKSPACE_DIR/nodes/user-service/.git' ]]"
     test_case "Clone all remaining lazy repos" "$MUNO_BIN clone --recursive"
     echo ""
     
@@ -258,14 +260,14 @@ run_tests() {
     test_case "Status command works" "$MUNO_BIN status"
     
     # Create a change to detect
-    if [[ -d "$WORKSPACE_DIR/backend-monorepo" ]]; then
-        echo "test change" > "$WORKSPACE_DIR/backend-monorepo/test.txt"
+    if [[ -d "$WORKSPACE_DIR/nodes/backend-monorepo" ]]; then
+        echo "test change" > "$WORKSPACE_DIR/nodes/backend-monorepo/test.txt"
     fi
     # TODO: Fix status command to detect untracked files
     test_case "Status detects file changes" "$MUNO_BIN status /backend-monorepo 2>&1 | grep -E 'test.txt|untracked|Changes|modified'"
     
     # Clean up the test file
-    rm -f "$WORKSPACE_DIR/backend-monorepo/test.txt"
+    rm -f "$WORKSPACE_DIR/nodes/backend-monorepo/test.txt"
     echo ""
     
     # Error Handling

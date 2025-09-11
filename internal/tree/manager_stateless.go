@@ -71,13 +71,12 @@ func (m *StatelessManager) ComputeFilesystemPath(logicalPath string) string {
 		// Check if this is a git repository node (not a config node)
 		// A node is a git repository if it has a URL (not a config path)
 		if node.URL != "" {
-			// For git repository nodes, use the workspace path directly without repos subdir
-			// This ensures CWD is the actual git repo directory
+			// For git repository nodes, place them in the repos directory
 			parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
 			
-			// If it's a top-level repo, put it directly in workspace
+			// If it's a top-level repo, put it in the repos directory
 			if len(parts) == 1 {
-				return filepath.Join(m.workspacePath, parts[0])
+				return filepath.Join(m.workspacePath, reposDir, parts[0])
 			}
 			
 			// For nested repos, we need to compute the parent path and add the repo name
