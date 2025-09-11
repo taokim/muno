@@ -787,7 +787,12 @@ type NoOpTimer struct{}
 
 func (t *NoOpTimer) Start() {}
 func (t *NoOpTimer) Stop() time.Duration { return 0 }
-func (t *NoOpTimer) C() <-chan time.Time { return nil }
+func (t *NoOpTimer) C() <-chan time.Time { 
+	// Return a closed channel so it's non-nil but won't block
+	ch := make(chan time.Time)
+	close(ch)
+	return ch
+}
 func (t *NoOpTimer) Reset() {}
 func (t *NoOpTimer) Record(duration time.Duration) {}
 

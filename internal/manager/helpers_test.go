@@ -151,7 +151,7 @@ func TestNewManagerForInit(t *testing.T) {
 					os.Chdir(oldWd)
 				}
 			},
-			wantErr: true,
+			wantErr: false, // Empty string resolves to current directory "."
 		},
 		{
 			name:      "workspace already exists",
