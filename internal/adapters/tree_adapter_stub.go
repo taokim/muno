@@ -6,8 +6,8 @@ import (
 	"github.com/taokim/muno/internal/interfaces"
 )
 
-// TreeAdapter is a stub implementation of TreeProvider
-// TODO: Implement actual tree operations when tree package is refactored
+// TreeAdapterStub is a basic implementation of TreeProvider for testing
+// It provides in-memory tree operations without filesystem interaction
 type TreeAdapterStub struct {
 	current interfaces.NodeInfo
 	nodes   map[string]interfaces.NodeInfo

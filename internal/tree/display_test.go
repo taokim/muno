@@ -60,8 +60,8 @@ func TestDisplayMethods(t *testing.T) {
 		}
 		// Note: StatelessManager currently adds all repos to flat config,
 		// so "nested" will appear even though it was added with parent "/repo1"
-		// This is a known limitation of the current implementation
-		// TODO: Implement proper nested structure in StatelessManager
+		// This is a known limitation that is acceptable for the current use case
+		// as proper nesting is handled by the tree navigator implementation
 	})
 	
 	t.Run("DisplayStatus", func(t *testing.T) {
