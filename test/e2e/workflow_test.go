@@ -80,7 +80,7 @@ func TestCompleteWorkflow(t *testing.T) {
 	
 	// Step 3: Load tree manager and verify structure
 	t.Run("LoadTreeManager", func(t *testing.T) {
-		gitCmd := git.NewMockCommand()
+		gitCmd := &git.MockGit{}
 		mgr, err := tree.NewManager(workspacePath, gitCmd)
 		require.NoError(t, err)
 		require.NotNil(t, mgr)
@@ -97,7 +97,7 @@ func TestCompleteWorkflow(t *testing.T) {
 	
 	// Step 4: Test tree navigation
 	t.Run("TreeNavigation", func(t *testing.T) {
-		gitCmd := git.NewMockCommand()
+		gitCmd := &git.MockGit{}
 		mgr, err := tree.NewManager(workspacePath, gitCmd)
 		require.NoError(t, err)
 		
@@ -123,7 +123,7 @@ func TestCompleteWorkflow(t *testing.T) {
 	
 	// Step 5: Test adding and removing nodes
 	t.Run("AddRemoveNodes", func(t *testing.T) {
-		gitCmd := git.NewMockCommand()
+		gitCmd := &git.MockGit{}
 		mgr, err := tree.NewManager(workspacePath, gitCmd)
 		require.NoError(t, err)
 		
