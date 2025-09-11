@@ -290,6 +290,9 @@ func (n *FilesystemNavigator) TriggerLazyLoad(nodePath string) error {
 	}
 
 	// Clone the repository
+	if n.gitCmd == nil {
+		return fmt.Errorf("git command not configured")
+	}
 	fmt.Printf("Cloning %s to %s\n", node.URL, fsPath)
 	if err := n.gitCmd.Clone(node.URL, fsPath); err != nil {
 		return fmt.Errorf("failed to clone repository: %w", err)

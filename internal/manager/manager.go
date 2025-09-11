@@ -349,8 +349,11 @@ func (m *Manager) Add(ctx context.Context, repoURL string, options AddOptions) e
 		return fmt.Errorf("failed to get current node: %w", err)
 	}
 	
-	// Extract repo name from URL
-	repoName := extractRepoName(repoURL)
+	// Use custom name if provided, otherwise extract from URL
+	repoName := options.Name
+	if repoName == "" {
+		repoName = extractRepoName(repoURL)
+	}
 	
 	// Determine if node should be lazy based on fetch mode
 	isLazy := true // Default to lazy
@@ -640,6 +643,7 @@ type AddOptions struct {
 	Fetch     string // Fetch mode: "lazy", "eager", or "auto"
 	Recursive bool
 	Branch    string
+	Name      string // Custom name for the repository
 }
 
 // InitOptions for workspace initialization
@@ -1164,7 +1168,7 @@ func (m *Manager) AddRepoSimple(repoURL string, name string, lazy bool) error {
 	}
 	
 	ctx := context.Background()
-	return m.Add(ctx, repoURL, AddOptions{Fetch: fetchMode})
+	return m.Add(ctx, repoURL, AddOptions{Fetch: fetchMode, Name: name})
 }
 
 // RemoveNode removes a repository

@@ -1,6 +1,8 @@
 package manager
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -253,10 +255,103 @@ func TestGitProviderAdapterWithNilGit(t *testing.T) {
 	})
 }
 
+// MockGitInterface is a mock for git.Interface used in tree tests
+type MockGitInterface struct{}
+
+func (m *MockGitInterface) Clone(url, path string) error {
+	return nil
+}
+
+func (m *MockGitInterface) Pull(path string) error {
+	return nil
+}
+
+func (m *MockGitInterface) Status(path string) (string, error) {
+	return "clean", nil
+}
+
+func (m *MockGitInterface) Commit(path, message string) error {
+	return nil
+}
+
+func (m *MockGitInterface) Push(path string) error {
+	return nil
+}
+
+func (m *MockGitInterface) Add(path, pattern string) error {
+	return nil
+}
+
+// TestAdapterCreation tests the adapter creation functions
+func TestAdapterCreation(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	t.Run("NewRealFileSystem", func(t *testing.T) {
+		fs := NewRealFileSystem()
+		assert.NotNil(t, fs)
+		// Just check it returns something
+	})
+
+	t.Run("NewRealGit", func(t *testing.T) {
+		git := NewRealGit()
+		assert.NotNil(t, git)
+	})
+
+	t.Run("NewRealCommandExecutor", func(t *testing.T) {
+		executor := NewRealCommandExecutor()
+		assert.NotNil(t, executor)
+	})
+
+	t.Run("NewRealOutput", func(t *testing.T) {
+		output := NewRealOutput(os.Stdout, os.Stderr)
+		assert.NotNil(t, output)
+	})
+
+	t.Run("NewFileSystemAdapter", func(t *testing.T) {
+		fs := NewRealFileSystem()
+		adapter := NewFileSystemAdapter(fs)
+		assert.NotNil(t, adapter)
+	})
+
+	t.Run("NewConfigAdapter", func(t *testing.T) {
+		cfg := &config.ConfigTree{}
+		adapter := NewConfigAdapter(cfg)
+		assert.NotNil(t, adapter)
+	})
+
+	t.Run("NewGitAdapter", func(t *testing.T) {
+		gitCmd := NewRealGit()
+		adapter := NewGitAdapter(gitCmd)
+		assert.NotNil(t, adapter)
+	})
+
+	t.Run("NewGitAdapter with nil", func(t *testing.T) {
+		adapter := NewGitAdapter(nil)
+		assert.NotNil(t, adapter)
+	})
+
+	t.Run("NewUIAdapter", func(t *testing.T) {
+		output := NewRealOutput(os.Stdout, os.Stderr)
+		adapter := NewUIAdapter(output)
+		assert.NotNil(t, adapter)
+	})
+
+	t.Run("NewTreeAdapter", func(t *testing.T) {
+		mockGit := &MockGitInterface{}
+		mgr, err := tree.NewManager(tmpDir, mockGit)
+		assert.NoError(t, err)
+		adapter := NewTreeAdapter(mgr)
+		assert.NotNil(t, adapter)
+	})
+}
+
 // TestTreeProviderAdapter tests the treeProviderAdapter implementation  
 func TestTreeProviderAdapter(t *testing.T) {
+	tmpDir := t.TempDir()
+	mockGit := &MockGitInterface{}
+	mgr, _ := tree.NewManager(tmpDir, mockGit)
 	adapter := &treeProviderAdapter{
-		mgr: &tree.Manager{},  // Basic test with real manager
+		mgr: mgr,
 	}
 	
 	t.Run("Load", func(t *testing.T) {
@@ -265,9 +360,199 @@ func TestTreeProviderAdapter(t *testing.T) {
 				{Name: "test", URL: "https://github.com/test/repo.git"},
 			},
 		}
-		// Load doesn't do anything in the adapter
 		err := adapter.Load(cfg)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Navigate", func(t *testing.T) {
+		err := adapter.Navigate("/")
+		assert.NoError(t, err)
+	})
+
+	t.Run("GetCurrent", func(t *testing.T) {
+		node, err := adapter.GetCurrent()
+		assert.NoError(t, err)
+		assert.NotNil(t, node)
+	})
+
+	t.Run("GetTree", func(t *testing.T) {
+		tree, err := adapter.GetTree()
+		assert.NoError(t, err)
+		assert.NotNil(t, tree)
+	})
+
+	t.Run("GetNode", func(t *testing.T) {
+		node, err := adapter.GetNode("/")
+		assert.NoError(t, err)
+		assert.NotNil(t, node)
+	})
+
+	t.Run("ListChildren", func(t *testing.T) {
+		_, err := adapter.ListChildren("/")
+		assert.NoError(t, err)
+		// Children can be empty list, that's ok
+	})
+
+	t.Run("AddNode", func(t *testing.T) {
+		node := interfaces.NodeInfo{
+			Name:       "test",
+			Repository: "https://github.com/test/repo.git",
+			IsLazy:     false,
+		}
+		err := adapter.AddNode("/", node)
+		assert.NoError(t, err)
+	})
+
+	t.Run("RemoveNode", func(t *testing.T) {
+		// First add a node
+		node := interfaces.NodeInfo{
+			Name:       "toremove",
+			Repository: "https://github.com/test/remove.git",
+			IsLazy:     false,
+		}
+		adapter.AddNode("/", node)
+		err := adapter.RemoveNode("/toremove")
+		assert.NoError(t, err)
+	})
+
+	t.Run("UpdateNode", func(t *testing.T) {
+		// First add a node
+		node := interfaces.NodeInfo{
+			Name:       "toupdate",
+			Repository: "https://github.com/test/update.git",
+			IsLazy:     false,
+		}
+		adapter.AddNode("/", node)
+		
+		// Update it
+		node.IsCloned = true
+		err := adapter.UpdateNode("/toupdate", node)
+		assert.NoError(t, err)
+	})
+
+	t.Run("GetPath", func(t *testing.T) {
+		path := adapter.GetPath()
+		assert.Equal(t, "/", path)
+	})
+
+	t.Run("SetPath", func(t *testing.T) {
+		err := adapter.SetPath("/")
+		assert.NoError(t, err)
+	})
+
+	t.Run("GetState", func(t *testing.T) {
+		state, err := adapter.GetState()
+		assert.NoError(t, err)
+		assert.NotNil(t, state)
+	})
+
+	t.Run("SetState", func(t *testing.T) {
+		state := interfaces.TreeState{}
+		err := adapter.SetState(state)
+		assert.Error(t, err) // Not supported
+	})
+}
+
+// TestGitInterfaceAdapter tests the gitInterfaceAdapter implementation
+func TestGitInterfaceAdapter(t *testing.T) {
+	adapter := &gitInterfaceAdapter{
+		git: &MockGitInterfaceForAdapter{},
+	}
+
+	t.Run("Clone", func(t *testing.T) {
+		err := adapter.Clone("https://github.com/test/repo.git", "/path")
+		assert.NoError(t, err)
+	})
+
+	t.Run("Pull", func(t *testing.T) {
+		err := adapter.Pull("/path")
+		assert.NoError(t, err)
+	})
+
+	t.Run("Push", func(t *testing.T) {
+		err := adapter.Push("/path")
+		assert.NoError(t, err)
+	})
+
+	t.Run("Status", func(t *testing.T) {
+		status, err := adapter.Status("/path")
+		assert.NoError(t, err)
+		assert.Equal(t, "clean", status)
+	})
+
+	t.Run("Commit", func(t *testing.T) {
+		err := adapter.Commit("/path", "test commit")
+		assert.NoError(t, err)
+	})
+
+	t.Run("Add", func(t *testing.T) {
+		err := adapter.Add("/path", "file.txt")
 		assert.NoError(t, err)
 	})
 }
 
+// TestCreateSharedMemory tests the createSharedMemory function
+func TestCreateSharedMemory(t *testing.T) {
+	tmpDir := t.TempDir()
+	memoryPath := filepath.Join(tmpDir, "shared-memory.md")
+	
+	err := createSharedMemory(memoryPath)
+	assert.NoError(t, err)
+	
+	// Check file was created
+	_, err = os.Stat(memoryPath)
+	assert.NoError(t, err)
+	
+	// Check content
+	content, err := os.ReadFile(memoryPath)
+	assert.NoError(t, err)
+	assert.Contains(t, string(content), "# Shared Memory")
+}
+
+// TestTreeProviderAdapterHelpers tests helper methods
+func TestTreeProviderAdapterHelpers(t *testing.T) {
+	tmpDir := t.TempDir()
+	mockGit := &MockGitInterface{}
+	mgr, _ := tree.NewManager(tmpDir, mockGit)
+	adapter := &treeProviderAdapter{
+		mgr: mgr,
+	}
+	
+	t.Run("nodeToNodeInfo", func(t *testing.T) {
+		node := &tree.TreeNode{
+			Name:     "test",
+			URL:      "https://github.com/test/repo.git",
+			Lazy:     true,
+			State:    tree.RepoStateCloned,
+			Children: []string{},
+		}
+		
+		info := adapter.nodeToNodeInfo("/test", node)
+		assert.Equal(t, "test", info.Name)
+		assert.Equal(t, "/test", info.Path)
+		assert.Equal(t, "https://github.com/test/repo.git", info.Repository)
+		assert.True(t, info.IsLazy)
+	})
+	
+	t.Run("buildTreeRecursive", func(t *testing.T) {
+		node := &tree.TreeNode{
+			Name:     "root",
+			Children: []string{},
+		}
+		
+		info := adapter.buildTreeRecursive("/", node)
+		assert.Equal(t, "root", info.Name)
+		assert.Equal(t, "/", info.Path)
+	})
+	
+	t.Run("collectNodesRecursive", func(t *testing.T) {
+		node := &tree.TreeNode{
+			Name:     "root",
+			Children: []string{},
+		}
+		
+		nodes := make(map[string]interfaces.NodeInfo)
+		adapter.collectNodesRecursive("/", node, nodes)
+		assert.Contains(t, nodes, "/")
+	})
+}

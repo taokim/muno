@@ -197,7 +197,7 @@ func TestGetEffectiveLazy(t *testing.T) {
 				Name: "test",
 				Fetch: "eager",
 			},
-			expectedLazy: true, // Default is true unless meta-repo
+			expectedLazy: false, // Eager means not lazy
 		},
 		{
 			name: "meta-repo is eager by default",
@@ -219,7 +219,7 @@ func TestGetEffectiveLazy(t *testing.T) {
 			name: "regular repo defaults to lazy",
 			node: &config.NodeDefinition{
 				Name: "payment-service",
-				Fetch: "eager",
+				Fetch: "", // Auto mode defaults to lazy for regular repos
 			},
 			expectedLazy: true,
 		},

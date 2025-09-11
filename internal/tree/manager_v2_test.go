@@ -233,9 +233,10 @@ func TestManagerV2RepoOperations(t *testing.T) {
 		t.Fatalf("Failed to save config: %v", err)
 	}
 
-	// Use in-memory navigator
+	// Use in-memory navigator with config
 	nav := navigator.NewInMemoryNavigator()
-	mgr, err := NewManagerV2(workspace, WithNavigator(nav))
+	nav.SetConfig(cfg)
+	mgr, err := NewManagerV2(workspace, WithNavigator(nav), WithConfig(cfg))
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}

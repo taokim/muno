@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	
+	"github.com/taokim/muno/internal/config"
 )
 
 // InMemoryNavigator implements TreeNavigator entirely in memory.
@@ -15,6 +17,7 @@ type InMemoryNavigator struct {
 	nodes       map[string]*Node
 	status      map[string]*NodeStatus
 	currentPath string
+	config      *config.ConfigTree
 	mu          sync.RWMutex
 }
 
@@ -178,6 +181,75 @@ func (n *InMemoryNavigator) RefreshStatus(path string) error {
 
 	path = n.normalizePath(path)
 	
+	// For InMemoryNavigator in tests, RefreshStatus should sync with config
+	// This allows AddRepo and RemoveNode to work properly in tests
+	if n.config != nil && path == "/" {
+		// Sync root children with config nodes
+		rootNode := n.nodes["/"]
+		if rootNode != nil {
+			// Build a map of config nodes
+			configChildren := make(map[string]bool)
+			for _, nodeDef := range n.config.Nodes {
+				configChildren[nodeDef.Name] = true
+			}
+			
+			// Remove nodes that are no longer in config
+			newChildren := []string{}
+			for _, child := range rootNode.Children {
+				if configChildren[child] {
+					newChildren = append(newChildren, child)
+				} else {
+					// Remove the node and its status
+					childPath := "/" + child
+					delete(n.nodes, childPath)
+					delete(n.status, childPath)
+					// Also remove all descendants
+					n.removeNodeRecursive(childPath)
+				}
+			}
+			rootNode.Children = newChildren
+			
+			// Add any missing nodes from config
+			existingChildren := make(map[string]bool)
+			for _, child := range rootNode.Children {
+				existingChildren[child] = true
+			}
+			
+			for _, nodeDef := range n.config.Nodes {
+				if !existingChildren[nodeDef.Name] {
+					// Add child to root
+					rootNode.Children = append(rootNode.Children, nodeDef.Name)
+					
+					// Create the child node
+					childPath := "/" + nodeDef.Name
+					nodeType := NodeTypeRepo
+					if nodeDef.Config != "" {
+						nodeType = NodeTypeConfig
+					}
+					
+					n.nodes[childPath] = &Node{
+						Path:      childPath,
+						Name:      nodeDef.Name,
+						Type:      nodeType,
+						URL:       nodeDef.URL,
+						ConfigRef: nodeDef.Config,
+						Children:  []string{},
+					}
+					
+					// Create status
+					n.status[childPath] = &NodeStatus{
+						Exists:    true,
+						Lazy:      nodeDef.IsLazy(),
+						Cloned:    !nodeDef.IsLazy(),
+						State:     RepoStateCloned,
+						RemoteURL: nodeDef.URL,
+						LastCheck: time.Now(),
+					}
+				}
+			}
+		}
+	}
+	
 	// Update last check time
 	if status, exists := n.status[path]; exists {
 		status.LastCheck = time.Now()
@@ -230,6 +302,13 @@ func (n *InMemoryNavigator) TriggerLazyLoad(path string) error {
 }
 
 // Test helper methods for setting up the in-memory tree
+
+// SetConfig sets the configuration for the in-memory navigator
+func (n *InMemoryNavigator) SetConfig(cfg *config.ConfigTree) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.config = cfg
+}
 
 // AddNode adds a node to the in-memory tree
 func (n *InMemoryNavigator) AddNode(nodePath string, node *Node) error {

@@ -64,18 +64,25 @@ func IsMetaRepo(repoName string) bool {
 // GetEffectiveLazy determines the effective lazy setting for a node
 // Default is true (lazy) unless it's a meta-repo or explicitly set to false
 func GetEffectiveLazy(node *config.NodeDefinition) bool {
-	// If explicitly set, use that value
-	if node.IsLazy() {
+	// Check the fetch mode directly
+	switch node.Fetch {
+	case config.FetchEager:
+		return false
+	case config.FetchLazy:
+		return true
+	case config.FetchAuto, "":
+		// Auto mode: meta-repos are eager, others are lazy
+		if IsMetaRepo(node.Name) {
+			return false
+		}
+		return true
+	default:
+		// Default: meta-repos are eager, others are lazy
+		if IsMetaRepo(node.Name) {
+			return false
+		}
 		return true
 	}
-	
-	// Meta-repos default to eager (lazy=false)
-	if IsMetaRepo(node.Name) {
-		return false
-	}
-	
-	// Everything else defaults to lazy
-	return true
 }
 
 // AutoDiscoverConfig checks if a cloned repository has its own muno.yaml

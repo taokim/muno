@@ -141,7 +141,7 @@ func TestAddCommand(t *testing.T) {
 	})
 	
 	require.NoError(t, err)
-	assert.Contains(t, output, "Successfully added: repo")
+	assert.Contains(t, output, "Successfully added: testrepo")
 }
 
 func TestRemoveCommand(t *testing.T) {
