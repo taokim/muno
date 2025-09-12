@@ -85,7 +85,7 @@ func (g *RealGit) FetchWithOptions(path string, options ...string) error {
 
 // Status implements GitInterface.Status
 func (g *RealGit) Status(path string) (string, error) {
-	output, err := g.executor.ExecuteInDir(path, "git", "status")
+	output, err := g.executor.ExecuteInDir(path, "git", "status", "--short")
 	if err != nil {
 		return "", err
 	}
@@ -94,6 +94,10 @@ func (g *RealGit) Status(path string) (string, error) {
 
 // StatusWithOptions implements GitInterface.StatusWithOptions
 func (g *RealGit) StatusWithOptions(path string, options ...string) (string, error) {
+	// Default to --short if no options provided
+	if len(options) == 0 {
+		options = []string{"--short"}
+	}
 	args := append([]string{"status"}, options...)
 	output, err := g.executor.ExecuteInDir(path, "git", args...)
 	if err != nil {
