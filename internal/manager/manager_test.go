@@ -351,9 +351,9 @@ func TestManager_Use_LazyChildCloning(t *testing.T) {
 					},
 				})
 			},
-			wantClone:   true, // Changed: Now we DO want to clone lazy children
+			wantClone:   false, // Lazy children are NOT auto-cloned anymore (commented out in manager.go)
 			wantErr:     false,
-			description: "Should clone lazy children when navigating to parent for better UX",
+			description: "Should NOT auto-clone lazy children when navigating to parent",
 		},
 		{
 			name: "navigating to already cloned node does not trigger clone",
@@ -424,9 +424,9 @@ func TestManager_Use_LazyChildCloning(t *testing.T) {
 					},
 				})
 			},
-			wantClone:   true, // Should clone only the lazy service, not the already cloned or config nodes
+			wantClone:   false, // Lazy children are NOT auto-cloned anymore (commented out in manager.go)
 			wantErr:     false,
-			description: "Should only clone lazy children with repository URLs",
+			description: "Should NOT auto-clone lazy children even with mixed types",
 		},
 	}
 	

@@ -63,7 +63,7 @@ func TestLoadConfigReference(t *testing.T) {
 			ReposDir: "nodes",
 		},
 		Nodes: []config.NodeDefinition{
-			{Name: "config-ref", Config: "sub.yaml"},
+			{Name: "config-ref", ConfigRef: "sub.yaml"},
 		},
 	}
 	
@@ -147,7 +147,7 @@ func TestCloneLazyReposEdgeCases(t *testing.T) {
 		Nodes: []config.NodeDefinition{
 			{Name: "lazy1", URL: "https://github.com/test/lazy1.git", Fetch: config.FetchLazy},
 			{Name: "eager", URL: "https://github.com/test/eager.git"},
-			{Name: "config-node", Config: "sub.yaml"},
+			{Name: "config-node", ConfigRef: "sub.yaml"},
 		},
 	}
 	

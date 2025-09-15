@@ -23,7 +23,7 @@ func NewConfigResolver(rootPath string) *ConfigResolver {
 
 // LoadNodeConfig loads the configuration for a node if it has one
 func (r *ConfigResolver) LoadNodeConfig(basePath string, node *config.NodeDefinition) (*config.ConfigTree, error) {
-	if node.Config == "" {
+	if node.ConfigRef == "" {
 		return nil, nil // No config to load
 	}
 	
@@ -149,13 +149,13 @@ func (r *ConfigResolver) buildNode(basePath string, nodeDef *config.NodeDefiniti
 }
 
 func (r *ConfigResolver) resolveConfigPath(basePath string, node *config.NodeDefinition) string {
-	if filepath.IsAbs(node.Config) {
-		return node.Config
+	if filepath.IsAbs(node.ConfigRef) {
+		return node.ConfigRef
 	}
 	
 	// Config path is relative to the node's directory
 	nodePath := filepath.Join(basePath, node.Name)
-	return filepath.Join(nodePath, node.Config)
+	return filepath.Join(nodePath, node.ConfigRef)
 }
 
 // The TreeNode and NodeType types are defined in types.go

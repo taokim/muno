@@ -52,7 +52,7 @@ nodes:
     url: https://github.com/test/frontend.git
     fetch: eager
   - name: config-node
-    config: ../shared/muno.yaml
+    config_ref: ../shared/muno.yaml
 `
 		err := os.WriteFile(configPath, []byte(content), 0644)
 		require.NoError(t, err)
@@ -73,7 +73,7 @@ nodes:
 		assert.Equal(t, "eager", cfg.Nodes[1].Fetch)
 		
 		assert.Equal(t, "config-node", cfg.Nodes[2].Name)
-		assert.Equal(t, "../shared/muno.yaml", cfg.Nodes[2].Config)
+		assert.Equal(t, "../shared/muno.yaml", cfg.Nodes[2].ConfigRef)
 	})
 	
 	t.Run("InvalidYAML", func(t *testing.T) {
@@ -132,7 +132,7 @@ func TestConfigTree_Save(t *testing.T) {
 				},
 				{
 					Name:   "config-ref",
-					Config: "../shared/muno.yaml",
+					ConfigRef: "../shared/muno.yaml",
 				},
 			},
 		}
@@ -178,7 +178,7 @@ func TestConfigTree_Validate(t *testing.T) {
 				},
 				{
 					Name:   "config-ref",
-					Config: "../shared/muno.yaml",
+					ConfigRef: "../shared/muno.yaml",
 				},
 			},
 		}
@@ -196,7 +196,7 @@ func TestConfigTree_Validate(t *testing.T) {
 				{
 					Name:   "invalid",
 					URL:    "https://github.com/test/repo.git",
-					Config: "../shared/muno.yaml",
+					ConfigRef: "../shared/muno.yaml",
 				},
 			},
 		}

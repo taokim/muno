@@ -137,25 +137,25 @@ func TestNavigatorAdditional(t *testing.T) {
 		// Create a node definition that references the config
 		nodeDef := &config.NodeDefinition{
 			Name:   "test-node",
-			Config: configPath,
+			ConfigRef: configPath,
 		}
 		
 		// Load the config
-		loaded, err := resolver.LoadNodeConfig(nodeDef.Config, nodeDef)
+		loaded, err := resolver.LoadNodeConfig(nodeDef.ConfigRef, nodeDef)
 		assert.NoError(t, err)
 		assert.NotNil(t, loaded)
 		assert.Len(t, loaded.Nodes, 1)
 		assert.Equal(t, "repo1", loaded.Nodes[0].Name)
 		
 		// Try to load with non-existent config
-		nodeDef.Config = "/non/existent.yaml"
-		loaded, err = resolver.LoadNodeConfig(nodeDef.Config, nodeDef)
+		nodeDef.ConfigRef = "/non/existent.yaml"
+		loaded, err = resolver.LoadNodeConfig(nodeDef.ConfigRef, nodeDef)
 		assert.Error(t, err)
 		assert.Nil(t, loaded)
 		
 		// Try to load remote config (should fail in test)
-		nodeDef.Config = "https://example.com/config.yaml"
-		loaded, err = resolver.LoadNodeConfig(nodeDef.Config, nodeDef)
+		nodeDef.ConfigRef = "https://example.com/config.yaml"
+		loaded, err = resolver.LoadNodeConfig(nodeDef.ConfigRef, nodeDef)
 		assert.Error(t, err)
 		assert.Nil(t, loaded)
 	})

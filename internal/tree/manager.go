@@ -545,8 +545,8 @@ func (m *Manager) buildTreeFromConfig() error {
 				nodeDir := m.ComputeFilesystemPath(nodePath)
 				existingNode.State = GetRepoState(nodeDir)
 				existingNode.Cloned = (existingNode.State != RepoStateMissing)
-			} else if nodeDef.Config != "" {
-				existingNode.ConfigPath = nodeDef.Config
+			} else if nodeDef.ConfigRef != "" {
+				existingNode.ConfigPath = nodeDef.ConfigRef
 				existingNode.Type = NodeTypeConfig
 			}
 			existingNode.Lazy = nodeDef.IsLazy()
@@ -565,9 +565,9 @@ func (m *Manager) buildTreeFromConfig() error {
 				nodeDir := m.ComputeFilesystemPath(nodePath)
 				newNode.State = GetRepoState(nodeDir)
 				newNode.Cloned = (newNode.State != RepoStateMissing)
-			} else if nodeDef.Config != "" {
+			} else if nodeDef.ConfigRef != "" {
 				newNode.Type = NodeTypeConfig
-				newNode.ConfigPath = nodeDef.Config
+				newNode.ConfigPath = nodeDef.ConfigRef
 			}
 			
 			// Add to state first
@@ -598,10 +598,10 @@ func (m *Manager) buildTreeFromConfig() error {
 	
 	// Second pass: Load config references now that all parent nodes exist
 	for _, nodeDef := range m.config.Nodes {
-		if nodeDef.Config != "" {
+		if nodeDef.ConfigRef != "" {
 			nodePath := "/" + nodeDef.Name
-			if err := m.loadConfigReference(nodePath, nodeDef.Config); err != nil {
-				fmt.Printf("Warning: Failed to load config %s: %v\n", nodeDef.Config, err)
+			if err := m.loadConfigReference(nodePath, nodeDef.ConfigRef); err != nil {
+				fmt.Printf("Warning: Failed to load config %s: %v\n", nodeDef.ConfigRef, err)
 			}
 		}
 	}
@@ -643,12 +643,12 @@ func (m *Manager) loadConfigReference(parentPath string, configPath string) erro
 		}
 		
 		// Handle nested config references
-		if nodeDef.Config != "" {
+		if nodeDef.ConfigRef != "" {
 			childNode.Type = NodeTypeConfig
-			childNode.ConfigPath = nodeDef.Config
+			childNode.ConfigPath = nodeDef.ConfigRef
 			// Recursively load nested config
-			if err := m.loadConfigReference(childPath, nodeDef.Config); err != nil {
-				fmt.Printf("Warning: Failed to load nested config %s: %v\n", nodeDef.Config, err)
+			if err := m.loadConfigReference(childPath, nodeDef.ConfigRef); err != nil {
+				fmt.Printf("Warning: Failed to load nested config %s: %v\n", nodeDef.ConfigRef, err)
 			}
 		}
 		

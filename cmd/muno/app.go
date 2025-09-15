@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/taokim/muno/internal/config"
 	"github.com/taokim/muno/internal/manager"
 )
 
@@ -586,6 +587,9 @@ func (a *App) newPullCmd() *cobra.Command {
 	var recursive bool
 	var force bool
 	var all bool
+	var configOverrides []string
+	var branch string
+	var parallel int
 	
 	cmd := &cobra.Command{
 		Use:   "pull [path]",
@@ -607,6 +611,40 @@ Use --force to override local changes.`,
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
+			// Parse CLI config overrides
+			if len(configOverrides) > 0 || branch != "" || parallel > 0 {
+				cliConfig := make(map[string]interface{})
+				
+				if len(configOverrides) > 0 {
+					parsed, err := config.ParseConfigOverrides(configOverrides)
+					if err != nil {
+						return fmt.Errorf("parsing config overrides: %w", err)
+					}
+					for k, v := range parsed {
+						cliConfig[k] = v
+					}
+				}
+				
+				// Add shorthand flags to CLI config
+				if branch != "" {
+					if gitCfg, ok := cliConfig["git"].(map[string]interface{}); ok {
+						gitCfg["default_branch"] = branch
+					} else {
+						cliConfig["git"] = map[string]interface{}{"default_branch": branch}
+					}
+				}
+				if parallel > 0 {
+					if behaviorCfg, ok := cliConfig["behavior"].(map[string]interface{}); ok {
+						behaviorCfg["max_parallel_pulls"] = parallel
+					} else {
+						cliConfig["behavior"] = map[string]interface{}{"max_parallel_pulls": parallel}
+					}
+				}
+				
+				// Set CLI config on manager
+				mgr.SetCLIConfig(cliConfig)
+			}
+			
 			path := ""
 			if len(args) > 0 {
 				path = args[0]
@@ -625,6 +663,9 @@ Use --force to override local changes.`,
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Pull recursively in subtree")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force pull, overriding local changes")
 	cmd.Flags().BoolVarP(&all, "all", "a", false, "Pull all cloned repositories in workspace")
+	cmd.Flags().StringSliceVar(&configOverrides, "config", nil, "Override config values (key=value)")
+	cmd.Flags().StringVar(&branch, "branch", "", "Override default branch for this operation")
+	cmd.Flags().IntVar(&parallel, "parallel", 0, "Max parallel pull operations")
 	
 	return cmd
 }

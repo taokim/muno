@@ -312,7 +312,7 @@ func TestStatelessManager_EdgeCases(t *testing.T) {
 		// Add a node with config reference
 		mgr.config.Nodes = append(mgr.config.Nodes, config.NodeDefinition{
 			Name:   "config-node",
-			Config: "sub/muno.yaml",
+			ConfigRef: "sub/muno.yaml",
 		})
 		
 		// Should handle config nodes without URL
@@ -356,7 +356,7 @@ func TestConfigResolver(t *testing.T) {
 	t.Run("LoadNodeConfig with missing file", func(t *testing.T) {
 		node := &config.NodeDefinition{
 			Name:   "test",
-			Config: "missing.yaml",
+			ConfigRef: "missing.yaml",
 		}
 		cfg, err := resolver.LoadNodeConfig("/non-existent", node)
 		assert.Error(t, err) // Should error on missing file

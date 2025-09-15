@@ -18,8 +18,9 @@ const (
 
 // ConfigTree represents the tree-based configuration
 type ConfigTree struct {
-	Workspace WorkspaceTree    `yaml:"workspace"`
-	Nodes     []NodeDefinition `yaml:"nodes"`  // Flat list of direct children only
+	Workspace WorkspaceTree          `yaml:"workspace"`
+	Nodes     []NodeDefinition       `yaml:"nodes"`  // Flat list of direct children only
+	Config    map[string]interface{} `yaml:"config,omitempty"` // Workspace-level config overrides
 	
 	// Runtime fields (not in YAML)
 	Path string `yaml:"-"`  // Path to this config file
@@ -37,10 +38,13 @@ type WorkspaceTree struct {
 // - URL only: Git repository (may auto-discover muno.yaml)
 // - Config only: Pure config delegation (no repository)
 type NodeDefinition struct {
-	Name   string `yaml:"name"`
-	URL    string `yaml:"url,omitempty"`     // Git repository URL
-	Config string `yaml:"config,omitempty"`  // Path to sub-configuration
-	Fetch  string `yaml:"fetch,omitempty"`   // Fetch mode: "auto" (default), "lazy", or "eager"
+	Name          string                 `yaml:"name"`
+	URL           string                 `yaml:"url,omitempty"`           // Git repository URL
+	ConfigRef     string                 `yaml:"config_ref,omitempty"`     // Path to sub-configuration (renamed from Config)
+	Fetch         string                 `yaml:"fetch,omitempty"`          // Fetch mode: "auto" (default), "lazy", or "eager"
+	DefaultBranch string                 `yaml:"default_branch,omitempty"` // Node's default branch override
+	Config        map[string]interface{} `yaml:"config,omitempty"`         // Node-level config overrides
+	Metadata      map[string]string      `yaml:"metadata,omitempty"`       // Flexible metadata key-value pairs
 }
 
 // IsLazy determines if a node should be lazy based on its fetch mode
@@ -167,14 +171,14 @@ func (c *ConfigTree) Validate() error {
 		
 		// Ensure node has either URL or Config, not both
 		hasURL := node.URL != ""
-		hasConfig := node.Config != ""
+		hasConfig := node.ConfigRef != ""
 		
 		if hasURL && hasConfig {
-			return fmt.Errorf("node %s cannot have both URL and config fields", node.Name)
+			return fmt.Errorf("node %s cannot have both URL and config_ref fields", node.Name)
 		}
 		
 		if !hasURL && !hasConfig {
-			return fmt.Errorf("node %s must have either URL or config field", node.Name)
+			return fmt.Errorf("node %s must have either URL or config_ref field", node.Name)
 		}
 	}
 

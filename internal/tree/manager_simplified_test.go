@@ -212,9 +212,9 @@ func TestTreeNavigation(t *testing.T) {
 		t.Errorf("Current path = %s, want /level1/level2", mgr.state.CurrentPath)
 	}
 	
-	// Verify filesystem path - level1 is a top-level git repo (direct in workspace)
+	// Verify filesystem path - level1 is a top-level git repo (in repos/ subdir)
 	// level2 is nested under level1
-	expectedFS := filepath.Join(tmpDir, "level1", "level2")
+	expectedFS := filepath.Join(tmpDir, "repos", "level1", "level2")
 	actualFS := mgr.ComputeFilesystemPath("/level1/level2")
 	if actualFS != expectedFS {
 		t.Errorf("Filesystem path = %s, want %s", actualFS, expectedFS)

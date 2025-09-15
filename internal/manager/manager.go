@@ -43,6 +43,9 @@ type Manager struct {
 	config       *config.ConfigTree
 	initialized  bool
 	
+	// Configuration resolver
+	configResolver *config.ConfigResolver
+	
 	// Options
 	opts         ManagerOptions
 }
@@ -107,7 +110,7 @@ func NewManager(opts ManagerOptions) (*Manager, error) {
 		opts.PluginManager = pm
 	}
 	
-	return &Manager{
+	mgr := &Manager{
 		configProvider:  opts.ConfigProvider,
 		gitProvider:     opts.GitProvider,
 		fsProvider:      opts.FSProvider,
@@ -118,7 +121,12 @@ func NewManager(opts ManagerOptions) (*Manager, error) {
 		metricsProvider: opts.MetricsProvider,
 		pluginManager:   opts.PluginManager,
 		opts:            opts,
-	}, nil
+	}
+	
+	// Initialize config resolver with defaults
+	mgr.configResolver = config.NewConfigResolver(config.GetDefaults())
+	
+	return mgr, nil
 }
 
 // Initialize initializes the manager with a workspace
@@ -159,6 +167,11 @@ func (m *Manager) Initialize(ctx context.Context, workspace string) error {
 				return fmt.Errorf("invalid config type")
 			}
 			m.config = configTree
+			
+			// Set workspace config in resolver
+			if m.configResolver != nil && configTree.Config != nil {
+				m.configResolver.SetWorkspaceConfig(configTree.Config)
+			}
 			
 			// Load tree
 			if err := m.treeProvider.Load(configTree); err != nil {
@@ -204,6 +217,23 @@ func (m *Manager) InitializeWithConfig(ctx context.Context, workspace string, cf
 	}
 	
 	return nil
+}
+
+// SetCLIConfig sets CLI configuration overrides
+func (m *Manager) SetCLIConfig(cliConfig map[string]interface{}) {
+	if m.configResolver != nil {
+		m.configResolver.SetCLIConfig(cliConfig)
+	}
+	
+	// Also update workspace config if already loaded
+	if m.config != nil && m.config.Config != nil {
+		m.configResolver.SetWorkspaceConfig(m.config.Config)
+	}
+}
+
+// GetConfigResolver returns the configuration resolver
+func (m *Manager) GetConfigResolver() *config.ConfigResolver {
+	return m.configResolver
 }
 
 // Use navigates to a specific node in the tree
@@ -926,7 +956,7 @@ func (m *Manager) displayTreeRecursiveWithPrefix(node interfaces.NodeInfo, prefi
 			nodeFound := false
 			for _, nodeDef := range m.config.Nodes {
 				if nodeDef.Name == node.Name {
-					if nodeDef.Config != "" {
+					if nodeDef.ConfigRef != "" {
 						status = append(status, "📄 config")
 					} else if nodeDef.URL != "" {
 						status = append(status, "📁 git parent")
@@ -1868,8 +1898,8 @@ func (m *Manager) writeTreeNode(output *strings.Builder, node *interfaces.NodeIn
 			if nodeDef.Name == node.Name {
 				if nodeDef.URL != "" {
 					statusIndicator += fmt.Sprintf(" [git: %s]", nodeDef.URL)
-				} else if nodeDef.Config != "" {
-					statusIndicator += fmt.Sprintf(" [config: %s]", nodeDef.Config)
+				} else if nodeDef.ConfigRef != "" {
+					statusIndicator += fmt.Sprintf(" [config: %s]", nodeDef.ConfigRef)
 				}
 				break
 			}

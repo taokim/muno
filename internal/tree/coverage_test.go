@@ -159,7 +159,7 @@ func TestStatelessManager_MoreMethods(t *testing.T) {
 		// Add a config reference node
 		mgr.config.Nodes = append(mgr.config.Nodes, config.NodeDefinition{
 			Name:   "parent",
-			Config: "parent/muno.yaml",
+			ConfigRef: "parent/muno.yaml",
 		})
 		
 		result := mgr.DisplayTree()
@@ -172,7 +172,7 @@ func TestStatelessManager_MoreMethods(t *testing.T) {
 		mgr.config.Nodes = append(mgr.config.Nodes, config.NodeDefinition{
 			Name:   "with-config",
 			URL:    "https://github.com/test/with-config.git",
-			Config: "sub/muno.yaml",
+			ConfigRef: "sub/muno.yaml",
 		})
 		
 		gitCmd.CloneCalls = nil

@@ -92,11 +92,11 @@ func TestResolverFunctions(t *testing.T) {
 		assert.Equal(t, NodeKindRepo, GetNodeKind(node))
 		
 		// Test config node
-		node = &config.NodeDefinition{Config: "config.yaml"}
+		node = &config.NodeDefinition{ConfigRef: "config.yaml"}
 		assert.Equal(t, NodeKindConfigRef, GetNodeKind(node))
 		
 		// Test invalid node (both URL and config)
-		node = &config.NodeDefinition{URL: "repo.git", Config: "config.yaml"}
+		node = &config.NodeDefinition{URL: "repo.git", ConfigRef: "config.yaml"}
 		assert.Equal(t, NodeKindInvalid, GetNodeKind(node))
 		
 		// Test invalid node (neither)
@@ -106,13 +106,13 @@ func TestResolverFunctions(t *testing.T) {
 	
 	t.Run("ResolveConfigPath", func(t *testing.T) {
 		// Test with relative config
-		node := &config.NodeDefinition{Name: "test", Config: "../config/muno.yaml"}
+		node := &config.NodeDefinition{Name: "test", ConfigRef: "../config/muno.yaml"}
 		result := ResolveConfigPath("/workspace", node)
 		// filepath.Join simplifies the path
 		assert.Equal(t, "/workspace/config/muno.yaml", result)
 		
 		// Test with absolute config
-		node = &config.NodeDefinition{Name: "test", Config: "/absolute/path/config.yaml"}
+		node = &config.NodeDefinition{Name: "test", ConfigRef: "/absolute/path/config.yaml"}
 		result = ResolveConfigPath("/workspace", node)
 		assert.Equal(t, "/absolute/path/config.yaml", result)
 		
@@ -122,7 +122,7 @@ func TestResolverFunctions(t *testing.T) {
 		assert.Equal(t, "", result)
 		
 		// Test with simple filename
-		node = &config.NodeDefinition{Name: "test", Config: "muno.yaml"}
+		node = &config.NodeDefinition{Name: "test", ConfigRef: "muno.yaml"}
 		result = ResolveConfigPath("/workspace", node)
 		assert.Equal(t, "/workspace/test/muno.yaml", result)
 	})

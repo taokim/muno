@@ -211,7 +211,7 @@ func TestTreeHelpers_BuildNodeFromConfig(t *testing.T) {
 	t.Run("config reference", func(t *testing.T) {
 		def := config.NodeDefinition{
 			Name:   "config-node",
-			Config: "sub.yaml",
+			ConfigRef: "sub.yaml",
 		}
 		node := h.BuildNodeFromConfig(def, "/parent")
 		

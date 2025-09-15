@@ -36,7 +36,7 @@ func setupTestManager(t *testing.T) (*StatelessManager, string) {
 			},
 			{
 				Name:   "parent",
-				Config: "parent/muno.yaml",
+				ConfigRef: "parent/muno.yaml",
 			},
 		},
 	}
@@ -99,7 +99,7 @@ func TestStatelessManager_ComputeFilesystemPath(t *testing.T) {
 		{
 			name:         "child path (git repo)",
 			logicalPath:  "/child1",
-			expectedPath: filepath.Join(tmpDir, "child1"), // Git repo - no nodes/ subdir
+			expectedPath: filepath.Join(tmpDir, "nodes", "child1"), // Git repos use nodes/ subdir
 		},
 		{
 			name:         "config node path",
@@ -114,7 +114,7 @@ func TestStatelessManager_ComputeFilesystemPath(t *testing.T) {
 		{
 			name:         "relative path (git repo)",
 			logicalPath:  "child1",
-			expectedPath: filepath.Join(tmpDir, "child1"), // Git repo - no nodes/ subdir
+			expectedPath: filepath.Join(tmpDir, "nodes", "child1"), // Git repos use nodes/ subdir
 		},
 	}
 	

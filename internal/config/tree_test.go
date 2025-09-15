@@ -34,7 +34,7 @@ func TestConfigTreeLoadSave(t *testing.T) {
 			},
 			{
 				Name:   "meta1",
-				Config: "meta1/muno.yaml",
+				ConfigRef: "meta1/muno.yaml",
 			},
 		},
 	}
@@ -104,7 +104,7 @@ func TestConfigTreeValidate(t *testing.T) {
 					{
 						Name:   "invalid",
 						URL:    "https://github.com/test/repo.git",
-						Config: "config.yaml",
+						ConfigRef: "config.yaml",
 					},
 				},
 			},

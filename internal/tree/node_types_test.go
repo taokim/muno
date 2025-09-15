@@ -27,7 +27,7 @@ func TestGetNodeKind(t *testing.T) {
 			name: "node with config only",
 			node: &config.NodeDefinition{
 				Name:   "parent",
-				Config: "muno.yaml",
+				ConfigRef: "muno.yaml",
 			},
 			expected: NodeKindConfigRef,
 		},
@@ -36,7 +36,7 @@ func TestGetNodeKind(t *testing.T) {
 			node: &config.NodeDefinition{
 				Name:   "hybrid",
 				URL:    "https://github.com/test/hybrid.git",
-				Config: "muno.yaml",
+				ConfigRef: "muno.yaml",
 			},
 			expected: NodeKindInvalid,
 		},
@@ -71,7 +71,7 @@ func TestResolveConfigPath(t *testing.T) {
 			basePath: tmpDir,
 			node: &config.NodeDefinition{
 				Name:   "test",
-				Config: "custom/config.yaml",
+				ConfigRef: "custom/config.yaml",
 			},
 			expected: filepath.Join(tmpDir, "test", "custom", "config.yaml"),
 		},
@@ -80,7 +80,7 @@ func TestResolveConfigPath(t *testing.T) {
 			basePath: tmpDir,
 			node: &config.NodeDefinition{
 				Name:   "test",
-				Config: "/absolute/path/config.yaml",
+				ConfigRef: "/absolute/path/config.yaml",
 			},
 			expected: "/absolute/path/config.yaml",
 		},
@@ -97,7 +97,7 @@ func TestResolveConfigPath(t *testing.T) {
 			basePath: "/workspace",
 			node: &config.NodeDefinition{
 				Name:   "myrepo",
-				Config: "muno.yaml",
+				ConfigRef: "muno.yaml",
 			},
 			expected: filepath.Join("/workspace", "myrepo", "muno.yaml"),
 		},

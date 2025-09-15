@@ -398,9 +398,9 @@ func (n *FilesystemNavigator) buildNodeFromPath(nodePath string) *Node {
 		if nodeDef.URL != "" {
 			node.Type = NodeTypeRepo
 			node.URL = nodeDef.URL
-		} else if nodeDef.Config != "" {
+		} else if nodeDef.ConfigRef != "" {
 			node.Type = NodeTypeConfig
-			node.ConfigRef = nodeDef.Config
+			node.ConfigRef = nodeDef.ConfigRef
 		} else {
 			node.Type = NodeTypeDirectory
 		}
@@ -433,9 +433,9 @@ func (n *FilesystemNavigator) getNodeChildren(nodePath string) []string {
 
 	// Check if this is a config reference
 	nodeDef := n.findNodeDefinition(nodePath)
-	if nodeDef != nil && nodeDef.Config != "" {
+	if nodeDef != nil && nodeDef.ConfigRef != "" {
 		// Load referenced config and get its nodes
-		if cfg, err := n.resolver.LoadNodeConfig(nodeDef.Config, nodeDef); err == nil {
+		if cfg, err := n.resolver.LoadNodeConfig(nodeDef.ConfigRef, nodeDef); err == nil {
 			for _, child := range cfg.Nodes {
 				children = append(children, child.Name)
 			}

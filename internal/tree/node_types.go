@@ -19,7 +19,7 @@ const (
 // GetNodeKind determines the node type from its definition
 func GetNodeKind(node *config.NodeDefinition) NodeKind {
 	hasURL := node.URL != ""
-	hasConfig := node.Config != ""
+	hasConfig := node.ConfigRef != ""
 	
 	switch {
 	case hasURL && !hasConfig:
@@ -34,18 +34,18 @@ func GetNodeKind(node *config.NodeDefinition) NodeKind {
 
 // ResolveConfigPath resolves the config path relative to the current location
 func ResolveConfigPath(basePath string, node *config.NodeDefinition) string {
-	if node.Config == "" {
+	if node.ConfigRef == "" {
 		return ""
 	}
 	
 	// If config path is absolute, use it directly
-	if filepath.IsAbs(node.Config) {
-		return node.Config
+	if filepath.IsAbs(node.ConfigRef) {
+		return node.ConfigRef
 	}
 	
 	// Otherwise resolve relative to the node's location
 	nodePath := filepath.Join(basePath, node.Name)
-	return filepath.Join(nodePath, node.Config)
+	return filepath.Join(nodePath, node.ConfigRef)
 }
 
 // IsMetaRepo checks if the repository name indicates it's a meta-repository

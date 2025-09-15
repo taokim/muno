@@ -297,7 +297,7 @@ func (m *StatelessManager) CloneLazyRepos(targetPath string, recursive bool) err
 			}
 			
 			// If recursive and node has config, process sub-nodes
-			if recursive && node.Config != "" {
+			if recursive && node.ConfigRef != "" {
 				// Would load sub-config and process
 			}
 		}
@@ -327,7 +327,7 @@ func (m *StatelessManager) DisplayTree() string {
 			icon = "📝"
 		}
 		
-		if node.Config != "" {
+		if node.ConfigRef != "" {
 			icon = "📁" // Config reference
 		}
 		

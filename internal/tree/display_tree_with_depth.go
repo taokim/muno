@@ -51,7 +51,7 @@ func (m *StatelessManager) DisplayTreeWithDepth(maxDepth int) string {
 			icon = "📝"
 		}
 		
-		if node.Config != "" {
+		if node.ConfigRef != "" {
 			icon = "📁"
 		}
 		

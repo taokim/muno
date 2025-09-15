@@ -137,7 +137,7 @@ func (h *TreeHelpers) BuildNodeFromConfig(def config.NodeDefinition, parentPath 
 	nodeType := navigator.NodeTypeDirectory
 	if def.URL != "" {
 		nodeType = navigator.NodeTypeRepo
-	} else if def.Config != "" {
+	} else if def.ConfigRef != "" {
 		nodeType = navigator.NodeTypeConfig
 	}
 
@@ -145,7 +145,7 @@ func (h *TreeHelpers) BuildNodeFromConfig(def config.NodeDefinition, parentPath 
 		Name:      def.Name,
 		Path:      nodePath,
 		URL:       def.URL,
-		ConfigRef: def.Config,
+		ConfigRef: def.ConfigRef,
 		Type:      nodeType,
 		Children:  []string{},
 	}
