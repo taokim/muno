@@ -36,7 +36,7 @@ func setupTestManager(t *testing.T) (*StatelessManager, string) {
 			},
 			{
 				Name:   "parent",
-				ConfigRef: "parent/muno.yaml",
+				File: "parent/muno.yaml",
 			},
 		},
 	}

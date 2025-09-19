@@ -12,40 +12,40 @@ type NodeKind int
 
 const (
 	NodeKindRepo      NodeKind = iota  // URL only: git repository (may auto-discover config)
-	NodeKindConfigRef                  // Config only: pure config delegation
+	NodeKindFile                  // Config only: pure config delegation
 	NodeKindInvalid                    // Both or neither: invalid configuration
 )
 
 // GetNodeKind determines the node type from its definition
 func GetNodeKind(node *config.NodeDefinition) NodeKind {
 	hasURL := node.URL != ""
-	hasConfig := node.ConfigRef != ""
+	hasFile := node.File != ""
 	
 	switch {
-	case hasURL && !hasConfig:
+	case hasURL && !hasFile:
 		return NodeKindRepo
-	case hasConfig && !hasURL:
-		return NodeKindConfigRef
+	case hasFile && !hasURL:
+		return NodeKindFile
 	default:
 		// Both or neither is invalid
 		return NodeKindInvalid
 	}
 }
 
-// ResolveConfigPath resolves the config path relative to the current location
-func ResolveConfigPath(basePath string, node *config.NodeDefinition) string {
-	if node.ConfigRef == "" {
+// ResolveFilePath resolves the config path relative to the current location
+func ResolveFilePath(basePath string, node *config.NodeDefinition) string {
+	if node.File == "" {
 		return ""
 	}
 	
 	// If config path is absolute, use it directly
-	if filepath.IsAbs(node.ConfigRef) {
-		return node.ConfigRef
+	if filepath.IsAbs(node.File) {
+		return node.File
 	}
 	
 	// Otherwise resolve relative to the node's location
 	nodePath := filepath.Join(basePath, node.Name)
-	return filepath.Join(nodePath, node.ConfigRef)
+	return filepath.Join(nodePath, node.File)
 }
 
 // IsMetaRepo checks if the repository name indicates it's a meta-repository

@@ -373,7 +373,7 @@ func setupTestTree(nav *navigator.InMemoryNavigator) {
 		{"/frontend", "frontend", navigator.NodeTypeRepo, "https://github.com/example/frontend.git", []string{"web", "mobile"}},
 		{"/frontend/web", "web", navigator.NodeTypeRepo, "https://github.com/example/web.git", []string{}},
 		{"/frontend/mobile", "mobile", navigator.NodeTypeRepo, "https://github.com/example/mobile.git", []string{}},
-		{"/infrastructure", "infrastructure", navigator.NodeTypeConfig, "", []string{}},
+		{"/infrastructure", "infrastructure", navigator.NodeTypeFile, "", []string{}},
 	}
 
 	for _, n := range nodes {

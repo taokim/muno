@@ -545,9 +545,9 @@ func (m *Manager) buildTreeFromConfig() error {
 				nodeDir := m.ComputeFilesystemPath(nodePath)
 				existingNode.State = GetRepoState(nodeDir)
 				existingNode.Cloned = (existingNode.State != RepoStateMissing)
-			} else if nodeDef.ConfigRef != "" {
-				existingNode.ConfigPath = nodeDef.ConfigRef
-				existingNode.Type = NodeTypeConfig
+			} else if nodeDef.File != "" {
+				existingNode.FilePath = nodeDef.File
+				existingNode.Type = NodeTypeFile
 			}
 			existingNode.Lazy = nodeDef.IsLazy()
 		} else {
@@ -565,9 +565,9 @@ func (m *Manager) buildTreeFromConfig() error {
 				nodeDir := m.ComputeFilesystemPath(nodePath)
 				newNode.State = GetRepoState(nodeDir)
 				newNode.Cloned = (newNode.State != RepoStateMissing)
-			} else if nodeDef.ConfigRef != "" {
-				newNode.Type = NodeTypeConfig
-				newNode.ConfigPath = nodeDef.ConfigRef
+			} else if nodeDef.File != "" {
+				newNode.Type = NodeTypeFile
+				newNode.FilePath = nodeDef.File
 			}
 			
 			// Add to state first
@@ -598,10 +598,10 @@ func (m *Manager) buildTreeFromConfig() error {
 	
 	// Second pass: Load config references now that all parent nodes exist
 	for _, nodeDef := range m.config.Nodes {
-		if nodeDef.ConfigRef != "" {
+		if nodeDef.File != "" {
 			nodePath := "/" + nodeDef.Name
-			if err := m.loadConfigReference(nodePath, nodeDef.ConfigRef); err != nil {
-				fmt.Printf("Warning: Failed to load config %s: %v\n", nodeDef.ConfigRef, err)
+			if err := m.loadFileReference(nodePath, nodeDef.File); err != nil {
+				fmt.Printf("Warning: Failed to load config %s: %v\n", nodeDef.File, err)
 			}
 		}
 	}
@@ -610,16 +610,16 @@ func (m *Manager) buildTreeFromConfig() error {
 	return nil
 }
 
-// loadConfigReference loads a config file and adds its nodes as children
-func (m *Manager) loadConfigReference(parentPath string, configPath string) error {
+// loadFileReference loads a config file and adds its nodes as children
+func (m *Manager) loadFileReference(parentPath string, configPath string) error {
 	// Resolve config path
-	fullConfigPath := configPath
+	fullFilePath := configPath
 	if !filepath.IsAbs(configPath) {
-		fullConfigPath = filepath.Join(m.workspacePath, configPath)
+		fullFilePath = filepath.Join(m.workspacePath, configPath)
 	}
 	
 	// Load the config file
-	refConfig, err := config.LoadTree(fullConfigPath)
+	refConfig, err := config.LoadTree(fullFilePath)
 	if err != nil {
 		return fmt.Errorf("loading config reference %s: %w", configPath, err)
 	}
@@ -643,12 +643,12 @@ func (m *Manager) loadConfigReference(parentPath string, configPath string) erro
 		}
 		
 		// Handle nested config references
-		if nodeDef.ConfigRef != "" {
-			childNode.Type = NodeTypeConfig
-			childNode.ConfigPath = nodeDef.ConfigRef
+		if nodeDef.File != "" {
+			childNode.Type = NodeTypeFile
+			childNode.FilePath = nodeDef.File
 			// Recursively load nested config
-			if err := m.loadConfigReference(childPath, nodeDef.ConfigRef); err != nil {
-				fmt.Printf("Warning: Failed to load nested config %s: %v\n", nodeDef.ConfigRef, err)
+			if err := m.loadFileReference(childPath, nodeDef.File); err != nil {
+				fmt.Printf("Warning: Failed to load nested config %s: %v\n", nodeDef.File, err)
 			}
 		}
 		

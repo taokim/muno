@@ -52,11 +52,11 @@ func TestStatusFunctions(t *testing.T) {
 		}
 	})
 	
-	t.Run("GetConfigRefStatus", func(t *testing.T) {
+	t.Run("GetFileStatus", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		
 		// Test missing config
-		status := GetConfigRefStatus(filepath.Join(tmpDir, "nonexistent"))
+		status := GetFileStatus(filepath.Join(tmpDir, "nonexistent"))
 		if status {
 			t.Error("Expected false for nonexistent path")
 		}
@@ -64,17 +64,17 @@ func TestStatusFunctions(t *testing.T) {
 		// Test existing directory
 		dirPath := filepath.Join(tmpDir, "existing")
 		os.MkdirAll(dirPath, 0755)
-		status = GetConfigRefStatus(dirPath)
+		status = GetFileStatus(dirPath)
 		if !status {
 			t.Error("Expected true for existing directory")
 		}
 	})
 	
-	t.Run("CreateConfigRefMarker", func(t *testing.T) {
+	t.Run("CreateFileMarker", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		repoPath := filepath.Join(tmpDir, "repo")
 		
-		err := CreateConfigRefMarker(repoPath)
+		err := CreateFileMarker(repoPath)
 		if err != nil {
 			t.Errorf("Failed to create config ref marker: %v", err)
 		}

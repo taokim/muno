@@ -51,8 +51,8 @@ func TestUncoveredDisplayFunctions(t *testing.T) {
 		})
 }
 
-// TestLoadConfigReference tests the loadConfigReference function
-func TestLoadConfigReference(t *testing.T) {
+// TestLoadConfigerence tests the loadConfigerence function
+func TestLoadConfigerence(t *testing.T) {
 	tmpDir := t.TempDir()
 	mockGit := &git.MockGit{}
 	
@@ -63,7 +63,7 @@ func TestLoadConfigReference(t *testing.T) {
 			ReposDir: "nodes",
 		},
 		Nodes: []config.NodeDefinition{
-			{Name: "config-ref", ConfigRef: "sub.yaml"},
+			{Name: "config-ref", File: "sub.yaml"},
 		},
 	}
 	
@@ -85,8 +85,8 @@ func TestLoadConfigReference(t *testing.T) {
 		},
 	}
 	
-	subConfigPath := filepath.Join(subDir, "sub.yaml")
-	err = subCfg.Save(subConfigPath)
+	subFilePath := filepath.Join(subDir, "sub.yaml")
+	err = subCfg.Save(subFilePath)
 	require.NoError(t, err)
 	
 	// Test with manager that loads config references
@@ -147,7 +147,7 @@ func TestCloneLazyReposEdgeCases(t *testing.T) {
 		Nodes: []config.NodeDefinition{
 			{Name: "lazy1", URL: "https://github.com/test/lazy1.git", Fetch: config.FetchLazy},
 			{Name: "eager", URL: "https://github.com/test/eager.git"},
-			{Name: "config-node", ConfigRef: "sub.yaml"},
+			{Name: "config-node", File: "sub.yaml"},
 		},
 	}
 	
@@ -189,7 +189,7 @@ func TestTreeNodeMethodsComplete(t *testing.T) {
 		assert.False(t, node.NeedsClone())
 		
 		// Config node type
-		node = &TreeNode{Type: NodeTypeConfig, State: RepoStateMissing}
+		node = &TreeNode{Type: NodeTypeFile, State: RepoStateMissing}
 		assert.False(t, node.NeedsClone())
 	})
 	

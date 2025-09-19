@@ -223,8 +223,8 @@ func (n *InMemoryNavigator) RefreshStatus(path string) error {
 					// Create the child node
 					childPath := "/" + nodeDef.Name
 					nodeType := NodeTypeRepo
-					if nodeDef.ConfigRef != "" {
-						nodeType = NodeTypeConfig
+					if nodeDef.File != "" {
+						nodeType = NodeTypeFile
 					}
 					
 					n.nodes[childPath] = &Node{
@@ -232,7 +232,7 @@ func (n *InMemoryNavigator) RefreshStatus(path string) error {
 						Name:      nodeDef.Name,
 						Type:      nodeType,
 						URL:       nodeDef.URL,
-						ConfigRef: nodeDef.ConfigRef,
+						File: nodeDef.File,
 						Children:  []string{},
 					}
 					

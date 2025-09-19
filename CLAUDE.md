@@ -135,18 +135,18 @@ MUNO supports two primary node types:
    - Clone and manage standard git repositories
    - Can contain muno.yaml for child definitions (hybrid nodes)
 
-2. **Config Reference Nodes** (`config` field):
+2. **Config Reference Nodes** (`file` field):
    ```yaml
    nodes:
      - name: team-frontend
-       config: ../frontend/muno.yaml  # Local config delegation
+       file: ../frontend/muno.yaml  # Local config delegation
      - name: infrastructure
-       config: https://config.company.com/infra.yaml  # Remote config
+       file: https://config.company.com/infra.yaml  # Remote config
    ```
    - Delegate subtree management to external configurations
    - Enable distributed, team-based configuration management
 
-**Important**: A node must have EITHER `url` OR `config`, never both.
+**Important**: A node must have EITHER `url` OR `file`, never both.
 
 ### Key Design Patterns
 

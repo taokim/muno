@@ -312,7 +312,7 @@ func TestStatelessManager_EdgeCases(t *testing.T) {
 		// Add a node with config reference
 		mgr.config.Nodes = append(mgr.config.Nodes, config.NodeDefinition{
 			Name:   "config-node",
-			ConfigRef: "sub/muno.yaml",
+			File: "sub/muno.yaml",
 		})
 		
 		// Should handle config nodes without URL
@@ -351,19 +351,19 @@ func TestConfigResolver(t *testing.T) {
 		assert.Equal(t, tmpDir, resolver.root)
 	})
 	
-	// resolveConfigPath is private - test it through public methods
+	// resolveFilePath is private - test it through public methods
 	
-	t.Run("LoadNodeConfig with missing file", func(t *testing.T) {
+	t.Run("LoadNodeFile with missing file", func(t *testing.T) {
 		node := &config.NodeDefinition{
 			Name:   "test",
-			ConfigRef: "missing.yaml",
+			File: "missing.yaml",
 		}
-		cfg, err := resolver.LoadNodeConfig("/non-existent", node)
+		cfg, err := resolver.LoadNodeFile("/non-existent", node)
 		assert.Error(t, err) // Should error on missing file
 		assert.Nil(t, cfg)
 	})
 	
-	t.Run("LoadNodeConfig with valid config", func(t *testing.T) {
+	t.Run("LoadNodeFile with valid config", func(t *testing.T) {
 		// Create a config file
 		configDir := filepath.Join(tmpDir, config.GetDefaultReposDir(), "test")
 		os.MkdirAll(configDir, 0755)

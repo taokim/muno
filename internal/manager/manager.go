@@ -169,8 +169,8 @@ func (m *Manager) Initialize(ctx context.Context, workspace string) error {
 			m.config = configTree
 			
 			// Set workspace config in resolver
-			if m.configResolver != nil && configTree.Config != nil {
-				m.configResolver.SetWorkspaceConfig(configTree.Config)
+			if m.configResolver != nil && configTree.Overrides != nil {
+					m.configResolver.SetWorkspaceConfig(configTree.Overrides)
 			}
 			
 			// Load tree
@@ -226,8 +226,8 @@ func (m *Manager) SetCLIConfig(cliConfig map[string]interface{}) {
 	}
 	
 	// Also update workspace config if already loaded
-	if m.config != nil && m.config.Config != nil {
-		m.configResolver.SetWorkspaceConfig(m.config.Config)
+	if m.config != nil && m.config.Overrides != nil {
+			m.configResolver.SetWorkspaceConfig(m.config.Overrides)
 	}
 }
 
@@ -544,7 +544,7 @@ func (m *Manager) Remove(ctx context.Context, name string) error {
 	if node.IsCloned {
 		m.uiProvider.Info("   Files: Deleted from filesystem")
 	}
-	m.uiProvider.Info("   Config: Updated")
+	m.uiProvider.Info("   File: Updated")
 	m.metricsProvider.Counter("manager.remove_repo", 1)
 	
 	return nil
@@ -956,7 +956,7 @@ func (m *Manager) displayTreeRecursiveWithPrefix(node interfaces.NodeInfo, prefi
 			nodeFound := false
 			for _, nodeDef := range m.config.Nodes {
 				if nodeDef.Name == node.Name {
-					if nodeDef.ConfigRef != "" {
+					if nodeDef.File != "" {
 						status = append(status, "📄 config")
 					} else if nodeDef.URL != "" {
 						status = append(status, "📁 git parent")
@@ -1898,8 +1898,8 @@ func (m *Manager) writeTreeNode(output *strings.Builder, node *interfaces.NodeIn
 			if nodeDef.Name == node.Name {
 				if nodeDef.URL != "" {
 					statusIndicator += fmt.Sprintf(" [git: %s]", nodeDef.URL)
-				} else if nodeDef.ConfigRef != "" {
-					statusIndicator += fmt.Sprintf(" [config: %s]", nodeDef.ConfigRef)
+				} else if nodeDef.File != "" {
+					statusIndicator += fmt.Sprintf(" [config: %s]", nodeDef.File)
 				}
 				break
 			}

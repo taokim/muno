@@ -160,7 +160,7 @@ func (f *Factory) createInMemoryNavigator(opts *NavigatorOptions) (TreeNavigator
 func (f *Factory) defaultOptions() *NavigatorOptions {
 	return &NavigatorOptions{
 		WorkspacePath:   f.workspace,
-		ConfigPath:      "", // Will use default search
+		FilePath:      "", // Will use default search
 		CacheEnabled:    false,
 		CacheTTL:        30 * time.Second,
 		MaxCacheSize:    1000,

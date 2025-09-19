@@ -20,7 +20,7 @@ const (
 type ConfigTree struct {
 	Workspace WorkspaceTree          `yaml:"workspace"`
 	Nodes     []NodeDefinition       `yaml:"nodes"`  // Flat list of direct children only
-	Config    map[string]interface{} `yaml:"config,omitempty"` // Workspace-level config overrides
+	Overrides map[string]interface{} `yaml:"overrides,omitempty"` // Workspace-level config overrides
 	
 	// Runtime fields (not in YAML)
 	Path string `yaml:"-"`  // Path to this config file
@@ -40,10 +40,10 @@ type WorkspaceTree struct {
 type NodeDefinition struct {
 	Name          string                 `yaml:"name"`
 	URL           string                 `yaml:"url,omitempty"`           // Git repository URL
-	ConfigRef     string                 `yaml:"config_ref,omitempty"`     // Path to sub-configuration (renamed from Config)
+	File          string                 `yaml:"file,omitempty"`           // Path to sub-configuration file
 	Fetch         string                 `yaml:"fetch,omitempty"`          // Fetch mode: "auto" (default), "lazy", or "eager"
 	DefaultBranch string                 `yaml:"default_branch,omitempty"` // Node's default branch override
-	Config        map[string]interface{} `yaml:"config,omitempty"`         // Node-level config overrides
+	Overrides     map[string]interface{} `yaml:"overrides,omitempty"`     // Node-level config overrides
 	Metadata      map[string]string      `yaml:"metadata,omitempty"`       // Flexible metadata key-value pairs
 }
 
@@ -169,16 +169,16 @@ func (c *ConfigTree) Validate() error {
 			return fmt.Errorf("node name is required")
 		}
 		
-		// Ensure node has either URL or Config, not both
+		// Ensure node has either URL or File, not both
 		hasURL := node.URL != ""
-		hasConfig := node.ConfigRef != ""
+		hasFile := node.File != ""
 		
-		if hasURL && hasConfig {
-			return fmt.Errorf("node %s cannot have both URL and config_ref fields", node.Name)
+		if hasURL && hasFile {
+			return fmt.Errorf("node %s cannot have both URL and file fields", node.Name)
 		}
 		
-		if !hasURL && !hasConfig {
-			return fmt.Errorf("node %s must have either URL or config_ref field", node.Name)
+		if !hasURL && !hasFile {
+			return fmt.Errorf("node %s must have either URL or file field", node.Name)
 		}
 	}
 

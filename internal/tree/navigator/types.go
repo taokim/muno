@@ -14,8 +14,8 @@ const (
 	// NodeTypeRepo represents a git repository
 	NodeTypeRepo NodeType = "repo"
 	
-	// NodeTypeConfig represents a configuration reference
-	NodeTypeConfig NodeType = "config"
+	// NodeTypeFile represents a configuration reference
+	NodeTypeFile NodeType = "config"
 	
 	// NodeTypeDirectory represents a plain directory
 	NodeTypeDirectory NodeType = "directory"
@@ -35,8 +35,8 @@ type Node struct {
 	// URL is the git repository URL (only for NodeTypeRepo)
 	URL string `json:"url,omitempty"`
 	
-	// ConfigRef is the path to a configuration file (only for NodeTypeConfig)
-	ConfigRef string `json:"config_ref,omitempty"`
+	// File is the path to a configuration file (only for NodeTypeFile)
+	File string `json:"file,omitempty"`
 	
 	// Children contains the names of child nodes
 	Children []string `json:"children"`
@@ -121,8 +121,8 @@ type NavigatorOptions struct {
 	// WorkspacePath is the root directory for the workspace
 	WorkspacePath string
 	
-	// ConfigPath is the path to the configuration file
-	ConfigPath string
+	// FilePath is the path to the configuration file
+	FilePath string
 	
 	// CacheEnabled enables caching for performance
 	CacheEnabled bool
@@ -156,9 +156,9 @@ func (n *Node) IsRepository() bool {
 	return n.Type == NodeTypeRepo
 }
 
-// IsConfig returns true if this is a config reference node
-func (n *Node) IsConfig() bool {
-	return n.Type == NodeTypeConfig
+// IsFile returns true if this is a config reference node
+func (n *Node) IsFile() bool {
+	return n.Type == NodeTypeFile
 }
 
 // IsRoot returns true if this is the root node

@@ -10,7 +10,7 @@ type NodeType string
 const (
 	NodeTypeRoot   NodeType = "root"
 	NodeTypeRepo   NodeType = "repo"
-	NodeTypeConfig NodeType = "config"
+	NodeTypeFile NodeType = "config"
 	NodeTypeRepository NodeType = "repository"
 )
 
@@ -37,7 +37,7 @@ type TreeNode struct {
 	State RepoState `json:"state,omitempty"` // "missing", "cloned", "modified"
 	
 	// Config reference (only for type="config")
-	ConfigPath string `json:"config_path,omitempty"`
+	FilePath string `json:"config_path,omitempty"`
 	Cloned     bool   `json:"cloned,omitempty"` // Whether the repository has been cloned
 }
 

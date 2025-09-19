@@ -32,8 +32,8 @@ func GetRepoState(repoPath string) RepoState {
 	return RepoStateModified
 }
 
-// GetConfigRefStatus checks if a config-only node exists
-func GetConfigRefStatus(nodePath string) bool {
+// GetFileStatus checks if a config-only node exists
+func GetFileStatus(nodePath string) bool {
 	// Check for .muno-ref marker file
 	markerPath := filepath.Join(nodePath, ".muno-ref")
 	if _, err := os.Stat(markerPath); err == nil {
@@ -48,8 +48,8 @@ func GetConfigRefStatus(nodePath string) bool {
 	return false
 }
 
-// CreateConfigRefMarker creates a marker for config-only nodes
-func CreateConfigRefMarker(nodePath string) error {
+// CreateFileMarker creates a marker for config-only nodes
+func CreateFileMarker(nodePath string) error {
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(nodePath, 0755); err != nil {
 		return err

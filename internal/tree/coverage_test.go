@@ -159,7 +159,7 @@ func TestStatelessManager_MoreMethods(t *testing.T) {
 		// Add a config reference node
 		mgr.config.Nodes = append(mgr.config.Nodes, config.NodeDefinition{
 			Name:   "parent",
-			ConfigRef: "parent/muno.yaml",
+			File: "parent/muno.yaml",
 		})
 		
 		result := mgr.DisplayTree()
@@ -172,7 +172,7 @@ func TestStatelessManager_MoreMethods(t *testing.T) {
 		mgr.config.Nodes = append(mgr.config.Nodes, config.NodeDefinition{
 			Name:   "with-config",
 			URL:    "https://github.com/test/with-config.git",
-			ConfigRef: "sub/muno.yaml",
+			File: "sub/muno.yaml",
 		})
 		
 		gitCmd.CloneCalls = nil
@@ -236,32 +236,32 @@ func TestGetRepoState_EdgeCases(t *testing.T) {
 
 // Test helper functions
 func TestTreeHelpers(t *testing.T) {
-	t.Run("GetConfigRefStatus", func(t *testing.T) {
+	t.Run("GetFileStatus", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		
 		// Non-existent path
-		status := GetConfigRefStatus(filepath.Join(tmpDir, "nonexistent"))
+		status := GetFileStatus(filepath.Join(tmpDir, "nonexistent"))
 		assert.False(t, status)
 		
 		// Existing directory
 		dirPath := filepath.Join(tmpDir, "testdir")
 		os.MkdirAll(dirPath, 0755)
 		
-		status = GetConfigRefStatus(dirPath)
+		status = GetFileStatus(dirPath)
 		assert.True(t, status)
 		
 		// Directory with .muno-ref marker
 		markerPath := filepath.Join(dirPath, ".muno-ref")
 		os.WriteFile(markerPath, []byte("test"), 0644)
 		
-		status = GetConfigRefStatus(dirPath)
+		status = GetFileStatus(dirPath)
 		assert.True(t, status)
 	})
 	
-	t.Run("CreateConfigRefMarker", func(t *testing.T) {
+	t.Run("CreateFileMarker", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		
-		err := CreateConfigRefMarker(tmpDir)
+		err := CreateFileMarker(tmpDir)
 		require.NoError(t, err)
 		
 		// Check marker was created

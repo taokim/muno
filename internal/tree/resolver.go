@@ -21,13 +21,13 @@ func NewConfigResolver(rootPath string) *ConfigResolver {
 	}
 }
 
-// LoadNodeConfig loads the configuration for a node if it has one
-func (r *ConfigResolver) LoadNodeConfig(basePath string, node *config.NodeDefinition) (*config.ConfigTree, error) {
-	if node.ConfigRef == "" {
+// LoadNodeFile loads the configuration for a node if it has one
+func (r *ConfigResolver) LoadNodeFile(basePath string, node *config.NodeDefinition) (*config.ConfigTree, error) {
+	if node.File == "" {
 		return nil, nil // No config to load
 	}
 	
-	configPath := r.resolveConfigPath(basePath, node)
+	configPath := r.resolveFilePath(basePath, node)
 	
 	// Check cache first
 	if cached, ok := r.cache[configPath]; ok {
@@ -115,11 +115,11 @@ func (r *ConfigResolver) buildNode(basePath string, nodeDef *config.NodeDefiniti
 			}
 		}
 		
-	case NodeKindConfigRef:
+	case NodeKindFile:
 		node.Type = "config"  // Config-only node type
 		
 		// Load the referenced config
-		configPath := r.resolveConfigPath(basePath, nodeDef)
+		configPath := r.resolveFilePath(basePath, nodeDef)
 		cfg, err := config.LoadTree(configPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load config reference %s: %w", configPath, err)
@@ -138,8 +138,8 @@ func (r *ConfigResolver) buildNode(basePath string, nodeDef *config.NodeDefiniti
 		}
 		
 		// Create marker for config-only node if needed
-		if !GetConfigRefStatus(nodePath) {
-			if err := CreateConfigRefMarker(nodePath); err != nil {
+		if !GetFileStatus(nodePath) {
+			if err := CreateFileMarker(nodePath); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: failed to create marker for %s: %v\n", nodeDef.Name, err)
 			}
 		}
@@ -148,14 +148,14 @@ func (r *ConfigResolver) buildNode(basePath string, nodeDef *config.NodeDefiniti
 	return node, nil
 }
 
-func (r *ConfigResolver) resolveConfigPath(basePath string, node *config.NodeDefinition) string {
-	if filepath.IsAbs(node.ConfigRef) {
-		return node.ConfigRef
+func (r *ConfigResolver) resolveFilePath(basePath string, node *config.NodeDefinition) string {
+	if filepath.IsAbs(node.File) {
+		return node.File
 	}
 	
 	// Config path is relative to the node's directory
 	nodePath := filepath.Join(basePath, node.Name)
-	return filepath.Join(nodePath, node.ConfigRef)
+	return filepath.Join(nodePath, node.File)
 }
 
 // The TreeNode and NodeType types are defined in types.go

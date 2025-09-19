@@ -105,8 +105,8 @@ func (h *TreeHelpers) SaveTreeState(state *TreeState, stateFile string) error {
 	return os.WriteFile(stateFile, []byte("test state"), 0644)
 }
 
-// LoadConfigReference loads a configuration reference
-func (h *TreeHelpers) LoadConfigReference(configPath string) (*config.ConfigTree, error) {
+// LoadConfigerence loads a configuration reference
+func (h *TreeHelpers) LoadConfigerence(configPath string) (*config.ConfigTree, error) {
 	if configPath == "" {
 		return nil, fmt.Errorf("config path is empty")
 	}
@@ -137,15 +137,15 @@ func (h *TreeHelpers) BuildNodeFromConfig(def config.NodeDefinition, parentPath 
 	nodeType := navigator.NodeTypeDirectory
 	if def.URL != "" {
 		nodeType = navigator.NodeTypeRepo
-	} else if def.ConfigRef != "" {
-		nodeType = navigator.NodeTypeConfig
+	} else if def.File != "" {
+		nodeType = navigator.NodeTypeFile
 	}
 
 	node := &navigator.Node{
 		Name:      def.Name,
 		Path:      nodePath,
 		URL:       def.URL,
-		ConfigRef: def.ConfigRef,
+		File:     def.File,
 		Type:      nodeType,
 		Children:  []string{},
 	}
@@ -197,7 +197,7 @@ func (h *TreeHelpers) FormatTreeDisplay(node *navigator.Node, indent string, isL
 		} else {
 			nodeType = "[repo]"
 		}
-	} else if node.Type == navigator.NodeTypeConfig {
+	} else if node.Type == navigator.NodeTypeFile {
 		nodeType = "[config]"
 	}
 	

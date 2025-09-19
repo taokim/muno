@@ -43,8 +43,8 @@ func (r *ConfigResolver) ResolveForNode(node *NodeDefinition) map[string]interfa
 	deepMerge(result, r.workspace)
 	
 	// Override with node config (if present)
-	if node != nil && node.Config != nil {
-		deepMerge(result, node.Config)
+	if node != nil && node.Overrides != nil {
+		deepMerge(result, node.Overrides)
 	}
 	
 	// Override with CLI config (highest priority)

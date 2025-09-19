@@ -19,8 +19,8 @@ func TestNodeTypes(t *testing.T) {
 		assert.NotNil(t, node.Metadata)
 		
 		// Test creating a config node
-		node = NewNode("/config", "config", NodeTypeConfig)
-		assert.Equal(t, NodeTypeConfig, node.Type)
+		node = NewNode("/config", "config", NodeTypeFile)
+		assert.Equal(t, NodeTypeFile, node.Type)
 		
 		// Test creating a root node
 		node = NewNode("/", "root", NodeTypeRoot)
@@ -31,22 +31,22 @@ func TestNodeTypes(t *testing.T) {
 		repoNode := &Node{Type: NodeTypeRepo}
 		assert.True(t, repoNode.IsRepository())
 		
-		configNode := &Node{Type: NodeTypeConfig}
+		configNode := &Node{Type: NodeTypeFile}
 		assert.False(t, configNode.IsRepository())
 		
 		rootNode := &Node{Type: NodeTypeRoot}
 		assert.False(t, rootNode.IsRepository())
 	})
 
-	t.Run("IsConfig", func(t *testing.T) {
-		configNode := &Node{Type: NodeTypeConfig}
-		assert.True(t, configNode.IsConfig())
+	t.Run("IsFile", func(t *testing.T) {
+		configNode := &Node{Type: NodeTypeFile}
+		assert.True(t, configNode.IsFile())
 		
 		repoNode := &Node{Type: NodeTypeRepo}
-		assert.False(t, repoNode.IsConfig())
+		assert.False(t, repoNode.IsFile())
 		
 		rootNode := &Node{Type: NodeTypeRoot}
-		assert.False(t, rootNode.IsConfig())
+		assert.False(t, rootNode.IsFile())
 	})
 
 	t.Run("IsRoot", func(t *testing.T) {
@@ -58,7 +58,7 @@ func TestNodeTypes(t *testing.T) {
 		assert.False(t, repoNode.IsRoot())
 		
 		// A config node with non-root path
-		configNode := &Node{Type: NodeTypeConfig, Path: "/config"}
+		configNode := &Node{Type: NodeTypeFile, Path: "/config"}
 		assert.False(t, configNode.IsRoot())
 		
 		// Any node with "/" path is considered root

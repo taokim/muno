@@ -85,7 +85,7 @@ func TestConfigResolver(t *testing.T) {
 		node := &NodeDefinition{
 			Name: "test-node",
 			DefaultBranch: "master", // First-class field
-			Config: map[string]interface{}{
+			Overrides: map[string]interface{}{
 				"git": map[string]interface{}{
 					"shallow_depth": 1,
 				},
@@ -159,7 +159,7 @@ func TestConfigResolver(t *testing.T) {
 		
 		// Get with node override
 		node := &NodeDefinition{
-			Config: map[string]interface{}{
+			Overrides: map[string]interface{}{
 				"git": map[string]interface{}{
 					"clone_timeout": 900,
 				},

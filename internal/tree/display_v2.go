@@ -126,8 +126,8 @@ func (d *Display) PrintNode(node *navigator.Node, status *navigator.NodeStatus) 
 		fmt.Fprintf(d.writer, "  URL: %s\n", node.URL)
 	}
 
-	if node.ConfigRef != "" {
-		fmt.Fprintf(d.writer, "  Config: %s\n", node.ConfigRef)
+	if node.File != "" {
+		fmt.Fprintf(d.writer, "  File: %s\n", node.File)
 	}
 
 	if len(node.Children) > 0 {
@@ -178,7 +178,7 @@ func (d *Display) printNode(tree *navigator.TreeView, node *navigator.Node, pref
 			}
 		}
 		nodeStr += " (repo)"
-	case navigator.NodeTypeConfig:
+	case navigator.NodeTypeFile:
 		nodeStr += " (config)"
 	case navigator.NodeTypeDirectory:
 		nodeStr += " (dir)"

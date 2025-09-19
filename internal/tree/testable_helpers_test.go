@@ -149,19 +149,19 @@ func TestTreeHelpers_SaveTreeState(t *testing.T) {
 	})
 }
 
-func TestTreeHelpers_LoadConfigReference(t *testing.T) {
+func TestTreeHelpers_LoadConfigerence(t *testing.T) {
 	h := &TreeHelpers{}
 	tmpDir := t.TempDir()
 	
 	t.Run("empty path", func(t *testing.T) {
-		cfg, err := h.LoadConfigReference("")
+		cfg, err := h.LoadConfigerence("")
 		assert.Error(t, err)
 		assert.Nil(t, cfg)
 		assert.Contains(t, err.Error(), "config path is empty")
 	})
 	
 	t.Run("non-existent file", func(t *testing.T) {
-		cfg, err := h.LoadConfigReference("/non/existent/file.yaml")
+		cfg, err := h.LoadConfigerence("/non/existent/file.yaml")
 		assert.Error(t, err)
 		assert.Nil(t, cfg)
 		assert.Contains(t, err.Error(), "config file not found")
@@ -172,7 +172,7 @@ func TestTreeHelpers_LoadConfigReference(t *testing.T) {
 		err := os.WriteFile(configFile, []byte("workspace:\n  name: test\n"), 0644)
 		require.NoError(t, err)
 		
-		cfg, err := h.LoadConfigReference(configFile)
+		cfg, err := h.LoadConfigerence(configFile)
 		assert.NoError(t, err)
 		assert.NotNil(t, cfg)
 		assert.Equal(t, "test", cfg.Workspace.Name)
@@ -211,14 +211,14 @@ func TestTreeHelpers_BuildNodeFromConfig(t *testing.T) {
 	t.Run("config reference", func(t *testing.T) {
 		def := config.NodeDefinition{
 			Name:   "config-node",
-			ConfigRef: "sub.yaml",
+			File: "sub.yaml",
 		}
 		node := h.BuildNodeFromConfig(def, "/parent")
 		
 		assert.Equal(t, "config-node", node.Name)
 		assert.Equal(t, "/parent/config-node", node.Path)
-		assert.Equal(t, "sub.yaml", node.ConfigRef)
-		assert.Equal(t, navigator.NodeTypeConfig, node.Type)
+		assert.Equal(t, "sub.yaml", node.File)
+		assert.Equal(t, navigator.NodeTypeFile, node.Type)
 	})
 }
 

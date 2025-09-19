@@ -52,7 +52,7 @@ nodes:
     url: https://github.com/test/frontend.git
     fetch: eager
   - name: config-node
-    config_ref: ../shared/muno.yaml
+    file: ../shared/muno.yaml
 `
 		err := os.WriteFile(configPath, []byte(content), 0644)
 		require.NoError(t, err)
@@ -73,7 +73,7 @@ nodes:
 		assert.Equal(t, "eager", cfg.Nodes[1].Fetch)
 		
 		assert.Equal(t, "config-node", cfg.Nodes[2].Name)
-		assert.Equal(t, "../shared/muno.yaml", cfg.Nodes[2].ConfigRef)
+		assert.Equal(t, "../shared/muno.yaml", cfg.Nodes[2].File)
 	})
 	
 	t.Run("InvalidYAML", func(t *testing.T) {
@@ -132,7 +132,7 @@ func TestConfigTree_Save(t *testing.T) {
 				},
 				{
 					Name:   "config-ref",
-					ConfigRef: "../shared/muno.yaml",
+					File: "../shared/muno.yaml",
 				},
 			},
 		}
@@ -178,7 +178,7 @@ func TestConfigTree_Validate(t *testing.T) {
 				},
 				{
 					Name:   "config-ref",
-					ConfigRef: "../shared/muno.yaml",
+					File: "../shared/muno.yaml",
 				},
 			},
 		}
@@ -196,14 +196,14 @@ func TestConfigTree_Validate(t *testing.T) {
 				{
 					Name:   "invalid",
 					URL:    "https://github.com/test/repo.git",
-					ConfigRef: "../shared/muno.yaml",
+					File: "../shared/muno.yaml",
 				},
 			},
 		}
 		
 		err := cfg.Validate()
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "cannot have both URL and config")
+		assert.Contains(t, err.Error(), "cannot have both URL and file")
 	})
 	
 	t.Run("InvalidNode_NeitherURLNorConfig", func(t *testing.T) {
@@ -220,7 +220,7 @@ func TestConfigTree_Validate(t *testing.T) {
 		
 		err := cfg.Validate()
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "must have either URL or config")
+		assert.Contains(t, err.Error(), "must have either URL or file")
 	})
 	
 	t.Run("InvalidNode_NoName", func(t *testing.T) {

@@ -21,8 +21,8 @@ func NewConfigResolver(root string) *ConfigResolver {
 	}
 }
 
-// LoadNodeConfig loads a configuration file for a node
-func (r *ConfigResolver) LoadNodeConfig(configPath string, nodeDef *config.NodeDefinition) (*config.ConfigTree, error) {
+// LoadNodeFile loads a configuration file for a node
+func (r *ConfigResolver) LoadNodeFile(configPath string, nodeDef *config.NodeDefinition) (*config.ConfigTree, error) {
 	// Check cache first
 	if cached, exists := r.cache[configPath]; exists {
 		return cached, nil
