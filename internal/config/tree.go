@@ -48,6 +48,20 @@ type NodeDefinition struct {
 }
 
 // IsLazy determines if a node should be lazy based on its fetch mode
+// extractRepoNameFromURL extracts the repository name from a git URL
+func extractRepoNameFromURL(url string) string {
+	// Remove .git suffix
+	url = strings.TrimSuffix(url, ".git")
+	
+	// Get last path component
+	parts := strings.Split(url, "/")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	
+	return url
+}
+
 func (n *NodeDefinition) IsLazy() bool {
 	switch n.Fetch {
 	case FetchEager:
@@ -56,14 +70,27 @@ func (n *NodeDefinition) IsLazy() bool {
 		return true
 	case FetchAuto, "":
 		// Default to auto mode for smart detection
-		// Use smart detection based on repo name patterns
-		// Check if name ends with meta-repo patterns
+		// Check both node name AND repository URL for eager patterns
+		
+		// Check node name first
 		name := strings.ToLower(n.Name)
 		for _, pattern := range GetEagerLoadPatterns() {
 			if strings.HasSuffix(name, pattern) {
 				return false // It's a meta-repo, should be eager
 			}
 		}
+		
+		// Also check repository URL if present
+		if n.URL != "" {
+			repoName := extractRepoNameFromURL(n.URL)
+			repoName = strings.ToLower(repoName)
+			for _, pattern := range GetEagerLoadPatterns() {
+				if strings.HasSuffix(repoName, pattern) {
+					return false // Repository name matches meta-repo pattern, should be eager
+				}
+			}
+		}
+		
 		return true // Regular repo, should be lazy
 	default:
 		// Unknown fetch mode defaults to auto behavior
@@ -73,6 +100,18 @@ func (n *NodeDefinition) IsLazy() bool {
 				return false
 			}
 		}
+		
+		// Also check repository URL for unknown fetch modes
+		if n.URL != "" {
+			repoName := extractRepoNameFromURL(n.URL)
+			repoName = strings.ToLower(repoName)
+			for _, pattern := range GetEagerLoadPatterns() {
+				if strings.HasSuffix(repoName, pattern) {
+					return false
+				}
+			}
+		}
+		
 		return true
 	}
 }
