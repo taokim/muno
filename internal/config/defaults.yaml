@@ -17,6 +17,8 @@ detection:
     - "-munorepo"  
     - "-muno"
     - "-metarepo"
+    - "-meta"
+    - "-repo"
     - "-workspace"
     - "-root-repo"
     # DO NOT ADD "-platform" HERE - it can be confused with real platform repositories

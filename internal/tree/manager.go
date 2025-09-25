@@ -138,12 +138,17 @@ func (m *Manager) UseNode(logicalPath string) error {
 	fsPath := m.ComputeFilesystemPath(logicalPath)
 	
 	// Auto-clone if lazy
-	if node.Type == NodeTypeRepo && node.State == RepoStateMissing {
+	if (node.Type == NodeTypeRepo || node.Type == NodeTypeRepository) && node.State == RepoStateMissing {
 		fmt.Printf("Auto-cloning lazy repository: %s\n", node.Name)
 		if err := m.cloneToPath(node.URL, fsPath); err != nil {
 			return fmt.Errorf("failed to clone %s: %w", node.Name, err)
 		}
 		node.State = RepoStateCloned
+		node.Cloned = true
+		// Discover and load children from the cloned repository
+		if err := m.loadChildrenFromClonedRepo(logicalPath, fsPath); err != nil {
+			fmt.Printf("Warning: Failed to load children from %s: %v\n", node.Name, err)
+		}
 		// Save state after cloning lazy repo
 		if err := m.saveState(); err != nil {
 			return fmt.Errorf("failed to save state: %w", err)
@@ -218,6 +223,10 @@ func (m *Manager) AddRepo(parentPath, name, url string, lazy bool) error {
 			return fmt.Errorf("failed to clone: %w", err)
 		}
 		m.state.Nodes[childPath].State = RepoStateCloned
+		// Discover and load children from the cloned repository
+		if err := m.loadChildrenFromClonedRepo(childPath, fsPath); err != nil {
+			fmt.Printf("Warning: Failed to load children from %s: %v\n", name, err)
+		}
 	}
 	
 	m.state.LastUpdated = time.Now()
@@ -418,6 +427,11 @@ func (m *Manager) cloneLazyReposRecursive(logicalPath string, recursive bool) er
 			return fmt.Errorf("failed to clone %s: %w", node.Name, err)
 		}
 		node.State = RepoStateCloned
+		node.Cloned = true
+		// Discover and load children from the cloned repository
+		if err := m.loadChildrenFromClonedRepo(logicalPath, fsPath); err != nil {
+			fmt.Printf("Warning: Failed to load children from %s: %v\n", node.Name, err)
+		}
 		// No need to save state - it's built dynamically
 	}
 	
@@ -439,6 +453,10 @@ func (m *Manager) cloneLazyReposRecursive(logicalPath string, recursive bool) er
 					return fmt.Errorf("failed to clone %s: %w", childNode.Name, err)
 				}
 				childNode.State = RepoStateCloned
+				// Discover and load children from the cloned repository
+				if err := m.loadChildrenFromClonedRepo(childPath, fsPath); err != nil {
+					fmt.Printf("Warning: Failed to load children from %s: %v\n", childNode.Name, err)
+				}
 				// No need to save state - it's built dynamically
 			}
 		}
@@ -476,6 +494,121 @@ func (m *Manager) ensureMunoDir() error {
 	if err := os.MkdirAll(munoDir, 0755); err != nil {
 		return fmt.Errorf("creating .muno directory: %w", err)
 	}
+	return nil
+}
+
+// loadChildrenFromClonedRepo discovers and loads children from muno.yaml in a cloned repository
+func (m *Manager) loadChildrenFromClonedRepo(nodePath string, nodeDir string) error {
+	// Check for muno.yaml in the cloned repository
+	configPaths := []string{
+		filepath.Join(nodeDir, "muno.yaml"),
+		filepath.Join(nodeDir, "muno.yml"),
+		filepath.Join(nodeDir, ".muno.yaml"),
+		filepath.Join(nodeDir, ".muno.yml"),
+	}
+	
+	var configPath string
+	for _, path := range configPaths {
+		if _, err := os.Stat(path); err == nil {
+			configPath = path
+			break
+		}
+	}
+	
+	// No muno.yaml found, nothing to load
+	if configPath == "" {
+		return nil
+	}
+	
+	fmt.Printf("Discovering children from %s\n", configPath)
+	
+	// Load the configuration from the cloned repo
+	childConfig, err := config.LoadTree(configPath)
+	if err != nil {
+		return fmt.Errorf("loading muno.yaml from %s: %w", configPath, err)
+	}
+	
+	// Process nodes from the discovered config
+	for _, nodeDef := range childConfig.Nodes {
+		childPath := nodePath + "/" + nodeDef.Name
+		
+		// Check if child already exists (avoid duplicates and circular references)
+		if _, exists := m.state.Nodes[childPath]; exists {
+			continue
+		}
+		
+		// Check for circular references - don't add if this repo already exists in the path
+		if containsInPath(nodePath, nodeDef.Name) {
+			fmt.Printf("Skipping %s to avoid circular reference\n", nodeDef.Name)
+			continue
+		}
+		
+		// Create child node
+		childNode := &TreeNode{
+			Name:     nodeDef.Name,
+			URL:      nodeDef.URL,
+			Lazy:     nodeDef.IsLazy(),
+			Children: []string{},
+			Cloned:   false,
+		}
+		
+		// Determine node type
+		if nodeDef.URL != "" {
+			childNode.Type = NodeTypeRepository
+		} else if nodeDef.File != "" {
+			childNode.Type = NodeTypeFile
+			childNode.FilePath = nodeDef.File
+		} else {
+			childNode.Type = NodeTypeFile
+		}
+		
+		// Add to state
+		m.state.Nodes[childPath] = childNode
+		
+		// Add as child of parent
+		parentNode := m.state.Nodes[nodePath]
+		if parentNode != nil && !contains(parentNode.Children, nodeDef.Name) {
+			parentNode.Children = append(parentNode.Children, nodeDef.Name)
+		}
+		
+		// Create directory for child node
+		childDir := m.ComputeFilesystemPath(childPath)
+		if err := os.MkdirAll(childDir, 0755); err != nil {
+			fmt.Printf("Warning: Failed to create directory for %s: %v\n", nodeDef.Name, err)
+			continue
+		}
+		
+		// Recursively clone eager repositories
+		if nodeDef.URL != "" && !nodeDef.IsLazy() {
+			if _, err := os.Stat(filepath.Join(childDir, ".git")); os.IsNotExist(err) {
+				fmt.Printf("Cloning %s from %s (discovered from %s)...\n", nodeDef.Name, nodeDef.URL, filepath.Base(nodeDir))
+				if err := m.cloneToPath(nodeDef.URL, childDir); err != nil {
+					fmt.Printf("Warning: Failed to clone %s: %v\n", nodeDef.Name, err)
+				} else {
+					childNode.Cloned = true
+					// Recursively discover children from the newly cloned repo
+					if err := m.loadChildrenFromClonedRepo(childPath, childDir); err != nil {
+						fmt.Printf("Warning: Failed to load children from %s: %v\n", nodeDef.Name, err)
+					}
+				}
+			} else {
+				// Repository already exists
+				childNode.Cloned = true
+				// Still try to discover children
+				if err := m.loadChildrenFromClonedRepo(childPath, childDir); err != nil {
+					fmt.Printf("Warning: Failed to load children from %s: %v\n", nodeDef.Name, err)
+				}
+			}
+		}
+		
+		// Handle config file references
+		if nodeDef.File != "" {
+			if err := m.loadFileReference(childPath, nodeDef.File); err != nil {
+				fmt.Printf("Warning: Failed to load config reference %s: %v\n", nodeDef.File, err)
+			}
+		}
+	}
+	
 	return nil
 }
 
@@ -588,10 +721,18 @@ func (m *Manager) buildTreeFromConfig() error {
 					fmt.Printf("Warning: Failed to clone %s: %v\n", nodeDef.Name, err)
 				} else {
 					m.state.Nodes[nodePath].Cloned = true
+					// Discover and load children from the cloned repository
+					if err := m.loadChildrenFromClonedRepo(nodePath, nodeDir); err != nil {
+						fmt.Printf("Warning: Failed to load children from %s: %v\n", nodeDef.Name, err)
+					}
 				}
 			} else {
 				// Repository already exists
 				m.state.Nodes[nodePath].Cloned = true
+				// Discover and load children from existing repository
+				if err := m.loadChildrenFromClonedRepo(nodePath, nodeDir); err != nil {
+					fmt.Printf("Warning: Failed to load children from %s: %v\n", nodeDef.Name, err)
+				}
 			}
 		}
 	}
@@ -703,4 +844,19 @@ func (m *Manager) GetState() *TreeState {
 // SaveState is deprecated - state is built dynamically
 func (m *Manager) SaveState() error {
 	return nil
+}
+
+// containsInPath checks if a name already exists in the path hierarchy
+func containsInPath(path string, name string) bool {
+	// Split the path into segments
+	segments := strings.Split(strings.TrimPrefix(path, "/"), "/")
+	
+	// Check if the name exists in any segment
+	for _, segment := range segments {
+		if segment == name {
+			return true
+		}
+	}
+	
+	return false
 }

@@ -219,10 +219,10 @@ func TestResolverFunctionsFixed(t *testing.T) {
 		// The function checks for suffix patterns
 		assert.True(t, IsMetaRepo("my-monorepo"))  // Ends with -monorepo
 		assert.True(t, IsMetaRepo("team-workspace")) // Ends with -workspace
-		assert.False(t, IsMetaRepo("root-repo"))    // Doesn't end with -root-repo
+		assert.True(t, IsMetaRepo("root-repo"))    // Now matches -repo pattern
 		
 		// These don't match patterns
-		assert.False(t, IsMetaRepo("regular-repo"))
+		assert.True(t, IsMetaRepo("regular-repo"))  // Now matches -repo pattern
 		assert.False(t, IsMetaRepo(""))
 	})
 	
@@ -241,7 +241,7 @@ func TestResolverFunctionsFixed(t *testing.T) {
 		// Test default (auto mode - depends on name patterns)
 		node.Fetch = ""
 		node.Name = "regular-repo"
-		assert.True(t, GetEffectiveLazy(node))
+		assert.False(t, GetEffectiveLazy(node))  // Now eager due to -repo pattern
 		
 		// Test meta-repo pattern with auto mode
 		node.Name = "test-monorepo"

@@ -70,7 +70,7 @@ func TestResolverFunctions(t *testing.T) {
 		// Test various meta repo suffixes that match eager patterns
 		assert.True(t, IsMetaRepo("my-monorepo"))      // Ends with -monorepo
 		assert.True(t, IsMetaRepo("dev-workspace"))    // Ends with -workspace
-		assert.False(t, IsMetaRepo("root-repo"))       // Not -root-repo suffix
+		assert.True(t, IsMetaRepo("root-repo"))       // Now matches -repo pattern
 		assert.True(t, IsMetaRepo("my-root-repo"))     // Ends with -root-repo
 		assert.True(t, IsMetaRepo("MY-MONOREPO"))      // Case insensitive
 		
