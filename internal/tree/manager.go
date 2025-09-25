@@ -603,7 +603,14 @@ func (m *Manager) loadChildrenFromClonedRepo(nodePath string, nodeDir string) er
 		
 		// Handle config file references
 		if nodeDef.File != "" {
-			if err := m.loadFileReference(childPath, nodeDef.File); err != nil {
+			// Resolve config path relative to the current repo directory
+			configFilePath := nodeDef.File
+			if !filepath.IsAbs(configFilePath) {
+				configFilePath = filepath.Join(nodeDir, configFilePath)
+			}
+			
+			// Load the config file and process its nodes
+			if err := m.loadFileReferenceFromRepo(childPath, configFilePath); err != nil {
 				fmt.Printf("Warning: Failed to load config reference %s: %v\n", nodeDef.File, err)
 			}
 		}
@@ -815,10 +822,18 @@ func (m *Manager) loadFileReference(parentPath string, configPath string) error 
 					fmt.Printf("Warning: Failed to clone %s: %v\n", nodeDef.Name, err)
 				} else {
 					childNode.Cloned = true
+					// Discover and load children from the cloned repository
+					if err := m.loadChildrenFromClonedRepo(childPath, childDir); err != nil {
+						fmt.Printf("Warning: Failed to load children from %s: %v\n", nodeDef.Name, err)
+					}
 				}
 			} else {
 				// Repository already exists
 				childNode.Cloned = true
+				// Discover and load children from existing repository
+				if err := m.loadChildrenFromClonedRepo(childPath, childDir); err != nil {
+					fmt.Printf("Warning: Failed to load children from %s: %v\n", nodeDef.Name, err)
+				}
 			}
 		}
 	}
@@ -843,6 +858,115 @@ func (m *Manager) GetState() *TreeState {
 
 // SaveState is deprecated - state is built dynamically
 func (m *Manager) SaveState() error {
+	return nil
+}
+
+// loadFileReferenceFromRepo loads a config file from within a repository and processes its nodes
+func (m *Manager) loadFileReferenceFromRepo(parentPath string, configFilePath string) error {
+	// Load the config file
+	refConfig, err := config.LoadTree(configFilePath)
+	if err != nil {
+		return fmt.Errorf("loading config reference %s: %w", configFilePath, err)
+	}
+	
+	// Ensure parent node exists
+	parentNode := m.state.Nodes[parentPath]
+	if parentNode == nil {
+		return fmt.Errorf("parent node %s does not exist", parentPath)
+	}
+	
+	// Get the directory of the config file for resolving relative paths
+	configDir := filepath.Dir(configFilePath)
+	
+	// Process nodes from referenced config
+	for _, nodeDef := range refConfig.Nodes {
+		childPath := parentPath + "/" + nodeDef.Name
+		
+		// Check if child already exists (avoid duplicates)
+		if _, exists := m.state.Nodes[childPath]; exists {
+			continue
+		}
+		
+		// Check for circular references
+		if containsInPath(parentPath, nodeDef.Name) {
+			fmt.Printf("Skipping %s to avoid circular reference\n", nodeDef.Name)
+			continue
+		}
+		
+		// Create child node
+		childNode := &TreeNode{
+			Name:     nodeDef.Name,
+			URL:      nodeDef.URL,
+			Lazy:     nodeDef.IsLazy(),
+			Children: []string{},
+			Cloned:   false,
+		}
+		
+		// Determine node type
+		if nodeDef.URL != "" {
+			childNode.Type = NodeTypeRepository
+		} else if nodeDef.File != "" {
+			childNode.Type = NodeTypeFile
+			childNode.FilePath = nodeDef.File
+		} else {
+			childNode.Type = NodeTypeFile
+		}
+		
+		// Add to state
+		m.state.Nodes[childPath] = childNode
+		
+		// Add as child of parent
+		if !contains(parentNode.Children, nodeDef.Name) {
+			parentNode.Children = append(parentNode.Children, nodeDef.Name)
+		}
+		
+		// Create directory for child node
+		childDir := m.ComputeFilesystemPath(childPath)
+		if err := os.MkdirAll(childDir, 0755); err != nil {
+			fmt.Printf("Warning: Failed to create directory for %s: %v\n", nodeDef.Name, err)
+			continue
+		}
+		
+		// Recursively clone eager repositories
+		if nodeDef.URL != "" && !nodeDef.IsLazy() {
+			if _, err := os.Stat(filepath.Join(childDir, ".git")); os.IsNotExist(err) {
+				fmt.Printf("Cloning %s from %s (discovered from config)...\n", nodeDef.Name, nodeDef.URL)
+				if err := m.cloneToPath(nodeDef.URL, childDir); err != nil {
+					fmt.Printf("Warning: Failed to clone %s: %v\n", nodeDef.Name, err)
+				} else {
+					childNode.Cloned = true
+					childNode.State = RepoStateCloned
+					// Recursively discover children from the newly cloned repo
+					if err := m.loadChildrenFromClonedRepo(childPath, childDir); err != nil {
+						fmt.Printf("Warning: Failed to load children from %s: %v\n", nodeDef.Name, err)
+					}
+				}
+			} else {
+				// Repository already exists
+				childNode.Cloned = true
+				childNode.State = RepoStateCloned
+				// Still try to discover children
+				if err := m.loadChildrenFromClonedRepo(childPath, childDir); err != nil {
+					fmt.Printf("Warning: Failed to load children from %s: %v\n", nodeDef.Name, err)
+				}
+			}
+		}
+		
+		// Handle nested config file references
+		if nodeDef.File != "" {
+			// Resolve nested config path relative to the current config directory
+			nestedConfigPath := nodeDef.File
+			if !filepath.IsAbs(nestedConfigPath) {
+				nestedConfigPath = filepath.Join(configDir, nestedConfigPath)
+			}
+			
+			// Recursively load the nested config
+			if err := m.loadFileReferenceFromRepo(childPath, nestedConfigPath); err != nil {
+				fmt.Printf("Warning: Failed to load nested config %s: %v\n", nodeDef.File, err)
+			}
+		}
+	}
+	
 	return nil
 }
 
