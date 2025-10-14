@@ -669,6 +669,121 @@ func (m *Manager) Close() error {
 	return nil
 }
 
+// ResolvePath resolves a virtual tree path to its physical filesystem location
+// If ensure is true, it will clone lazy repositories if needed
+// ResolvePath resolves a virtual tree path to its physical filesystem location
+// If ensure is true, it will clone lazy repositories if needed
+func (m *Manager) ResolvePath(target string, ensure bool) (string, error) {
+	if !m.initialized {
+		return "", fmt.Errorf("manager not initialized")
+	}
+	
+	// Get current directory to resolve relative paths
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("getting current directory: %w", err)
+	}
+	
+	// Determine current position in tree based on filesystem location
+	currentTreePath := "/"
+	reposDir := filepath.Join(m.workspace, m.config.GetReposDir())
+	
+	if strings.HasPrefix(cwd, reposDir) {
+		// Extract relative path from repos directory
+		relPath, err := filepath.Rel(reposDir, cwd)
+		if err == nil && relPath != "." {
+			currentTreePath = "/" + filepath.ToSlash(relPath)
+		}
+	}
+	
+	// Resolve target path
+	resolvedPath := target
+	if target == "." {
+		resolvedPath = currentTreePath
+	} else if target == ".." {
+		parts := strings.Split(strings.TrimPrefix(currentTreePath, "/"), "/")
+		if len(parts) > 1 {
+			resolvedPath = "/" + strings.Join(parts[:len(parts)-1], "/")
+		} else {
+			resolvedPath = "/"
+		}
+	} else if target == "/" || target == "~" {
+		resolvedPath = "/"
+	} else if !strings.HasPrefix(target, "/") {
+		// Relative path
+		if currentTreePath == "/" {
+			resolvedPath = "/" + target
+		} else {
+			resolvedPath = currentTreePath + "/" + target
+		}
+	}
+	
+	// Clean the path
+	resolvedPath = filepath.Clean(resolvedPath)
+	resolvedPath = strings.ReplaceAll(resolvedPath, "\\", "/")
+	if !strings.HasPrefix(resolvedPath, "/") {
+		resolvedPath = "/" + resolvedPath
+	}
+	
+	// If ensure is true, check if the node exists and clone if needed
+	if ensure {
+		node, err := m.treeProvider.GetNode(resolvedPath)
+		if err == nil && node.IsLazy && !node.IsCloned && node.Repository != "" {
+			// Clone the repository
+			physPath := m.computeFilesystemPath(resolvedPath)
+			if _, err := os.Stat(physPath); os.IsNotExist(err) {
+				// Clone options
+			opts := interfaces.CloneOptions{
+				Recursive: false,
+				Quiet:     false,
+			}
+				if err := m.gitProvider.Clone(node.Repository, physPath, opts); err != nil {
+					return "", fmt.Errorf("cloning lazy repository: %w", err)
+				}
+				// Update node state
+				node.IsLazy = false
+				node.IsCloned = true
+				m.treeProvider.UpdateNode(resolvedPath, node)
+			}
+		}
+	}
+	
+	// Compute filesystem path
+	physicalPath := m.computeFilesystemPath(resolvedPath)
+	
+	return physicalPath, nil
+}
+
+// GetTreePath converts a physical filesystem path to its position in the tree
+// GetTreePath converts a physical filesystem path to its position in the tree
+func (m *Manager) GetTreePath(physicalPath string) (string, error) {
+	if !m.initialized {
+		return "", fmt.Errorf("manager not initialized")
+	}
+	
+	reposDir := filepath.Join(m.workspace, m.config.GetReposDir())
+	
+	// Check if the path is within the workspace
+	if !strings.HasPrefix(physicalPath, reposDir) {
+		return "", fmt.Errorf("path is not within workspace")
+	}
+	
+	// Extract relative path from repos directory
+	relPath, err := filepath.Rel(reposDir, physicalPath)
+	if err != nil {
+		return "", fmt.Errorf("computing relative path: %w", err)
+	}
+	
+	if relPath == "." {
+		return "/", nil
+	}
+	
+	// Convert to tree path format
+	treePath := "/" + filepath.ToSlash(relPath)
+	
+	return treePath, nil
+}
+
 // AddOptions for adding repositories
 type AddOptions struct {
 	Fetch     string // Fetch mode: "lazy", "eager", or "auto"

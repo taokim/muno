@@ -18,7 +18,11 @@ func (m *MockGitInterface) Clone(url, path string) error {
 		return m.CloneFunc(url, path)
 	}
 	// Default: create the directory to simulate clone
-	return os.MkdirAll(path, 0755)
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return err
+	}
+	// Create .git directory to simulate a real clone
+	return os.MkdirAll(filepath.Join(path, ".git"), 0755)
 }
 
 func (m *MockGitInterface) Status(path string) (string, error) {
@@ -106,7 +110,7 @@ func TestStateManagement(t *testing.T) {
 	mockGit := &MockGitInterface{}
 	
 	// Create stateless manager
-	mgr, err := NewStatelessManager(tmpDir, mockGit)
+	mgr, err := NewManager(tmpDir, mockGit)
 	if err != nil {
 		t.Fatalf("Failed to create stateless manager: %v", err)
 	}
@@ -140,8 +144,8 @@ func TestAddRepo(t *testing.T) {
 		t.Fatalf("Failed to add repo: %v", err)
 	}
 	
-	// Verify repo was added to state
-	repo := mgr.state.Nodes["/test-repo"]
+	// Verify repo was added using GetNode since we're stateless
+	repo := mgr.GetNode("/test-repo")
 	if repo == nil {
 		t.Fatal("Repo node not found")
 	}
@@ -164,7 +168,7 @@ func TestAddRepo(t *testing.T) {
 		t.Fatalf("Failed to add lazy repo: %v", err)
 	}
 	
-	lazyRepo := mgr.state.Nodes["/lazy-repo"]
+	lazyRepo := mgr.GetNode("/lazy-repo")
 	if lazyRepo == nil {
 		t.Fatal("Lazy repo node not found")
 	}
@@ -178,7 +182,7 @@ func TestAddRepo(t *testing.T) {
 	}
 	
 	// Verify root has both children
-	root := mgr.state.Nodes["/"]
+	root := mgr.GetNode("/")
 	if len(root.Children) != 2 {
 		t.Errorf("Root children count = %d, want 2", len(root.Children))
 	}
@@ -208,8 +212,8 @@ func TestTreeNavigation(t *testing.T) {
 		t.Fatalf("Failed to navigate: %v", err)
 	}
 	
-	if mgr.state.CurrentPath != "/level1/level2" {
-		t.Errorf("Current path = %s, want /level1/level2", mgr.state.CurrentPath)
+	if mgr.GetCurrentPath() != "/level1/level2" {
+		t.Errorf("Current path = %s, want /level1/level2", mgr.GetCurrentPath())
 	}
 	
 	// Verify filesystem path - level1 is a top-level git repo (in repos/ subdir)
@@ -227,7 +231,7 @@ func TestTreeNavigation(t *testing.T) {
 	}
 	
 	// Verify lazy repo was cloned
-	level3 := mgr.state.Nodes["/level1/level2/level3"]
+	level3 := mgr.GetNode("/level1/level2/level3")
 	if level3.State != RepoStateCloned {
 		t.Errorf("Lazy repo state after navigation = %s, want %s", level3.State, RepoStateCloned)
 	}
@@ -254,12 +258,15 @@ func TestRemoveNode(t *testing.T) {
 	}
 	
 	// Verify child1 is gone
-	if mgr.state.Nodes["/parent/child1"] != nil {
+	if mgr.GetNode("/parent/child1") != nil {
 		t.Error("child1 should be removed")
 	}
 	
 	// Verify parent still has child2
-	parent := mgr.state.Nodes["/parent"]
+	parent := mgr.GetNode("/parent")
+	if parent == nil {
+		t.Fatal("Parent node not found")
+	}
 	if len(parent.Children) != 1 || parent.Children[0] != "child2" {
 		t.Errorf("Parent children = %v, want [child2]", parent.Children)
 	}

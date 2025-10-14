@@ -140,7 +140,7 @@ func TestManagerCloneLazyRepos(t *testing.T) {
 		t.Fatalf("Failed to create repos dir: %v", err)
 	}
 	
-	mgr, err := NewStatelessManager(tmpDir, mockGit)
+	mgr, err := NewManager(tmpDir, mockGit)
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
@@ -243,9 +243,9 @@ func TestManagerStateFileOperations(t *testing.T) {
 		t.Fatalf("Failed to create second manager: %v", err)
 	}
 	
-	// Should load the saved state
-	if mgr2.GetCurrentPath() != "/repo1" {
-		t.Errorf("Loaded current path = %s, want /repo1", mgr2.GetCurrentPath())
+	// In stateless mode, new manager always starts at root
+	if mgr2.GetCurrentPath() != "/" {
+		t.Errorf("New manager current path = %s, want /", mgr2.GetCurrentPath())
 	}
 	
 	repo1 := mgr2.GetNode("/repo1")
@@ -314,8 +314,14 @@ func TestManagerPathNormalization(t *testing.T) {
 		}
 		
 		// Verify it's gone
-		if mgr.GetNode("/level1/level2") != nil {
-			t.Error("level2 should be removed")
+		node := mgr.GetNode("/level1/level2")
+		if node != nil {
+			t.Errorf("level2 should be removed but found node: %+v", node)
+			// Check filesystem too
+			fsPath := mgr.ComputeFilesystemPath("/level1/level2")
+			if _, err := os.Stat(fsPath); err == nil {
+				t.Errorf("Filesystem path still exists: %s", fsPath)
+			}
 		}
 	})
 }

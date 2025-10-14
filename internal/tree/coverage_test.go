@@ -12,8 +12,8 @@ import (
 	"github.com/taokim/muno/internal/git"
 )
 
-// Test more StatelessManager methods for coverage
-func TestStatelessManager_MoreMethods(t *testing.T) {
+// Test more Manager methods for coverage
+func TestManager_MoreMethods(t *testing.T) {
 	tmpDir := t.TempDir()
 	
 	// Create config
@@ -48,7 +48,7 @@ func TestStatelessManager_MoreMethods(t *testing.T) {
 		},
 	}
 	
-	mgr, err := NewStatelessManager(tmpDir, gitCmd)
+	mgr, err := NewManager(tmpDir, gitCmd)
 	require.NoError(t, err)
 	
 	t.Run("GetNodeByPath with nested path parts", func(t *testing.T) {
@@ -148,6 +148,26 @@ func TestStatelessManager_MoreMethods(t *testing.T) {
 		// Create .git directory for repo1
 		repo1Git := filepath.Join(tmpDir, "nodes", "repo1", ".git")
 		os.MkdirAll(repo1Git, 0755)
+		
+		// Debug: print config nodes
+		t.Logf("Config nodes before DisplayTree: %d nodes", len(mgr.config.Nodes))
+		for _, node := range mgr.config.Nodes {
+			t.Logf("  - %s", node.Name)
+		}
+		
+		// Debug: check root node
+		rootNode := mgr.GetNode("/")
+		if rootNode != nil {
+			t.Logf("Root node children: %v", rootNode.Children)
+		}
+		
+		// Debug: check repo2 node
+		repo2Node := mgr.GetNode("/repo2")
+		if repo2Node != nil {
+			t.Logf("repo2 node found: %s, state: %v", repo2Node.Name, repo2Node.State)
+		} else {
+			t.Logf("repo2 node is nil!")
+		}
 		
 		result := mgr.DisplayTree()
 		assert.Contains(t, result, "test-workspace")

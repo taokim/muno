@@ -63,6 +63,19 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 		return fmt.Errorf("creating repos directory: %w", err)
 	}
 	
+	// Add MUNO-specific entries to .gitignore if this is a git repository
+	gitignoreEntries := []string{
+		".muno/",                       // Agent context directory
+		reposDir + "/",                 // Repositories directory
+	}
+	
+	for _, entry := range gitignoreEntries {
+		if err := m.ensureGitignoreEntry(m.workspace, entry); err != nil {
+			// Log but don't fail - .gitignore update is optional
+			m.logProvider.Debug(fmt.Sprintf("Could not add '%s' to .gitignore: %v", entry, err))
+		}
+	}
+	
 	m.logProvider.Info(fmt.Sprintf("Initialized workspace: %s", projectName))
 	
 	return nil

@@ -23,7 +23,7 @@ func (m *Manager) displayNode(logicalPath, prefix string, isLast bool, depth int
 		return ""
 	}
 	
-	node := m.state.Nodes[logicalPath]
+	node := m.GetNode(logicalPath)
 	if node == nil {
 		return ""
 	}
@@ -43,7 +43,7 @@ func (m *Manager) displayNode(logicalPath, prefix string, isLast bool, depth int
 		
 		// Add current indicator
 		current := ""
-		if logicalPath == m.state.CurrentPath {
+		if logicalPath == m.currentPath {
 			current = " 📍"
 		}
 		
@@ -62,7 +62,11 @@ func (m *Manager) displayNode(logicalPath, prefix string, isLast bool, depth int
 		sb.WriteString(fmt.Sprintf("%s%s %s %s%s\n", prefix, symbol, icon, nodeInfo, current))
 	} else {
 		// For root, just show the workspace name
-		sb.WriteString(fmt.Sprintf("🌳 Workspace%s\n", m.getCurrentIndicator("/")))
+		workspaceName := "Workspace"
+		if m.config != nil && m.config.Workspace.Name != "" {
+			workspaceName = m.config.Workspace.Name
+		}
+		sb.WriteString(fmt.Sprintf("🌳 %s%s\n", workspaceName, m.getCurrentIndicator("/")))
 	}
 	
 	// Display children
@@ -106,7 +110,7 @@ func (m *Manager) getNodeIcon(node *TreeNode) string {
 
 // getCurrentIndicator returns a current position indicator if this is the current node
 func (m *Manager) getCurrentIndicator(logicalPath string) string {
-	if logicalPath == m.state.CurrentPath {
+	if logicalPath == m.currentPath {
 		return " 📍"
 	}
 	return ""
@@ -117,13 +121,14 @@ func (m *Manager) DisplayStatus() string {
 	var sb strings.Builder
 	
 	sb.WriteString("=== Tree Status ===\n")
-	sb.WriteString(fmt.Sprintf("Current Path: %s\n", m.state.CurrentPath))
-	sb.WriteString(fmt.Sprintf("Total Nodes: %d\n", len(m.state.Nodes)))
+	sb.WriteString(fmt.Sprintf("Current Path: %s\n", m.currentPath))
+	sb.WriteString(fmt.Sprintf("Total Nodes: %d\n", len(m.config.Nodes)))
 	
 	// Count repositories by state
 	var totalRepos, clonedRepos, lazyRepos, modifiedRepos int
-	for _, node := range m.state.Nodes {
-		if node.Type == NodeTypeRepo || node.Type == NodeTypeRepository {
+	for _, nodeDef := range m.config.Nodes {
+		node := m.GetNode("/" + nodeDef.Name)
+		if node != nil && (node.Type == NodeTypeRepo || node.Type == NodeTypeRepository) {
 			totalRepos++
 			switch node.State {
 			case RepoStateCloned:
@@ -140,7 +145,7 @@ func (m *Manager) DisplayStatus() string {
 		totalRepos, clonedRepos, lazyRepos, modifiedRepos))
 	
 	// Show filesystem path for current node
-	fsPath := m.ComputeFilesystemPath(m.state.CurrentPath)
+	fsPath := m.ComputeFilesystemPath(m.currentPath)
 	sb.WriteString(fmt.Sprintf("Filesystem Path: %s\n", fsPath))
 	
 	return sb.String()
@@ -148,8 +153,8 @@ func (m *Manager) DisplayStatus() string {
 
 // DisplayPath shows the path from root to current node
 func (m *Manager) DisplayPath() string {
-	parts := strings.Split(strings.TrimPrefix(m.state.CurrentPath, "/"), "/")
-	if m.state.CurrentPath == "/" {
+	parts := strings.Split(strings.TrimPrefix(m.currentPath, "/"), "/")
+	if m.currentPath == "/" {
 		return "/"
 	}
 	
@@ -168,7 +173,7 @@ func (m *Manager) DisplayPath() string {
 
 // DisplayChildren shows just the immediate children of the current node
 func (m *Manager) DisplayChildren() string {
-	node := m.state.Nodes[m.state.CurrentPath]
+	node := m.GetNode(m.currentPath)
 	if node == nil {
 		return "Current node not found"
 	}
@@ -178,11 +183,11 @@ func (m *Manager) DisplayChildren() string {
 	}
 	
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Children of %s:\n", m.state.CurrentPath))
+	sb.WriteString(fmt.Sprintf("Children of %s:\n", m.currentPath))
 	
 	for _, childName := range node.Children {
-		childPath := path.Join(m.state.CurrentPath, childName)
-		child := m.state.Nodes[childPath]
+		childPath := path.Join(m.currentPath, childName)
+		child := m.GetNode(childPath)
 		if child != nil {
 			icon := m.getNodeIcon(child)
 			status := ""

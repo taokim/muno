@@ -51,8 +51,8 @@ func TestCustomReposDir(t *testing.T) {
 	}
 }
 
-// TestStatelessManagerCustomReposDir verifies StatelessManager uses custom repos_dir
-func TestStatelessManagerCustomReposDir(t *testing.T) {
+// TestManagerCustomReposDir verifies Manager uses custom repos_dir
+func TestManagerCustomReposDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	mockGit := &MockGitInterface{}
 	
@@ -72,7 +72,7 @@ func TestStatelessManagerCustomReposDir(t *testing.T) {
 		t.Fatalf("Failed to save config: %v", err)
 	}
 	
-	mgr, err := NewStatelessManager(tmpDir, mockGit)
+	mgr, err := NewManager(tmpDir, mockGit)
 	if err != nil {
 		t.Fatalf("Failed to create stateless manager: %v", err)
 	}
@@ -90,6 +90,6 @@ func TestStatelessManagerCustomReposDir(t *testing.T) {
 	
 	for _, test := range tests {
 		result := mgr.ComputeFilesystemPath(test.logical)
-		assert.Equal(t, test.expected, result, "StatelessManager path for %s should use custom repos_dir '%s'", test.logical, customDir)
+		assert.Equal(t, test.expected, result, "Manager path for %s should use custom repos_dir '%s'", test.logical, customDir)
 	}
 }

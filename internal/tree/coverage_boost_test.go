@@ -42,8 +42,8 @@ func TestUncoveredDisplayFunctions(t *testing.T) {
 		assert.Contains(t, result, "repo2")
 	})
 	
-	t.Run("StatelessManager_DisplayChildren", func(t *testing.T) {
-		mgr, err := NewStatelessManager(tmpDir, mockGit)
+	t.Run("Manager_DisplayChildren", func(t *testing.T) {
+		mgr, err := NewManager(tmpDir, mockGit)
 		require.NoError(t, err)
 		
 		result := mgr.DisplayChildren()
@@ -123,7 +123,7 @@ func TestSaveStateEdgeCases(t *testing.T) {
 	require.NoError(t, err)
 	
 	// Try to save state (should handle error gracefully)
-	mgr.saveState()
+	mgr.SaveState()
 	
 	// Clean up
 	os.Chmod(stateFile, 0644)

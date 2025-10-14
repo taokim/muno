@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -99,7 +100,9 @@ Features:
 	
 	// Navigation commands
 	a.rootCmd.AddCommand(a.newUseCmd())
+	a.rootCmd.AddCommand(a.newPathCmd())
 	a.rootCmd.AddCommand(a.newCurrentCmd())
+	a.rootCmd.AddCommand(a.newShellInitCmd())
 	a.rootCmd.AddCommand(a.newTreeCmd())
 	
 	// Repository management
@@ -554,6 +557,171 @@ Path formats:
 	return cmd
 }
 
+func (a *App) newPathCmd() *cobra.Command {
+	var ensure bool
+	var relative bool
+	
+	cmd := &cobra.Command{
+		Use:   "path [target]",
+		Short: "Resolve virtual path to physical filesystem path",
+		Long: `Resolves a virtual tree path to its physical filesystem location.
+		
+Without arguments, shows the path of the current directory.
+With --relative, shows the position in the tree instead of filesystem path.
+With --ensure, clones lazy repositories if needed.
+		
+Path formats:
+  .         Current directory (default)
+  ..        Parent directory
+  /         Root of workspace
+  ~         Root of workspace
+  /team/svc Absolute path in tree
+  svc       Relative path from current position
+		
+Examples:
+  muno path                     # Current directory's physical path
+  muno path . --relative        # Current position in tree
+  muno path team/backend        # Resolve to physical path
+  muno path ../frontend --ensure # Resolve and clone if needed`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			target := "."
+			if len(args) > 0 {
+				target = args[0]
+			}
+			
+			mgr, err := manager.LoadFromCurrentDir()
+			if err != nil {
+				return fmt.Errorf("loading workspace: %w", err)
+			}
+			
+			// Resolve the path
+			physicalPath, err := mgr.ResolvePath(target, ensure)
+			if err != nil {
+				return fmt.Errorf("resolving path: %w", err)
+			}
+			
+			if relative {
+				// Show position in tree instead of physical path
+				treePath, err := mgr.GetTreePath(physicalPath)
+				if err != nil {
+					return fmt.Errorf("getting tree path: %w", err)
+				}
+				fmt.Fprintln(a.stdout, treePath)
+			} else {
+				// Output the physical path
+				fmt.Fprintln(a.stdout, physicalPath)
+			}
+			
+			return nil
+		},
+	}
+	
+	cmd.Flags().BoolVar(&ensure, "ensure", false, "Clone lazy repositories if needed")
+	cmd.Flags().BoolVar(&relative, "relative", false, "Show position in tree instead of filesystem path")
+	
+	return cmd
+}
+
+func (a *App) newShellInitCmd() *cobra.Command {
+	var cmdName string
+	var checkOnly bool
+	var install bool
+	var shellType string
+	
+	cmd := &cobra.Command{
+		Use:   "shell-init",
+		Short: "Generate shell integration script for easy navigation",
+		Long: `Generate shell integration script that enables easy navigation with muno paths.
+		
+This creates a shell function (default: mcd) that combines path resolution with cd.
+		
+Examples:
+  muno shell-init                        # Show script for current shell
+  muno shell-init --install               # Auto-install to shell config
+  muno shell-init --cmd-name goto        # Use 'goto' instead of 'mcd'
+  muno shell-init --check                 # Check if command name is available
+  muno shell-init --shell bash           # Force bash script`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if cmdName == "" {
+				cmdName = "mcd"
+			}
+			
+			// Detect shell if not specified
+			if shellType == "" {
+				shellType = detectShell()
+			}
+			
+			// Check for conflicts
+			if checkOnly || install {
+				if commandExists(cmdName) {
+					if checkOnly {
+						return fmt.Errorf("command '%s' already exists in shell", cmdName)
+					}
+					// Suggest alternatives
+					suggestions := findAvailableCommandNames(cmdName)
+					fmt.Fprintf(os.Stderr, "⚠️  Command '%s' already exists\n", cmdName)
+					fmt.Fprintf(os.Stderr, "Available alternatives: %s\n", 
+						strings.Join(suggestions, ", "))
+					fmt.Fprintf(os.Stderr, "Use --cmd-name to specify different name\n")
+					return fmt.Errorf("command name conflict")
+				}
+				if checkOnly {
+					fmt.Fprintf(a.stdout, "✓ Command '%s' is available\n", cmdName)
+					return nil
+				}
+			}
+			
+			// Generate script
+			script := generateShellScript(shellType, cmdName)
+			
+			if install {
+				configFile := getShellConfigFile(shellType)
+				
+				// Check if already installed
+				content, err := os.ReadFile(configFile)
+				if err == nil && strings.Contains(string(content), fmt.Sprintf("# MUNO shell integration for %s", cmdName)) {
+					fmt.Fprintf(a.stdout, "✓ '%s' is already installed in %s\n", cmdName, configFile)
+					return nil
+				}
+				
+				// Append to config file
+				f, err := os.OpenFile(configFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				if err != nil {
+					return fmt.Errorf("opening shell config: %w", err)
+				}
+				defer f.Close()
+				
+				if _, err := f.WriteString("\n" + script); err != nil {
+					return fmt.Errorf("writing to shell config: %w", err)
+				}
+				
+				fmt.Fprintf(a.stdout, "✅ Installed '%s' function to %s\n", cmdName, configFile)
+				fmt.Fprintf(a.stdout, "Run 'source %s' or restart your shell to use it\n", configFile)
+				return nil
+			}
+			
+			// Just print it
+			fmt.Fprint(a.stdout, script)
+			if !checkOnly {
+				configFile := getShellConfigFile(shellType)
+				fmt.Fprintf(os.Stderr, "\n# To install, run:\n")
+				fmt.Fprintf(os.Stderr, "# muno shell-init --cmd-name %s >> %s\n", cmdName, configFile)
+				fmt.Fprintf(os.Stderr, "# source %s\n", configFile)
+			}
+			
+			return nil
+		},
+	}
+	
+	cmd.Flags().StringVar(&cmdName, "cmd-name", "mcd", "Name for the navigation command")
+	cmd.Flags().BoolVar(&checkOnly, "check", false, "Check if command name exists")
+	cmd.Flags().BoolVar(&install, "install", false, "Auto-install to shell config")
+	cmd.Flags().StringVar(&shellType, "shell", "", "Shell type (bash, zsh, fish)")
+	
+	return cmd
+}
+
 // newCurrentCmd creates the current command  
 func (a *App) newCurrentCmd() *cobra.Command {
 	var clear bool
@@ -581,7 +749,6 @@ func (a *App) newCurrentCmd() *cobra.Command {
 	
 	return cmd
 }
-
 // newPullCmd creates the pull command
 func (a *App) newPullCmd() *cobra.Command {
 	var recursive bool
@@ -808,4 +975,154 @@ func isReleaseVersion(v string) bool {
 		}
 	}
 	return true
+}
+
+// Helper functions for shell-init command
+
+func detectShell() string {
+	shell := os.Getenv("SHELL")
+	if strings.Contains(shell, "zsh") {
+		return "zsh"
+	} else if strings.Contains(shell, "fish") {
+		return "fish"
+	}
+	return "bash" // Default to bash
+}
+
+func commandExists(name string) bool {
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("command -v %s", name))
+	return cmd.Run() == nil
+}
+
+func findAvailableCommandNames(base string) []string {
+	suggestions := []string{
+		base + "d",      // mcd -> mcdd
+		"m" + base,      // mcd -> mmcd  
+		base + "2",      // mcd -> mcd2
+		"go" + base,     // mcd -> gomcd
+	}
+	
+	available := []string{}
+	for _, name := range suggestions {
+		if !commandExists(name) {
+			available = append(available, name)
+			if len(available) >= 3 {
+				break  // Show max 3 suggestions
+			}
+		}
+	}
+	
+	return available
+}
+
+func getShellConfigFile(shellType string) string {
+	home := os.Getenv("HOME")
+	switch shellType {
+	case "zsh":
+		return filepath.Join(home, ".zshrc")
+	case "fish":
+		return filepath.Join(home, ".config", "fish", "config.fish")
+	default:
+		return filepath.Join(home, ".bashrc")
+	}
+}
+
+func generateShellScript(shellType, cmdName string) string {
+	switch shellType {
+	case "fish":
+		return generateFishScript(cmdName)
+	default: // bash/zsh
+		return generateBashScript(cmdName)
+	}
+}
+
+func generateBashScript(cmdName string) string {
+	return fmt.Sprintf(`# MUNO shell integration for %s
+%s() {
+    local target="${1:-.}"
+    
+    # Special navigation patterns
+    case "$target" in
+        -)  # Previous location
+            target="${_MUNO_PREV:-}"
+            [ -z "$target" ] && echo "No previous location" && return 1
+            ;;
+        ...)  # Grandparent  
+            target="../.."
+            ;;
+    esac
+    
+    # Save current position for '-' navigation
+    _MUNO_PREV="$(muno path . --relative 2>/dev/null || echo '/')"
+    
+    # Resolve path with lazy clone
+    local resolved
+    resolved=$(muno path "$target" --ensure 2>/dev/null)
+    
+    if [ $? -eq 0 ]; then
+        cd "$resolved"
+        # Show current position in tree
+        echo "📍 $(muno path . --relative 2>/dev/null || pwd)"
+    else
+        echo "❌ Failed to resolve: $target" >&2
+        return 1
+    fi
+}
+
+# Completion support for %s
+_%s_complete() {
+    local cur="${COMP_WORDS[COMP_CWORD]}"
+    local nodes=$(muno list --format simple 2>/dev/null | grep -v "^$")
+    COMPREPLY=($(compgen -W "$nodes" -- "$cur"))
+}
+complete -F _%s_complete %s
+
+# Optional aliases
+alias %st='muno tree'
+alias %ss='muno status --recursive'
+alias %sl='muno list'
+`, cmdName, cmdName, cmdName, cmdName, cmdName, cmdName, cmdName, cmdName, cmdName)
+}
+
+func generateFishScript(cmdName string) string {
+	return fmt.Sprintf(`# MUNO shell integration for %s
+function %s
+    set -l target $argv[1]
+    test -z "$target" && set target "."
+    
+    # Special navigation patterns
+    switch $target
+        case '-'  # Previous location
+            if test -z "$_MUNO_PREV"
+                echo "No previous location"
+                return 1
+            end
+            set target $_MUNO_PREV
+        case '...'  # Grandparent
+            set target "../.."
+    end
+    
+    # Save current position
+    set -g _MUNO_PREV (muno path . --relative 2>/dev/null; or echo '/')
+    
+    # Resolve path with lazy clone
+    set -l resolved (muno path $target --ensure 2>/dev/null)
+    
+    if test $status -eq 0
+        cd $resolved
+        echo "📍 "(muno path . --relative 2>/dev/null; or pwd)
+    else
+        echo "❌ Failed to resolve: $target" >&2
+        return 1
+    end
+end
+
+# Completion for %s
+complete -c %s -a '(muno list --format simple 2>/dev/null)'
+
+# Optional aliases  
+alias %st='muno tree'
+alias %ss='muno status --recursive'
+alias %sl='muno list'
+`, cmdName, cmdName, cmdName, cmdName, cmdName, cmdName, cmdName)
 }

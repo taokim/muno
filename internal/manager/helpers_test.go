@@ -128,6 +128,9 @@ func TestNewManagerForInit(t *testing.T) {
 				oldWd, _ := os.Getwd()
 				os.Chdir(tmpDir)
 				
+				// Create the workspace directory
+				os.Mkdir("test-workspace", 0755)
+				
 				return func() {
 					os.Chdir(oldWd)
 				}

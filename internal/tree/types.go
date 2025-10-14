@@ -41,8 +41,9 @@ type TreeNode struct {
 	Cloned     bool   `json:"cloned,omitempty"` // Whether the repository has been cloned
 }
 
-// TreeState represents the persistent state of the tree
-// Contains ONLY logical paths and tree structure
+// TreeState is deprecated and no longer used
+// The Manager is now stateless and derives all state from filesystem
+// This type is kept for backward compatibility only
 type TreeState struct {
 	CurrentPath string                `json:"current_path"`
 	Nodes       map[string]*TreeNode  `json:"nodes"`

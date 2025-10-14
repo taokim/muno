@@ -284,8 +284,6 @@ func (m *MockGitInterface) Add(path, pattern string) error {
 
 // TestAdapterCreation tests the adapter creation functions
 func TestAdapterCreation(t *testing.T) {
-	tmpDir := t.TempDir()
-
 	t.Run("NewRealFileSystem", func(t *testing.T) {
 		fs := NewRealFileSystem()
 		assert.NotNil(t, fs)
@@ -337,6 +335,19 @@ func TestAdapterCreation(t *testing.T) {
 	})
 
 	t.Run("NewTreeAdapter", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		// Create a minimal config for the manager
+		cfg := &config.ConfigTree{
+			Workspace: config.WorkspaceTree{
+				Name: "test",
+				ReposDir: "repos",
+			},
+			Nodes: []config.NodeDefinition{},
+		}
+		configPath := filepath.Join(tmpDir, "muno.yaml")
+		err := cfg.Save(configPath)
+		assert.NoError(t, err)
+		
 		mockGit := &MockGitInterface{}
 		mgr, err := tree.NewManager(tmpDir, mockGit)
 		assert.NoError(t, err)
@@ -348,8 +359,25 @@ func TestAdapterCreation(t *testing.T) {
 // TestTreeProviderAdapter tests the treeProviderAdapter implementation  
 func TestTreeProviderAdapter(t *testing.T) {
 	tmpDir := t.TempDir()
+	// Create a minimal config for the manager
+	cfg := &config.ConfigTree{
+		Workspace: config.WorkspaceTree{
+			Name: "test",
+			ReposDir: "repos",
+		},
+		Nodes: []config.NodeDefinition{},
+	}
+	configPath := filepath.Join(tmpDir, "muno.yaml")
+	err := cfg.Save(configPath)
+	if err != nil {
+		t.Fatalf("Failed to save config: %v", err)
+	}
+	
 	mockGit := &MockGitInterface{}
-	mgr, _ := tree.NewManager(tmpDir, mockGit)
+	mgr, err := tree.NewManager(tmpDir, mockGit)
+	if err != nil {
+		t.Fatalf("Failed to create manager: %v", err)
+	}
 	adapter := &treeProviderAdapter{
 		mgr: mgr,
 	}
@@ -512,8 +540,25 @@ func TestCreateSharedMemory(t *testing.T) {
 // TestTreeProviderAdapterHelpers tests helper methods
 func TestTreeProviderAdapterHelpers(t *testing.T) {
 	tmpDir := t.TempDir()
+	// Create a minimal config for the manager
+	cfg := &config.ConfigTree{
+		Workspace: config.WorkspaceTree{
+			Name: "test",
+			ReposDir: "repos",
+		},
+		Nodes: []config.NodeDefinition{},
+	}
+	configPath := filepath.Join(tmpDir, "muno.yaml")
+	err := cfg.Save(configPath)
+	if err != nil {
+		t.Fatalf("Failed to save config: %v", err)
+	}
+	
 	mockGit := &MockGitInterface{}
-	mgr, _ := tree.NewManager(tmpDir, mockGit)
+	mgr, err := tree.NewManager(tmpDir, mockGit)
+	if err != nil {
+		t.Fatalf("Failed to create manager: %v", err)
+	}
 	adapter := &treeProviderAdapter{
 		mgr: mgr,
 	}

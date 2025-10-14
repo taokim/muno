@@ -36,10 +36,3 @@ func CreateTestManagerWithConfig(t *testing.T, dir string, gitCmd git.Interface)
 	CreateTestConfig(t, dir, "")
 	return NewManager(dir, gitCmd)
 }
-
-// CreateTestStatelessManagerWithConfig creates a StatelessManager with a test config
-func CreateTestStatelessManagerWithConfig(t *testing.T, dir string, gitCmd git.Interface) (*StatelessManager, error) {
-	t.Helper()
-	CreateTestConfig(t, dir, "")
-	return NewStatelessManager(dir, gitCmd)
-}

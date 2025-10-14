@@ -11,7 +11,7 @@ import (
 	"github.com/taokim/muno/internal/git"
 )
 
-func setupTestManager(t *testing.T) (*StatelessManager, string) {
+func setupTestManager(t *testing.T) (*Manager, string) {
 	tmpDir := t.TempDir()
 	
 	// Create config directory structure
@@ -72,13 +72,13 @@ func setupTestManager(t *testing.T) (*StatelessManager, string) {
 	// Create git mock
 	gitCmd := &git.MockGit{}
 	
-	mgr, err := NewStatelessManager(tmpDir, gitCmd)
+	mgr, err := NewManager(tmpDir, gitCmd)
 	require.NoError(t, err)
 	
 	return mgr, tmpDir
 }
 
-func TestStatelessManager_ComputeFilesystemPath(t *testing.T) {
+func TestManager_ComputeFilesystemPath(t *testing.T) {
 	mgr, tmpDir := setupTestManager(t)
 	
 	tests := []struct {
@@ -126,7 +126,7 @@ func TestStatelessManager_ComputeFilesystemPath(t *testing.T) {
 	}
 }
 
-func TestStatelessManager_GetNodeByPath(t *testing.T) {
+func TestManager_GetNodeByPath(t *testing.T) {
 	mgr, _ := setupTestManager(t)
 	
 	tests := []struct {
@@ -185,7 +185,7 @@ func TestStatelessManager_GetNodeByPath(t *testing.T) {
 	}
 }
 
-func TestStatelessManager_UseNode(t *testing.T) {
+func TestManager_UseNode(t *testing.T) {
 	mgr, tmpDir := setupTestManager(t)
 	
 	// Create directories for navigation
@@ -240,7 +240,7 @@ func TestStatelessManager_UseNode(t *testing.T) {
 	}
 }
 
-func TestStatelessManager_AddRepo(t *testing.T) {
+func TestManager_AddRepo(t *testing.T) {
 	mgr, tmpDir := setupTestManager(t)
 	
 	// Create repos directory
@@ -294,7 +294,7 @@ func TestStatelessManager_AddRepo(t *testing.T) {
 	}
 }
 
-func TestStatelessManager_RemoveNode(t *testing.T) {
+func TestManager_RemoveNode(t *testing.T) {
 	mgr, tmpDir := setupTestManager(t)
 	
 	// Create directories
@@ -335,7 +335,7 @@ func TestStatelessManager_RemoveNode(t *testing.T) {
 	}
 }
 
-func TestStatelessManager_ListChildren(t *testing.T) {
+func TestManager_ListChildren(t *testing.T) {
 	mgr, _ := setupTestManager(t)
 	
 	tests := []struct {
@@ -383,7 +383,7 @@ func TestStatelessManager_ListChildren(t *testing.T) {
 	}
 }
 
-func TestStatelessManager_CloneLazyRepos(t *testing.T) {
+func TestManager_CloneLazyRepos(t *testing.T) {
 	tests := []struct {
 		name       string
 		targetPath string
@@ -442,7 +442,7 @@ func TestStatelessManager_CloneLazyRepos(t *testing.T) {
 	}
 }
 
-func TestStatelessManager_DisplayMethods(t *testing.T) {
+func TestManager_DisplayMethods(t *testing.T) {
 	mgr, tmpDir := setupTestManager(t)
 	
 	// Create some directories to simulate cloned repos
@@ -492,7 +492,7 @@ func TestStatelessManager_DisplayMethods(t *testing.T) {
 	})
 }
 
-func TestStatelessManager_GetCurrentPath(t *testing.T) {
+func TestManager_GetCurrentPath(t *testing.T) {
 	mgr, _ := setupTestManager(t)
 	
 	// Test initial path

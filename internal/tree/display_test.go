@@ -31,7 +31,7 @@ func TestDisplayMethods(t *testing.T) {
 	
 	mockGit := &git.MockGit{}
 	
-	mgr, err := NewStatelessManager(tmpDir, mockGit)
+	mgr, err := NewManager(tmpDir, mockGit)
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestDisplayMethods(t *testing.T) {
 	// Add some nodes for display
 	mgr.AddRepo("/", "repo1", "https://github.com/test/repo1.git", false)
 	mgr.AddRepo("/", "repo2", "https://github.com/test/repo2.git", true)
-	// Note: StatelessManager currently stores all repos flat, so nested repos
+	// Note: Manager currently stores all repos flat, so nested repos
 	// are not truly nested in the config structure
 	mgr.AddRepo("/repo1", "nested", "https://github.com/test/nested.git", false)
 	
@@ -58,7 +58,7 @@ func TestDisplayMethods(t *testing.T) {
 		if !strings.Contains(output, "repo1") {
 			t.Errorf("DisplayTreeWithDepth should contain repo1")
 		}
-		// Note: StatelessManager currently adds all repos to flat config,
+		// Note: Manager currently adds all repos to flat config,
 		// so "nested" will appear even though it was added with parent "/repo1"
 		// This is a known limitation that is acceptable for the current use case
 		// as proper nesting is handled by the tree navigator implementation
