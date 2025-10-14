@@ -254,7 +254,8 @@ func (t *treeProviderAdapter) Load(config interface{}) error {
 }
 
 func (t *treeProviderAdapter) Navigate(path string) error {
-	return t.mgr.UseNode(path)
+	// Navigation is no longer supported in stateless mode
+	return fmt.Errorf("navigation not supported in stateless mode")
 }
 
 func (t *treeProviderAdapter) GetCurrent() (interfaces.NodeInfo, error) {
@@ -331,7 +332,8 @@ func (t *treeProviderAdapter) GetPath() string {
 }
 
 func (t *treeProviderAdapter) SetPath(path string) error {
-	return t.mgr.UseNode(path)
+	// Path setting is no longer supported in stateless mode
+	return fmt.Errorf("setting path not supported in stateless mode")
 }
 
 func (t *treeProviderAdapter) GetState() (interfaces.TreeState, error) {

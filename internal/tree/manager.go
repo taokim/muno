@@ -128,52 +128,7 @@ func (m *Manager) GetNodeByPath(logicalPath string) (*config.NodeDefinition, err
 	return nil, fmt.Errorf("node not found: %s", logicalPath)
 }
 
-// UseNode navigates to a node
-func (m *Manager) UseNode(logicalPath string) error {
-	// Normalize path
-	if logicalPath == "" {
-		logicalPath = "/"
-	}
-	if !strings.HasPrefix(logicalPath, "/") {
-		// Relative path
-		logicalPath = path.Join(m.currentPath, logicalPath)
-	}
-	
-	fsPath := m.ComputeFilesystemPath(logicalPath)
-	
-	// If it's a repository node, check if it needs cloning
-	if logicalPath != "/" {
-		node, err := m.GetNodeByPath(logicalPath)
-		if err != nil {
-			return err
-		}
-		
-		if node != nil && node.URL != "" {
-			// Check if repo exists
-			gitPath := filepath.Join(fsPath, ".git")
-			if _, err := os.Stat(gitPath); os.IsNotExist(err) {
-				// Auto-clone if lazy
-				fmt.Printf("Auto-cloning repository: %s\n", node.Name)
-				if err := m.gitCmd.Clone(node.URL, fsPath); err != nil {
-					return fmt.Errorf("failed to clone %s: %w", node.Name, err)
-				}
-			}
-		}
-	}
-	
-	// Ensure directory exists
-	if err := os.MkdirAll(fsPath, 0755); err != nil {
-		return fmt.Errorf("creating directory: %w", err)
-	}
-	
-	// Change directory
-	if err := os.Chdir(fsPath); err != nil {
-		return fmt.Errorf("changing directory to %s: %w", fsPath, err)
-	}
-	
-	m.currentPath = logicalPath
-	return nil
-}
+
 
 // AddRepo adds a new repository to config
 func (m *Manager) AddRepo(parentPath, name, url string, lazy bool) error {
@@ -573,7 +528,6 @@ func (m *Manager) DisplayChildren() string {
 	return output.String()
 }
 
-// DisplayTreeWithDepth is implemented in display_tree_with_depth.go
 */
 
 // GetState returns a dynamically generated TreeState for compatibility
