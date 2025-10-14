@@ -99,9 +99,7 @@ Features:
 	a.rootCmd.AddCommand(a.newStatusCmd())
 	
 	// Navigation commands
-	a.rootCmd.AddCommand(a.newUseCmd())
 	a.rootCmd.AddCommand(a.newPathCmd())
-	a.rootCmd.AddCommand(a.newCurrentCmd())
 	a.rootCmd.AddCommand(a.newShellInitCmd())
 	a.rootCmd.AddCommand(a.newTreeCmd())
 	
@@ -522,40 +520,6 @@ func (a *App) newCloneCmd() *cobra.Command {
 	return cmd
 }
 
-// newUseCmd creates the use command
-func (a *App) newUseCmd() *cobra.Command {
-	var noClone bool
-	
-	cmd := &cobra.Command{
-		Use:   "use <path>",
-		Short: "Navigate to a node in the tree",
-		Long: `Navigate to a node in the workspace tree.
-		
-Changes both the current working directory and stored context.
-Auto-clones lazy repositories unless --no-clone is specified.
-		
-Path formats:
-- Absolute: /team/backend
-- Relative: ../frontend
-- Parent: ..
-- Current: .
-- Previous: -
-- Root: ~ or /`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return fmt.Errorf("loading workspace: %w", err)
-			}
-			
-			return mgr.UseNodeWithClone(args[0], !noClone)
-		},
-	}
-	
-	cmd.Flags().BoolVarP(&noClone, "no-clone", "n", false, "Skip auto-cloning lazy repositories")
-	
-	return cmd
-}
 
 func (a *App) newPathCmd() *cobra.Command {
 	var ensure bool
@@ -722,33 +686,7 @@ Examples:
 	return cmd
 }
 
-// newCurrentCmd creates the current command  
-func (a *App) newCurrentCmd() *cobra.Command {
-	var clear bool
-	
-	cmd := &cobra.Command{
-		Use:   "current",
-		Short: "Show current node position",
-		Long:  `Display the current node path in the workspace tree.`,
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return fmt.Errorf("loading workspace: %w", err)
-			}
-			
-			if clear {
-				return mgr.ClearCurrent()
-			}
-			
-			return mgr.ShowCurrent()
-		},
-	}
-	
-	cmd.Flags().BoolVar(&clear, "clear", false, "Clear stored current node")
-	
-	return cmd
-}
+
 // newPullCmd creates the pull command
 func (a *App) newPullCmd() *cobra.Command {
 	var recursive bool

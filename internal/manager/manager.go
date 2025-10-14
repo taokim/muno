@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
+
 	"time"
 	
 	"github.com/mattn/go-isatty"
@@ -236,133 +236,7 @@ func (m *Manager) GetConfigResolver() *config.ConfigResolver {
 	return m.configResolver
 }
 
-// Use navigates to a specific node in the tree
-func (m *Manager) Use(ctx context.Context, path string) error {
-	if !m.initialized {
-		return fmt.Errorf("manager not initialized")
-	}
-	
-	m.logProvider.Info("Navigating to node", 
-		interfaces.Field{Key: "path", Value: path})
-	
-	// Navigate in tree
-	if err := m.treeProvider.Navigate(path); err != nil {
-		return fmt.Errorf("failed to navigate: %w", err)
-	}
-	
-	// Get node info
-	node, err := m.treeProvider.GetCurrent()
-	if err != nil {
-		return fmt.Errorf("failed to get current node: %w", err)
-	}
-	
-	// Clone if lazy repository (not config nodes)
-	if node.IsLazy && !node.IsCloned && node.Repository != "" {
-		m.uiProvider.Info("")
-		m.uiProvider.Info("🔄 Repository needs to be cloned...")
-		m.uiProvider.Info(fmt.Sprintf("📦 Cloning from: %s", node.Repository))
-		
-		repoPath := m.computeFilesystemPath(node.Path)
-		if err := m.gitProvider.Clone(node.Repository, repoPath, interfaces.CloneOptions{
-			Recursive: true,
-		}); err != nil {
-			return fmt.Errorf("failed to clone repository: %w", err)
-		}
-		
-		// Update node state
-		node.IsCloned = true
-		if err := m.treeProvider.UpdateNode(node.Path, node); err != nil {
-			m.logProvider.Warn("Failed to update node state", 
-				interfaces.Field{Key: "error", Value: err})
-		}
-		
-		m.uiProvider.Success("✅ Repository cloned successfully!")
-	}
-	
-	// Don't auto-clone lazy children - they should only be cloned when explicitly navigated to
-	// This preserves the lazy loading behavior as intended
-	lazyChildren := []interfaces.NodeInfo{}
-	// Commenting out auto-cloning logic to preserve lazy behavior
-	// for _, child := range node.Children {
-	// 	if child.IsLazy && !child.IsCloned && child.Repository != "" {
-	// 		lazyChildren = append(lazyChildren, child)
-	// 	}
-	// }
-	
-	if len(lazyChildren) > 0 {
-		m.uiProvider.Info("")
-		m.uiProvider.Info(fmt.Sprintf("🔄 Cloning %d lazy child repositories in parallel for better experience...", len(lazyChildren)))
-		
-		// Use sync.WaitGroup for parallel cloning
-		var wg sync.WaitGroup
-		cloneErrors := make(chan error, len(lazyChildren))
-		successCount := 0
-		var successMutex sync.Mutex
-		
-		for _, child := range lazyChildren {
-			wg.Add(1)
-			go func(childNode interfaces.NodeInfo) {
-				defer wg.Done()
-				
-				m.uiProvider.Info(fmt.Sprintf("📦 Cloning child: %s", childNode.Name))
-				
-				childPath := m.computeFilesystemPath(childNode.Path)
-				if err := m.gitProvider.Clone(childNode.Repository, childPath, interfaces.CloneOptions{
-					Recursive: false, // Don't recursively clone grandchildren
-				}); err != nil {
-					cloneErrors <- fmt.Errorf("failed to clone %s: %v", childNode.Name, err)
-					m.logProvider.Warn(fmt.Sprintf("Failed to clone child %s: %v", childNode.Name, err),
-						interfaces.Field{Key: "child", Value: childNode.Name},
-						interfaces.Field{Key: "error", Value: err})
-					return
-				}
-				
-				// Update child node state
-				childNode.IsCloned = true
-				if err := m.treeProvider.UpdateNode(childNode.Path, childNode); err != nil {
-					m.logProvider.Warn("Failed to update child node state",
-						interfaces.Field{Key: "child", Value: childNode.Name},
-						interfaces.Field{Key: "error", Value: err})
-				}
-				
-				successMutex.Lock()
-				successCount++
-				successMutex.Unlock()
-			}(child)
-		}
-		
-		// Wait for all goroutines to complete
-		wg.Wait()
-		close(cloneErrors)
-		
-		// Collect any errors
-		var errors []string
-		for err := range cloneErrors {
-			errors = append(errors, err.Error())
-		}
-		
-		if len(errors) > 0 {
-			m.logProvider.Warn(fmt.Sprintf("Some children failed to clone: %s", strings.Join(errors, "; ")),
-				interfaces.Field{Key: "errors", Value: errors})
-		}
-		
-		if successCount > 0 {
-			m.uiProvider.Success(fmt.Sprintf("✅ Successfully cloned %d/%d child repositories!", successCount, len(lazyChildren)))
-		}
-	}
-	
-	// Show navigation success with more info
-	m.uiProvider.Info("")
-	m.uiProvider.Success(fmt.Sprintf("📍 Navigated to: %s", node.Name))
-	m.uiProvider.Info(fmt.Sprintf("   Path: %s", node.Path))
-	if len(node.Children) > 0 {
-		m.uiProvider.Info(fmt.Sprintf("   Children: %d repositories", len(node.Children)))
-		m.uiProvider.Info("   Use 'muno list' to see available repositories")
-	}
-	m.metricsProvider.Counter("manager.navigate", 1, "path:"+path)
-	
-	return nil
-}
+
 
 // Add adds a new repository to the tree
 func (m *Manager) Add(ctx context.Context, repoURL string, options AddOptions) error {
@@ -503,8 +377,33 @@ func (m *Manager) Remove(ctx context.Context, name string) error {
 	m.logProvider.Info("Removing repository", 
 		interfaces.Field{Key: "name", Value: name})
 	
-	// Get current node
-	current, err := m.treeProvider.GetCurrent()
+	// Get current node based on pwd
+	pwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("getting current directory: %w", err)
+	}
+	
+	workspaceRoot := m.workspace
+	reposDir := filepath.Join(workspaceRoot, m.getReposDir())
+	
+	var currentPath string
+	if strings.HasPrefix(pwd, reposDir) {
+		relPath, err := filepath.Rel(reposDir, pwd)
+		if err != nil {
+			return fmt.Errorf("getting relative path: %w", err)
+		}
+		if relPath == "." {
+			currentPath = "/"
+		} else {
+			currentPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
+		}
+	} else if pwd == workspaceRoot {
+		currentPath = "/"
+	} else {
+		currentPath = "/"
+	}
+	
+	current, err := m.treeProvider.GetNode(currentPath)
 	if err != nil {
 		return fmt.Errorf("failed to get current node: %w", err)
 	}
@@ -618,8 +517,8 @@ func (m *Manager) handlePluginAction(ctx context.Context, action interfaces.Acti
 		return m.ExecutePluginCommand(ctx, action.Command, action.Arguments)
 		
 	case "navigate":
-		// Navigate to a path
-		return m.Use(ctx, action.Path)
+		// Navigation is no longer supported in stateless mode
+		return fmt.Errorf("navigation action not supported in stateless mode")
 		
 	case "open":
 		// Open URL in browser
@@ -1250,42 +1149,7 @@ func (m *Manager) ListNodesRecursive(recursive bool) error {
 	return nil
 }
 
-// ShowCurrent shows the current position in the tree
-func (m *Manager) ShowCurrent() error {
-	if !m.initialized {
-		return fmt.Errorf("manager not initialized")
-	}
-	
-	current, err := m.treeProvider.GetCurrent()
-	if err != nil {
-		return fmt.Errorf("getting current node: %w", err)
-	}
-	
-	m.uiProvider.Info("📍 Current Position")
-	m.uiProvider.Info("─────────────────")
-	m.uiProvider.Info(fmt.Sprintf("  Path: %s", current.Path))
-	m.uiProvider.Info(fmt.Sprintf("  Name: %s", current.Name))
-	
-	if current.Repository != "" {
-		m.uiProvider.Info(fmt.Sprintf("  Repo: %s", current.Repository))
-	}
-	
-	status := "✅ Cloned"
-	if current.IsLazy && !current.IsCloned {
-		status = "💤 Lazy (not cloned)"
-	} else if !current.IsCloned {
-		status = "⏳ Not cloned"
-	} else if current.HasChanges {
-		status = "📝 Modified"
-	}
-	m.uiProvider.Info(fmt.Sprintf("  Status: %s", status))
-	
-	if len(current.Children) > 0 {
-		m.uiProvider.Info(fmt.Sprintf("  Children: %d repositories", len(current.Children)))
-	}
-	
-	return nil
-}
+
 
 // ShowTreeAtPath shows the tree at a specific path
 func (m *Manager) ShowTreeAtPath(path string, depth int) error {
@@ -1341,47 +1205,7 @@ func (m *Manager) ShowTreeAtPath(path string, depth int) error {
 	return nil
 }
 
-// UseNodeWithClone navigates to a node and clones if needed
-func (m *Manager) UseNodeWithClone(path string, autoClone bool) error {
-	if !m.initialized {
-		return fmt.Errorf("manager not initialized")
-	}
-	
-	ctx := context.Background()
-	
-	// If autoClone is false, we need to navigate without cloning
-	if !autoClone {
-		// Just navigate in the tree without cloning
-		if err := m.treeProvider.Navigate(path); err != nil {
-			return fmt.Errorf("failed to navigate: %w", err)
-		}
-		
-		// Get node info
-		node, err := m.treeProvider.GetCurrent()
-		if err != nil {
-			return fmt.Errorf("failed to get current node: %w", err)
-		}
-		
-		// Show navigation success
-		m.uiProvider.Info("")
-		m.uiProvider.Success(fmt.Sprintf("📍 Navigated to: %s", node.Name))
-		m.uiProvider.Info(fmt.Sprintf("   Path: %s", node.Path))
-		
-		if node.IsLazy && !node.IsCloned && node.Repository != "" {
-			m.uiProvider.Warning("⚠️  This repository is not cloned yet. Use 'muno clone' to clone it.")
-		}
-		
-		if len(node.Children) > 0 {
-			m.uiProvider.Info(fmt.Sprintf("   Children: %d repositories", len(node.Children)))
-			m.uiProvider.Info("   Use 'muno list' to see available repositories")
-		}
-		
-		return nil
-	}
-	
-	// If autoClone is true, use the regular Use function which auto-clones
-	return m.Use(ctx, path)
-}
+
 
 // AddRepoSimple adds a repository
 func (m *Manager) AddRepoSimple(repoURL string, name string, lazy bool) error {
@@ -1981,11 +1805,30 @@ func (m *Manager) StartClaude(path string) error {
 	
 	targetPath := path
 	if targetPath == "" {
-		current, err := m.treeProvider.GetCurrent()
+		// Use pwd-based resolution
+		pwd, err := os.Getwd()
 		if err != nil {
-			return fmt.Errorf("getting current node: %w", err)
+			return fmt.Errorf("getting current directory: %w", err)
 		}
-		targetPath = current.Path
+		
+		workspaceRoot := m.workspace
+		reposDir := filepath.Join(workspaceRoot, m.getReposDir())
+		
+		if strings.HasPrefix(pwd, reposDir) {
+			relPath, err := filepath.Rel(reposDir, pwd)
+			if err != nil {
+				return fmt.Errorf("getting relative path: %w", err)
+			}
+			if relPath == "." {
+				targetPath = "/"
+			} else {
+				targetPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
+			}
+		} else if pwd == workspaceRoot {
+			targetPath = "/"
+		} else {
+			targetPath = "/"
+		}
 	}
 	
 	node, err := m.treeProvider.GetNode(targetPath)
@@ -2252,12 +2095,29 @@ func (m *Manager) StartAgent(agentName string, path string, agentArgs []string, 
 	
 	targetPath := path
 	if targetPath == "" {
-		current, err := m.treeProvider.GetCurrent()
-		if err != nil || current.Path == "" {
-			// If we can't get current or it's empty, use root
+		// Use pwd-based resolution
+		pwd, err := os.Getwd()
+		if err != nil {
+			// If we can't get pwd, use root
 			targetPath = "/"
 		} else {
-			targetPath = current.Path
+			workspaceRoot := m.workspace
+			reposDir := filepath.Join(workspaceRoot, m.getReposDir())
+			
+			if strings.HasPrefix(pwd, reposDir) {
+				relPath, err := filepath.Rel(reposDir, pwd)
+				if err != nil {
+					targetPath = "/"
+				} else if relPath == "." {
+					targetPath = "/"
+				} else {
+					targetPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
+				}
+			} else if pwd == workspaceRoot {
+				targetPath = "/"
+			} else {
+				targetPath = "/"
+			}
 		}
 	}
 	

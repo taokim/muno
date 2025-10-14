@@ -81,12 +81,3 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 	return nil
 }
 
-// ClearCurrent clears the current position in the tree
-func (m *Manager) ClearCurrent() error {
-	if !m.initialized {
-		return fmt.Errorf("manager not initialized")
-	}
-	
-	// Reset to root
-	return m.treeProvider.SetPath("/")
-}
