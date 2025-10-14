@@ -374,8 +374,33 @@ func (m *Manager) Add(ctx context.Context, repoURL string, options AddOptions) e
 		interfaces.Field{Key: "url", Value: repoURL},
 		interfaces.Field{Key: "fetch", Value: options.Fetch})
 	
-	// Get current node
-	current, err := m.treeProvider.GetCurrent()
+	// Get current node based on pwd
+	pwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("getting current directory: %w", err)
+	}
+	
+	workspaceRoot := m.workspace
+	reposDir := filepath.Join(workspaceRoot, m.getReposDir())
+	
+	var currentPath string
+	if strings.HasPrefix(pwd, reposDir) {
+		relPath, err := filepath.Rel(reposDir, pwd)
+		if err != nil {
+			return fmt.Errorf("getting relative path: %w", err)
+		}
+		if relPath == "." {
+			currentPath = "/"
+		} else {
+			currentPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
+		}
+	} else if pwd == workspaceRoot {
+		currentPath = "/"
+	} else {
+		currentPath = "/"
+	}
+	
+	current, err := m.treeProvider.GetNode(currentPath)
 	if err != nil {
 		return fmt.Errorf("failed to get current node: %w", err)
 	}
@@ -1148,8 +1173,34 @@ func (m *Manager) ListNodesRecursive(recursive bool) error {
 		return nil
 	}
 	
-	// Just list immediate children with better formatting
-	current, err := m.treeProvider.GetCurrent()
+	// Get current node based on pwd
+	pwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("getting current directory: %w", err)
+	}
+	
+	// Convert pwd to tree path
+	workspaceRoot := m.workspace
+	reposDir := filepath.Join(workspaceRoot, m.getReposDir())
+	
+	var currentPath string
+	if strings.HasPrefix(pwd, reposDir) {
+		relPath, err := filepath.Rel(reposDir, pwd)
+		if err != nil {
+			return fmt.Errorf("getting relative path: %w", err)
+		}
+		if relPath == "." {
+			currentPath = "/"
+		} else {
+			currentPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
+		}
+	} else if pwd == workspaceRoot {
+		currentPath = "/"
+	} else {
+		currentPath = "/"
+	}
+	
+	current, err := m.treeProvider.GetNode(currentPath)
 	if err != nil {
 		return fmt.Errorf("getting current node: %w", err)
 	}
@@ -1242,9 +1293,31 @@ func (m *Manager) ShowTreeAtPath(path string, depth int) error {
 		return fmt.Errorf("manager not initialized")
 	}
 	
-	// Default to root if path is empty
+	// Use pwd-based resolution if path is empty
 	if path == "" {
-		path = "/"
+		pwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("getting current directory: %w", err)
+		}
+		
+		workspaceRoot := m.workspace
+		reposDir := filepath.Join(workspaceRoot, m.getReposDir())
+		
+		if strings.HasPrefix(pwd, reposDir) {
+			relPath, err := filepath.Rel(reposDir, pwd)
+			if err != nil {
+				return fmt.Errorf("getting relative path: %w", err)
+			}
+			if relPath == "." {
+				path = "/"
+			} else {
+				path = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
+			}
+		} else if pwd == workspaceRoot {
+			path = "/"
+		} else {
+			path = "/"
+		}
 	}
 	
 	node, err := m.treeProvider.GetNode(path)
@@ -1334,8 +1407,35 @@ func (m *Manager) CloneRepos(path string, recursive bool) error {
 		return fmt.Errorf("manager not initialized")
 	}
 	
-	// Get current node
-	current, err := m.treeProvider.GetCurrent()
+	// Get current node based on pwd
+	targetPath := path
+	if targetPath == "" {
+		pwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("getting current directory: %w", err)
+		}
+		
+		workspaceRoot := m.workspace
+		reposDir := filepath.Join(workspaceRoot, m.getReposDir())
+		
+		if strings.HasPrefix(pwd, reposDir) {
+			relPath, err := filepath.Rel(reposDir, pwd)
+			if err != nil {
+				return fmt.Errorf("getting relative path: %w", err)
+			}
+			if relPath == "." {
+				targetPath = "/"
+			} else {
+				targetPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
+			}
+		} else if pwd == workspaceRoot {
+			targetPath = "/"
+		} else {
+			targetPath = "/"
+		}
+	}
+	
+	current, err := m.treeProvider.GetNode(targetPath)
 	if err != nil {
 		return fmt.Errorf("getting current node: %w", err)
 	}
@@ -1412,11 +1512,38 @@ func (m *Manager) StatusNode(path string, recursive bool) error {
 	
 	targetPath := path
 	if targetPath == "" {
-		current, err := m.treeProvider.GetCurrent()
+		// Use pwd-based resolution instead of stored state
+		pwd, err := os.Getwd()
 		if err != nil {
-			return fmt.Errorf("getting current node: %w", err)
+			return fmt.Errorf("getting current directory: %w", err)
 		}
-		targetPath = current.Path
+		
+		// Check if we're in the workspace
+		workspaceRoot := m.workspace
+		reposDir := filepath.Join(workspaceRoot, m.getReposDir())
+		
+		// Convert pwd to tree path
+		if strings.HasPrefix(pwd, reposDir) {
+			// We're inside the repos directory
+			relPath, err := filepath.Rel(reposDir, pwd)
+			if err != nil {
+				return fmt.Errorf("getting relative path: %w", err)
+			}
+			
+			// Convert to tree path
+			if relPath == "." {
+				targetPath = "/"
+			} else {
+				// Clean and convert to forward slashes
+				targetPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
+			}
+		} else if pwd == workspaceRoot {
+			// We're at workspace root
+			targetPath = "/"
+		} else {
+			// Outside workspace - use root
+			targetPath = "/"
+		}
 	}
 	
 	node, err := m.treeProvider.GetNode(targetPath)
@@ -1580,11 +1707,30 @@ func (m *Manager) PullNode(path string, recursive bool, force bool) error {
 	
 	targetPath := path
 	if targetPath == "" {
-		current, err := m.treeProvider.GetCurrent()
+		// Use pwd-based resolution
+		pwd, err := os.Getwd()
 		if err != nil {
-			return fmt.Errorf("getting current node: %w", err)
+			return fmt.Errorf("getting current directory: %w", err)
 		}
-		targetPath = current.Path
+		
+		workspaceRoot := m.workspace
+		reposDir := filepath.Join(workspaceRoot, m.getReposDir())
+		
+		if strings.HasPrefix(pwd, reposDir) {
+			relPath, err := filepath.Rel(reposDir, pwd)
+			if err != nil {
+				return fmt.Errorf("getting relative path: %w", err)
+			}
+			if relPath == "." {
+				targetPath = "/"
+			} else {
+				targetPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
+			}
+		} else if pwd == workspaceRoot {
+			targetPath = "/"
+		} else {
+			targetPath = "/"
+		}
 	}
 	
 	node, err := m.treeProvider.GetNode(targetPath)
@@ -1721,11 +1867,30 @@ func (m *Manager) PushNode(path string, recursive bool) error {
 	
 	targetPath := path
 	if targetPath == "" {
-		current, err := m.treeProvider.GetCurrent()
+		// Use pwd-based resolution
+		pwd, err := os.Getwd()
 		if err != nil {
-			return fmt.Errorf("getting current node: %w", err)
+			return fmt.Errorf("getting current directory: %w", err)
 		}
-		targetPath = current.Path
+		
+		workspaceRoot := m.workspace
+		reposDir := filepath.Join(workspaceRoot, m.getReposDir())
+		
+		if strings.HasPrefix(pwd, reposDir) {
+			relPath, err := filepath.Rel(reposDir, pwd)
+			if err != nil {
+				return fmt.Errorf("getting relative path: %w", err)
+			}
+			if relPath == "." {
+				targetPath = "/"
+			} else {
+				targetPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
+			}
+		} else if pwd == workspaceRoot {
+			targetPath = "/"
+		} else {
+			targetPath = "/"
+		}
 	}
 	
 	node, err := m.treeProvider.GetNode(targetPath)
@@ -1769,11 +1934,30 @@ func (m *Manager) CommitNode(path string, message string, recursive bool) error 
 	
 	targetPath := path
 	if targetPath == "" {
-		current, err := m.treeProvider.GetCurrent()
+		// Use pwd-based resolution
+		pwd, err := os.Getwd()
 		if err != nil {
-			return fmt.Errorf("getting current node: %w", err)
+			return fmt.Errorf("getting current directory: %w", err)
 		}
-		targetPath = current.Path
+		
+		workspaceRoot := m.workspace
+		reposDir := filepath.Join(workspaceRoot, m.getReposDir())
+		
+		if strings.HasPrefix(pwd, reposDir) {
+			relPath, err := filepath.Rel(reposDir, pwd)
+			if err != nil {
+				return fmt.Errorf("getting relative path: %w", err)
+			}
+			if relPath == "." {
+				targetPath = "/"
+			} else {
+				targetPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
+			}
+		} else if pwd == workspaceRoot {
+			targetPath = "/"
+		} else {
+			targetPath = "/"
+		}
 	}
 	
 	node, err := m.treeProvider.GetNode(targetPath)
