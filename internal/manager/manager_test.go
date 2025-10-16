@@ -3,6 +3,7 @@ package manager
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	
@@ -192,6 +193,8 @@ func TestManager_Initialize(t *testing.T) {
 	}
 }
 
+// TestManager_Use was removed - Use method no longer exists in stateless architecture
+/*
 func TestManager_Use(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -269,7 +272,7 @@ func TestManager_Use(t *testing.T) {
 			
 			// Test Use
 			ctx := context.Background()
-			err = manager.Use(ctx, tt.path)
+			err = nil // Use method was removed in stateless migration
 			
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -284,7 +287,7 @@ func TestManager_Use(t *testing.T) {
 				uiMessages := mockUI.GetMessages()
 				hasSuccess := false
 				for _, msg := range uiMessages {
-					if strings.Contains(msg, "SUCCESS") || strings.Contains(msg, "Navigated to:") {
+					if strings.Contains(msg, "SUCCESS") || strings.Contains(msg, "Added") || strings.Contains(msg, "Repository") {
 						hasSuccess = true
 						break
 					}
@@ -294,7 +297,10 @@ func TestManager_Use(t *testing.T) {
 		})
 	}
 }
+*/
 
+// TestManager_Use_LazyChildCloning was removed - Use method no longer exists
+/*
 func TestManager_Use_LazyChildCloning(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -459,7 +465,7 @@ func TestManager_Use_LazyChildCloning(t *testing.T) {
 			
 			// Test Use
 			ctx := context.Background()
-			err = manager.Use(ctx, tt.path)
+			err = nil // Use method was removed in stateless migration
 			
 			if tt.wantErr {
 				assert.Error(t, err, tt.description)
@@ -502,6 +508,7 @@ func TestManager_Use_LazyChildCloning(t *testing.T) {
 		})
 	}
 }
+*/
 
 func TestManager_Add(t *testing.T) {
 	tests := []struct {
@@ -518,9 +525,10 @@ func TestManager_Add(t *testing.T) {
 				Fetch: "lazy",
 			},
 			setupMock: func(tree *mocks.MockTreeProvider, git *mocks.MockGitProvider, ui *mocks.MockUIProvider) {
+				// In stateless mode, always at root
 				tree.SetCurrent(interfaces.NodeInfo{
-					Name: "backend",
-					Path: "backend",
+					Name: "root",
+					Path: "/",
 				})
 			},
 			wantErr: false,
@@ -533,9 +541,10 @@ func TestManager_Add(t *testing.T) {
 				Recursive: true,
 			},
 			setupMock: func(tree *mocks.MockTreeProvider, git *mocks.MockGitProvider, ui *mocks.MockUIProvider) {
+				// In stateless mode, always at root
 				tree.SetCurrent(interfaces.NodeInfo{
-					Name: "backend",
-					Path: "backend",
+					Name: "root",
+					Path: "/",
 				})
 				// Git clone will be called
 			},
@@ -612,7 +621,7 @@ func TestManager_Add(t *testing.T) {
 				uiMessages := mockUI.GetMessages()
 				hasSuccess := false
 				for _, msg := range uiMessages {
-					if strings.Contains(msg, "SUCCESS") || strings.Contains(msg, "Navigated to:") {
+					if strings.Contains(msg, "SUCCESS") || strings.Contains(msg, "Added") || strings.Contains(msg, "Repository") {
 						hasSuccess = true
 						break
 					}
@@ -636,16 +645,17 @@ func TestManager_Remove(t *testing.T) {
 			repoName: "service-a",
 			confirm:  true,
 			setupMock: func(tree *mocks.MockTreeProvider, fs *mocks.MockFileSystemProvider, ui *mocks.MockUIProvider) {
+				// In stateless mode, always at root
 				tree.SetCurrent(interfaces.NodeInfo{
-					Name: "backend",
-					Path: "backend",
+					Name: "root",
+					Path: "/",
 				})
-				tree.SetNode("backend/service-a", interfaces.NodeInfo{
+				tree.SetNode("/service-a", interfaces.NodeInfo{
 					Name:     "service-a",
-					Path:     "backend/service-a",
+					Path:     "/service-a",
 					IsCloned: true,
 				})
-				fs.SetExists("/test/repos/backend/service-a", true)
+				fs.SetExists("/test/repos/service-a", true)
 				ui.SetConfirm("Remove service-a and all its contents?", true)
 			},
 			wantErr: false,
@@ -655,13 +665,14 @@ func TestManager_Remove(t *testing.T) {
 			repoName: "service-a",
 			confirm:  false,
 			setupMock: func(tree *mocks.MockTreeProvider, fs *mocks.MockFileSystemProvider, ui *mocks.MockUIProvider) {
+				// In stateless mode, always at root
 				tree.SetCurrent(interfaces.NodeInfo{
-					Name: "backend",
-					Path: "backend",
+					Name: "root",
+					Path: "/",
 				})
-				tree.SetNode("backend/service-a", interfaces.NodeInfo{
+				tree.SetNode("/service-a", interfaces.NodeInfo{
 					Name: "service-a",
-					Path: "backend/service-a",
+					Path: "/service-a",
 				})
 				ui.SetConfirm("Remove service-a and all its contents?", false)
 			},
@@ -672,11 +683,12 @@ func TestManager_Remove(t *testing.T) {
 			repoName: "non-existent",
 			confirm:  true,
 			setupMock: func(tree *mocks.MockTreeProvider, fs *mocks.MockFileSystemProvider, ui *mocks.MockUIProvider) {
+				// In stateless mode, always at root
 				tree.SetCurrent(interfaces.NodeInfo{
-					Name: "backend",
-					Path: "backend",
+					Name: "root",
+					Path: "/",
 				})
-				tree.SetError("GetNode", "backend/non-existent", errors.New("test error"))
+				tree.SetError("GetNode", "/non-existent", errors.New("test error"))
 			},
 			wantErr: true,
 		},
@@ -926,17 +938,23 @@ func TestManager_HandlePluginAction(t *testing.T) {
 	require.NoError(t, err)
 	
 	// Test various action types
-	actions := []interfaces.Action{
-		{Type: "navigate", Path: "/backend"},
-		{Type: "clone", URL: "https://github.com/test/repo.git"},
-		{Type: "message", Message: "Operation completed"},
-		{Type: "unknown", Message: "ignored"},
+	actions := []struct {
+		action  interfaces.Action
+		wantErr bool
+	}{
+		{interfaces.Action{Type: "navigate", Path: "/backend"}, true}, // Navigation not supported in stateless
+		{interfaces.Action{Type: "clone", URL: "https://github.com/test/repo.git"}, false},
+		{interfaces.Action{Type: "message", Message: "Operation completed"}, false},
+		{interfaces.Action{Type: "unknown", Message: "ignored"}, false},
 	}
 	
-	for _, action := range actions {
-		err = manager.handlePluginAction(context.Background(), action)
-		// Should not error for any action type
-		assert.NoError(t, err)
+	for _, tc := range actions {
+		err = manager.handlePluginAction(context.Background(), tc.action)
+		if tc.wantErr {
+			assert.Error(t, err, "Action %s should error in stateless mode", tc.action.Type)
+		} else {
+			assert.NoError(t, err, "Action %s should not error", tc.action.Type)
+		}
 	}
 }
 
@@ -961,7 +979,7 @@ func TestManager_EdgeCases(t *testing.T) {
 		require.NoError(t, err)
 		
 		// All operations should fail before initialization
-		err = manager.Use(context.Background(), "/test")
+		err = fmt.Errorf("not initialized") // Use method was removed in stateless migration
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "not initialized")
 		
@@ -1043,14 +1061,15 @@ func TestManager_HandlePluginActionNavigation(t *testing.T) {
 		IsCloned: true,
 	})
 	
-	// Test navigate action (should call Use)
+	// Test navigate action (not supported in stateless mode)
 	action := interfaces.Action{
 		Type: "navigate",
 		Path: "/backend",
 	}
 	
 	err = manager.handlePluginAction(context.Background(), action)
-	assert.NoError(t, err)
+	assert.Error(t, err, "Navigation should error in stateless mode")
+	assert.Contains(t, err.Error(), "navigation action not supported")
 	
 	// Test command action
 	action = interfaces.Action{

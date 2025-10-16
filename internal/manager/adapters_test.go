@@ -394,7 +394,9 @@ func TestTreeProviderAdapter(t *testing.T) {
 
 	t.Run("Navigate", func(t *testing.T) {
 		err := adapter.Navigate("/")
-		assert.NoError(t, err)
+		// Navigation is not supported in stateless mode
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not supported")
 	})
 
 	t.Run("GetCurrent", func(t *testing.T) {
@@ -465,7 +467,9 @@ func TestTreeProviderAdapter(t *testing.T) {
 
 	t.Run("SetPath", func(t *testing.T) {
 		err := adapter.SetPath("/")
-		assert.NoError(t, err)
+		// Setting path is not supported in stateless mode
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not supported")
 	})
 
 	t.Run("GetState", func(t *testing.T) {

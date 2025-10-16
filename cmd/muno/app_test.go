@@ -36,7 +36,7 @@ func TestAppCommands(t *testing.T) {
 	
 	// Check all commands are registered
 	commands := []string{
-		"init", "tree", "list", "use", "current", 
+		"init", "tree", "list", 
 		"add", "remove", "status", "pull", "push",
 		"commit", "clone", "version",
 		"agent", "claude", "gemini",
@@ -108,23 +108,7 @@ func TestListCommand(t *testing.T) {
 	assert.NotEmpty(t, output)
 }
 
-func TestCurrentCommand(t *testing.T) {
-	tmpDir := t.TempDir()
-	oldCwd, _ := os.Getwd()
-	defer os.Chdir(oldCwd)
-	os.Chdir(tmpDir)
-	
-	app := NewApp()
-	app.ExecuteWithArgs([]string{"init", "test", "--non-interactive"})
-	
-	var err error
-	output := captureOutput(func() {
-		err = app.ExecuteWithArgs([]string{"current"})
-	})
-	
-	require.NoError(t, err)
-	assert.Contains(t, output, "Path: /")
-}
+// TestCurrentCommand was removed - current command no longer exists in stateless architecture
 
 func TestAddCommand(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -272,34 +256,7 @@ func TestCloneCommand(t *testing.T) {
 	assert.True(t, len(output) > 0 || err != nil, "Clone command should produce output or return an error")
 }
 
-func TestUseCommand(t *testing.T) {
-	tmpDir := t.TempDir()
-	oldCwd, _ := os.Getwd()
-	defer os.Chdir(oldCwd)
-	os.Chdir(tmpDir)
-	
-	// Initialize first
-	app := NewApp()
-	app.ExecuteWithArgs([]string{"init", "test", "--non-interactive"})
-	
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-	defer func() {
-		os.Stdout = oldStdout
-	}()
-	
-	err := app.ExecuteWithArgs([]string{"use", "/"})
-	require.NoError(t, err)
-	
-	w.Close()
-	var buf bytes.Buffer
-	buf.ReadFrom(r)
-	output := buf.String()
-	
-	assert.Contains(t, output, "Navigated to: root")
-}
+// TestUseCommand was removed - use command no longer exists in stateless architecture
 
 func TestPullCommand(t *testing.T) {
 	tmpDir := t.TempDir()

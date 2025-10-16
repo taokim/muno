@@ -121,18 +121,19 @@ func TestManager_StatusNode(t *testing.T) {
 			path:      "",
 			recursive: false,
 			setupMock: func(tree *mocks.MockTreeProvider, git *mocks.MockGitProvider, ui *mocks.MockUIProvider) {
-				currentNode := interfaces.NodeInfo{
-					Name: "repo1",
-					Path: "/repo1",
+				// Set up root node for empty path
+				rootNode := interfaces.NodeInfo{
+					Name: "root",
+					Path: "/",
 				}
-				tree.SetCurrent(currentNode)
-				tree.SetNode("/repo1", currentNode)
+				tree.SetNode("/", rootNode)
+				tree.SetCurrent(rootNode)
 				
 				status := interfaces.GitStatus{
 					Branch:  "main",
 					IsClean: true,
 				}
-				git.SetStatus(filepath.Join("workspace", "/repo1"), &status)
+				git.SetStatus(filepath.Join("workspace", "/"), &status)
 			},
 			wantErr: false,
 		},
@@ -229,23 +230,23 @@ func TestManager_PullNode(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name:      "pull current node non-recursive",
-			path:      "",
+			name:      "pull specific node non-recursive",
+			path:      "/repo1",  // Use explicit path instead of empty for stateless
 			recursive: false,
 			setupMock: func(tree *mocks.MockTreeProvider, git *mocks.MockGitProvider) {
-				currentNode := interfaces.NodeInfo{
+				repoNode := interfaces.NodeInfo{
 					Name: "repo1",
 					Path: "/repo1",
+					IsCloned: true,
 				}
-				tree.SetCurrent(currentNode)
-				tree.SetNode("/repo1", currentNode)
+				tree.SetNode("/repo1", repoNode)
 				// Pull will succeed by default in mock
 			},
 			wantErr: false,
 		},
 		{
-			name:      "pull recursive",
-			path:      "",
+			name:      "pull recursive from root",
+			path:      "/",  // Use explicit root path for stateless
 			recursive: true,
 			setupMock: func(tree *mocks.MockTreeProvider, git *mocks.MockGitProvider) {
 				currentNode := interfaces.NodeInfo{
@@ -314,16 +315,16 @@ func TestManager_PushNode(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name:      "push current node non-recursive",
-			path:      "",
+			name:      "push specific node non-recursive",
+			path:      "/repo1",  // Use explicit path instead of empty for stateless
 			recursive: false,
 			setupMock: func(tree *mocks.MockTreeProvider, git *mocks.MockGitProvider) {
-				currentNode := interfaces.NodeInfo{
+				repoNode := interfaces.NodeInfo{
 					Name: "repo1",
 					Path: "/repo1",
+					IsCloned: true,
 				}
-				tree.SetCurrent(currentNode)
-				tree.SetNode("/repo1", currentNode)
+				tree.SetNode("/repo1", repoNode)
 				// Push will succeed by default in mock
 			},
 			wantErr: false,
@@ -393,17 +394,17 @@ func TestManager_CommitNode(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name:      "commit current node",
-			path:      "",
+			name:      "commit specific node",
+			path:      "/repo1",  // Use explicit path instead of empty for stateless
 			message:   "test commit",
 			recursive: false,
 			setupMock: func(tree *mocks.MockTreeProvider, git *mocks.MockGitProvider) {
-				currentNode := interfaces.NodeInfo{
+				repoNode := interfaces.NodeInfo{
 					Name: "repo1",
 					Path: "/repo1",
+					IsCloned: true,
 				}
-				tree.SetCurrent(currentNode)
-				tree.SetNode("/repo1", currentNode)
+				tree.SetNode("/repo1", repoNode)
 				// Commit will succeed by default in mock
 			},
 			wantErr: false,
@@ -551,6 +552,8 @@ func TestManager_ListNodesRecursive(t *testing.T) {
 }
 
 // TestShowCurrent tests the ShowCurrent function
+// TestManager_ShowCurrent was removed - ShowCurrent method no longer exists
+/*
 func TestManager_ShowCurrent(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -604,7 +607,7 @@ func TestManager_ShowCurrent(t *testing.T) {
 			}
 
 			// Execute
-			err := manager.ShowCurrent()
+			err := nil // ShowCurrent was removed in stateless migration
 
 			// Assert
 			if tt.wantErr {
@@ -615,6 +618,7 @@ func TestManager_ShowCurrent(t *testing.T) {
 		})
 	}
 }
+*/
 
 // TestShowTreeAtPath tests the ShowTreeAtPath function
 func TestManager_ShowTreeAtPath(t *testing.T) {

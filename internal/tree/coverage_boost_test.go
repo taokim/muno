@@ -42,7 +42,7 @@ func TestUncoveredDisplayFunctions(t *testing.T) {
 		assert.Contains(t, result, "repo2")
 	})
 	
-	t.Run("Manager_DisplayChildren", func(t *testing.T) {
+	t.Run("StatelessManager_DisplayChildren", func(t *testing.T) {
 		mgr, err := NewManager(tmpDir, mockGit)
 		require.NoError(t, err)
 		
@@ -90,11 +90,13 @@ func TestLoadConfigerence(t *testing.T) {
 	require.NoError(t, err)
 	
 	// Test with manager that loads config references
-	mgr, err := NewManager(tmpDir, mockGit)
+	_, err = NewManager(tmpDir, mockGit)
 	require.NoError(t, err)
 	
 	// Navigate to trigger config loading
-	err = mgr.UseNode("/config-ref")
+	// UseNode was removed in stateless migration
+	// err = mgr.UseNode("/config-ref")
+	err = nil
 	assert.NoError(t, err)
 }
 

@@ -646,47 +646,4 @@ func TestCloneCommandMore(t *testing.T) {
 	})
 }
 
-// Test use command with more scenarios
-func TestUseCommandMore(t *testing.T) {
-	tmpDir := t.TempDir()
-	oldCwd, _ := os.Getwd()
-	defer os.Chdir(oldCwd)
-	os.Chdir(tmpDir)
-
-	app := NewApp()
-	
-	t.Run("use without workspace", func(t *testing.T) {
-		stdout := &bytes.Buffer{}
-		stderr := &bytes.Buffer{}
-		app.SetOutput(stdout, stderr)
-		
-		err := app.ExecuteWithArgs([]string{"use", "/"})
-		assert.Error(t, err)
-	})
-	
-	t.Run("use with workspace", func(t *testing.T) {
-		// Initialize workspace
-		app.ExecuteWithArgs([]string{"init", "test", "--non-interactive"})
-		
-		stdout := &bytes.Buffer{}
-		stderr := &bytes.Buffer{}
-		app.SetOutput(stdout, stderr)
-		
-		err := app.ExecuteWithArgs([]string{"use", "/"})
-		assert.NoError(t, err)
-		output := stdout.String() + stderr.String()
-		// Check if navigation happened, output format may vary
-		if output != "" {
-			assert.Contains(t, output, "/")
-		}
-	})
-	
-	t.Run("use with non-existent path", func(t *testing.T) {
-		stdout := &bytes.Buffer{}
-		stderr := &bytes.Buffer{}
-		app.SetOutput(stdout, stderr)
-		
-		err := app.ExecuteWithArgs([]string{"use", "/non-existent"})
-		assert.Error(t, err)
-	})
-}
+// TestUseCommandMore was removed - use command no longer exists in stateless architecture

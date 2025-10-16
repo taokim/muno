@@ -108,21 +108,27 @@ func TestSimplifiedStateIntegration(t *testing.T) {
 		
 	})
 	
-	// Test navigation and state updates
+	// Test that navigation is no longer supported in stateless architecture
 	t.Run("NavigationStateUpdate", func(t *testing.T) {
-		// Navigate to level2
-		if err := mgr.UseNode("/level1/level2"); err != nil {
-			t.Fatalf("Failed to navigate: %v", err)
+		// In stateless architecture, navigation is removed
+		// Current path always remains at root
+		
+		// Verify current path is always root
+		if mgr.currentPath != "/" {
+			t.Errorf("Current path = %s, want / (stateless architecture)", mgr.currentPath)
 		}
 		
-		if mgr.currentPath != "/level1/level2" {
-			t.Errorf("Current path = %s, want /level1/level2", mgr.currentPath)
-		}
-		
-		// Verify no state file exists after navigation (stateless)
+		// Verify no state file exists (stateless)
 		statePath := filepath.Join(tmpDir, ".muno-tree.json")
 		if _, err := os.Stat(statePath); err == nil {
-			t.Error("State file should not exist in stateless mode after navigation")
+			t.Error("State file should not exist in stateless mode")
+		}
+		
+		// Verify we can still compute filesystem paths for any logical path
+		fsPath := mgr.ComputeFilesystemPath("/level1/level2")
+		expectedPath := filepath.Join(tmpDir, "repos", "level1", "level2")
+		if fsPath != expectedPath {
+			t.Errorf("ComputeFilesystemPath(/level1/level2) = %s, want %s", fsPath, expectedPath)
 		}
 	})
 }
@@ -147,7 +153,7 @@ func TestTreeDisplay(t *testing.T) {
 	
 	// Verify output contains expected elements
 	expectedStrings := []string{
-		"🌳 Workspace",
+		"🌳 test-workspace",
 		"repo1",
 		"repo2",
 		"subrepo",

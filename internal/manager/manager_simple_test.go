@@ -131,10 +131,6 @@ func TestManager_Initialize_NotInitialized(t *testing.T) {
 		testFunc func(*Manager) error
 	}{
 		{
-			"ShowCurrent",
-			func(m *Manager) error { return m.ShowCurrent() },
-		},
-		{
 			"ShowTreeAtPath",
 			func(m *Manager) error { return m.ShowTreeAtPath("", 1) },
 		},
@@ -163,10 +159,6 @@ func TestManager_Initialize_NotInitialized(t *testing.T) {
 			func(m *Manager) error { return m.StartClaude("") },
 		},
 		{
-			"UseNodeWithClone",
-			func(m *Manager) error { return m.UseNodeWithClone("", false) },
-		},
-		{
 			"AddRepoSimple",
 			func(m *Manager) error { return m.AddRepoSimple("url", "name", false) },
 		},
@@ -178,11 +170,6 @@ func TestManager_Initialize_NotInitialized(t *testing.T) {
 			"CloneRepos",
 			func(m *Manager) error { return m.CloneRepos("", false) },
 		},
-		{
-			"ClearCurrent",
-			func(m *Manager) error { return m.ClearCurrent() },
-		},
-
 	}
 	
 	for _, tt := range tests {
@@ -217,15 +204,7 @@ func TestManager_ExecutePluginCommand_NoPlugin(t *testing.T) {
 	assert.Contains(t, err.Error(), "plugins not enabled")
 }
 
-func TestManager_Use_NotInitialized(t *testing.T) {
-	m := &Manager{
-		initialized: false,
-	}
-	
-	err := m.Use(context.Background(), "path")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not initialized")
-}
+// TestManager_Use_NotInitialized was removed - Use method no longer exists
 
 func TestManager_Add_NotInitialized(t *testing.T) {
 	m := &Manager{
