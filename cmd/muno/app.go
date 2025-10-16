@@ -644,9 +644,88 @@ Examples:
 				
 				// Check if already installed
 				content, err := os.ReadFile(configFile)
-				if err == nil && strings.Contains(string(content), fmt.Sprintf("# MUNO shell integration for %s", cmdName)) {
-					fmt.Fprintf(a.stdout, "✓ '%s' is already installed in %s\n", cmdName, configFile)
-					return nil
+				alreadyInstalled := err == nil && strings.Contains(string(content), fmt.Sprintf("# MUNO shell integration for %s", cmdName))
+				
+				if alreadyInstalled {
+					// Check for --force flag to update
+					force, _ := cmd.Flags().GetBool("force")
+					if !force {
+						fmt.Fprintf(a.stdout, "✓ '%s' is already installed in %s\n", cmdName, configFile)
+						fmt.Fprintf(a.stdout, "To update/reinstall, use: muno shell-init --install --force\n")
+						return nil
+					}
+					
+					// Remove old installation
+					fmt.Fprintf(a.stdout, "Updating existing '%s' installation...\n", cmdName)
+					
+					// Read the file and remove old MUNO section
+					lines := strings.Split(string(content), "\n")
+					newLines := []string{}
+					inMunoSection := false
+					inMunoFunction := false
+					bracketDepth := 0
+					
+					for _, line := range lines {
+						// Check if this is the start of MUNO section
+						if strings.Contains(line, fmt.Sprintf("# MUNO shell integration for %s", cmdName)) {
+							inMunoSection = true
+							continue
+						}
+						
+						if inMunoSection {
+							// Track function bodies
+							if strings.Contains(line, cmdName+"()") || strings.Contains(line, "_"+cmdName+"()") ||
+							   strings.Contains(line, "function "+cmdName) || strings.Contains(line, "function _"+cmdName) {
+								inMunoFunction = true
+								bracketDepth = 0
+								continue
+							}
+							
+							// Track bracket depth for functions
+							if inMunoFunction {
+								if strings.Contains(line, "{") {
+									bracketDepth++
+								}
+								if strings.Contains(line, "}") {
+									bracketDepth--
+									if bracketDepth <= 0 {
+										inMunoFunction = false
+										continue
+									}
+								}
+								continue
+							}
+							
+							// Skip our specific patterns
+							if strings.Contains(line, "_MUNO_PREV") ||
+							   strings.Contains(line, "complete -F") && strings.Contains(line, cmdName) ||
+							   strings.Contains(line, "compdef") && strings.Contains(line, cmdName) ||
+							   strings.Contains(line, "_arguments") ||
+							   strings.Contains(line, "autoload -U compinit") ||
+							   strings.Contains(line, "type compinit") ||
+							   (strings.HasPrefix(line, "alias mcd") && strings.Contains(line, "='muno ")) {
+								continue
+							}
+							
+							// Empty line might be end of section
+							if strings.TrimSpace(line) == "" {
+								inMunoSection = false
+								continue
+							}
+							
+							// This line doesn't belong to us, end section and keep it
+							inMunoSection = false
+							newLines = append(newLines, line)
+						} else {
+							newLines = append(newLines, line)
+						}
+					}
+					
+					// Write back the cleaned content
+					cleanContent := strings.Join(newLines, "\n")
+					if err := os.WriteFile(configFile, []byte(cleanContent), 0644); err != nil {
+						return fmt.Errorf("updating config file: %w", err)
+					}
 				}
 				
 				// Append to config file
@@ -681,6 +760,7 @@ Examples:
 	cmd.Flags().StringVar(&cmdName, "cmd-name", "mcd", "Name for the navigation command")
 	cmd.Flags().BoolVar(&checkOnly, "check", false, "Check if command name exists")
 	cmd.Flags().BoolVar(&install, "install", false, "Auto-install to shell config")
+	cmd.Flags().Bool("force", false, "Force reinstall/update even if already installed")
 	cmd.Flags().StringVar(&shellType, "shell", "", "Shell type (bash, zsh, fish)")
 	
 	return cmd
