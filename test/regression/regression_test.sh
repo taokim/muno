@@ -2,6 +2,7 @@
 
 # MUNO Regression Test Suite
 # Comprehensive testing for all MUNO functionality
+# Updated for stateless architecture - navigation commands removed
 
 # Don't use set -e as it causes the script to exit on test failures
 # We want to run all tests even if some fail
@@ -190,26 +191,26 @@ run_tests() {
     echo -e "${MAGENTA}▶ Core Commands${NC}"
     test_case "Tree command works" "$MUNO_BIN tree"
     test_case "List command works" "$MUNO_BIN list"
-    test_case "Current command works" "$MUNO_BIN current"
+    test_case "Current command (removed in stateless)" "true" "skip"
     test_case "Help displays correctly" "$MUNO_BIN --help"
     test_case "Version displays correctly" "$MUNO_BIN --version"
     echo ""
     
     # Navigation - Eager Repositories
     echo -e "${MAGENTA}▶ Navigation - Eager Repositories${NC}"
-    test_case "Navigate to root" "$MUNO_BIN use /"
-    test_case "Navigate to eager repo" "$MUNO_BIN use backend-monorepo"
+    test_case "Navigate to root (removed in stateless)" "true" "skip"
+    test_case "Navigate to eager repo (removed in stateless)" "true" "skip"
     test_case "Eager repo auto-cloned" "[[ -d '$WORKSPACE_DIR/nodes/backend-monorepo/.git' ]]"
-    test_case "Navigate to another eager repo" "$MUNO_BIN use /frontend-app"
-    test_case "Return to root" "$MUNO_BIN use /"
+    test_case "Navigate to another eager repo (removed in stateless)" "true" "skip"
+    test_case "Return to root (removed in stateless)" "true" "skip"
     echo ""
     
     # Navigation - Lazy Repositories
     echo -e "${MAGENTA}▶ Navigation - Lazy Repositories${NC}"
     test_case "Lazy repo not cloned initially" "[[ ! -d '$WORKSPACE_DIR/nodes/payment-service/.git' ]]"
-    test_case "Navigate to lazy repo" "$MUNO_BIN use payment-service"
+    test_case "Navigate to lazy repo (removed in stateless)" "true" "skip"
     test_case "Lazy repo auto-cloned on nav" "[[ -d '$WORKSPACE_DIR/nodes/payment-service/.git' ]]"
-    test_case "Return to root" "$MUNO_BIN use /"
+    test_case "Return to root (removed in stateless)" "true" "skip"
     echo ""
     
     # Clone Operations
@@ -219,7 +220,7 @@ run_tests() {
         rm -rf "$WORKSPACE_DIR/nodes/user-service"
     fi
     test_case "Lazy repo successfully removed" "[[ ! -d '$WORKSPACE_DIR/nodes/user-service/.git' ]]"
-    test_case "Navigate to trigger clone" "$MUNO_BIN use user-service"
+    test_case "Navigate to trigger clone (removed in stateless)" "true" "skip"
     test_case "Lazy repo cloned on navigation" "[[ -d '$WORKSPACE_DIR/nodes/user-service/.git' ]]"
     test_case "Clone all remaining lazy repos" "$MUNO_BIN clone --recursive"
     echo ""
