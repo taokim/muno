@@ -1518,6 +1518,69 @@ func (m *Manager) showStatusRecursive(node interfaces.NodeInfo) error {
 	return nil
 }
 
+// PullNodeWithOptions pulls changes for a node with additional options
+func (m *Manager) PullNodeWithOptions(path string, recursive bool, force bool, includeLazy bool) error {
+	if !m.initialized {
+		return fmt.Errorf("manager not initialized")
+	}
+	
+	// Handle --all case (empty path with recursive flag)
+	if path == "" && recursive {
+		return m.pullAllRepositories(force)
+	}
+	
+	targetPath := path
+	if targetPath == "" {
+		// Use pwd-based resolution
+		pwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("getting current directory: %w", err)
+		}
+		
+		workspaceRoot := m.workspace
+		reposDir := filepath.Join(workspaceRoot, m.getReposDir())
+		
+		if strings.HasPrefix(pwd, reposDir) {
+			relPath, err := filepath.Rel(reposDir, pwd)
+			if err != nil {
+				return fmt.Errorf("getting relative path: %w", err)
+			}
+			if relPath == "." {
+				targetPath = "/"
+			} else {
+				targetPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
+			}
+		} else if pwd == workspaceRoot {
+			targetPath = "/"
+		} else {
+			targetPath = "/"
+		}
+	}
+	
+	node, err := m.treeProvider.GetNode(targetPath)
+	if err != nil {
+		return fmt.Errorf("getting node: %w", err)
+	}
+	
+	if recursive {
+		return m.pullRecursiveWithOptions(node, force, includeLazy)
+	}
+	
+	// Single node pull
+	fullPath := m.computeFilesystemPath(node.Path)
+	m.uiProvider.Info(fmt.Sprintf("📦 Pulling: %s", node.Name))
+	m.uiProvider.Info(fmt.Sprintf("   Path: %s", fullPath))
+	
+	pullOpts := interfaces.PullOptions{Force: force}
+	if err := m.gitProvider.Pull(fullPath, pullOpts); err != nil {
+		m.uiProvider.Error(fmt.Sprintf("   ❌ Failed: %v", err))
+		return err
+	}
+	
+	m.uiProvider.Success("   ✅ Success")
+	return nil
+}
+
 // PullNode pulls changes for a node (or all nodes if path is empty and recursive is true)
 func (m *Manager) PullNode(path string, recursive bool, force bool) error {
 	if !m.initialized {
@@ -1656,6 +1719,60 @@ func (m *Manager) collectClonedRepos(node interfaces.NodeInfo) []interfaces.Node
 	}
 	
 	return repos
+}
+
+func (m *Manager) pullRecursiveWithOptions(node interfaces.NodeInfo, force bool, includeLazy bool) error {
+	// First, clone lazy repositories if includeLazy is true
+	if includeLazy && node.IsLazy && !node.IsCloned && node.Repository != "" {
+		fullPath := m.computeFilesystemPath(node.Path)
+		m.uiProvider.Info(fmt.Sprintf("📥 Cloning lazy repository: %s", node.Name))
+		m.uiProvider.Info(fmt.Sprintf("   URL: %s", node.Repository))
+		
+		// Clone the repository
+		if err := m.gitProvider.Clone(node.Repository, fullPath, interfaces.CloneOptions{}); err != nil {
+			m.uiProvider.Error(fmt.Sprintf("   ❌ Clone failed: %v", err))
+			return fmt.Errorf("cloning %s: %w", node.Name, err)
+		}
+		
+		// Update node status in tree
+		node.IsCloned = true
+		node.IsLazy = false
+		if err := m.treeProvider.UpdateNode(node.Path, node); err != nil {
+			m.uiProvider.Warning(fmt.Sprintf("   ⚠️  Failed to update node status: %v", err))
+			// Don't fail the operation, just warn
+		}
+		
+		// Save configuration to persist the change
+		if err := m.saveConfig(); err != nil {
+			m.uiProvider.Warning(fmt.Sprintf("   ⚠️  Failed to save config: %v", err))
+			// Don't fail the operation, just warn
+		}
+		
+		m.uiProvider.Success(fmt.Sprintf("   ✅ Cloned successfully: %s", node.Name))
+	}
+	
+	// Then pull if it's a cloned repository (terminal node)
+	if len(node.Children) == 0 && node.IsCloned {
+		fullPath := m.computeFilesystemPath(node.Path)
+		m.uiProvider.Info(fmt.Sprintf("📦 Pulling: %s", node.Name))
+		
+		pullOpts := interfaces.PullOptions{Force: force}
+		if err := m.gitProvider.Pull(fullPath, pullOpts); err != nil {
+			m.uiProvider.Error(fmt.Sprintf("   ❌ Failed at %s: %v", node.Path, err))
+			// Don't stop on error, continue with other repos
+		} else {
+			m.uiProvider.Success(fmt.Sprintf("   ✅ Success: %s", node.Name))
+		}
+	}
+	
+	// Recurse into children
+	for _, child := range node.Children {
+		if err := m.pullRecursiveWithOptions(child, force, includeLazy); err != nil {
+			return err
+		}
+	}
+	
+	return nil
 }
 
 func (m *Manager) pullRecursive(node interfaces.NodeInfo, force bool) error {

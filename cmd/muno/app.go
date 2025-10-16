@@ -772,6 +772,7 @@ func (a *App) newPullCmd() *cobra.Command {
 	var recursive bool
 	var force bool
 	var all bool
+	var includeLazy bool
 	var configOverrides []string
 	var branch string
 	var parallel int
@@ -788,7 +789,8 @@ Target is determined by:
 4. Root node
 
 Use --all to pull all cloned repositories in the workspace.
-Use --force to override local changes.`,
+Use --force to override local changes.
+Use --include-lazy with --recursive to also clone lazy repositories before pulling.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr, err := manager.LoadFromCurrentDir()
@@ -841,13 +843,14 @@ Use --force to override local changes.`,
 				recursive = true
 			}
 			
-			return mgr.PullNode(path, recursive, force)
+			return mgr.PullNodeWithOptions(path, recursive, force, includeLazy)
 		},
 	}
 	
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Pull recursively in subtree")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force pull, overriding local changes")
 	cmd.Flags().BoolVarP(&all, "all", "a", false, "Pull all cloned repositories in workspace")
+	cmd.Flags().BoolVar(&includeLazy, "include-lazy", false, "Also clone lazy repositories when pulling recursively")
 	cmd.Flags().StringSliceVar(&configOverrides, "config", nil, "Override config values (key=value)")
 	cmd.Flags().StringVar(&branch, "branch", "", "Override default branch for this operation")
 	cmd.Flags().IntVar(&parallel, "parallel", 0, "Max parallel pull operations")
