@@ -344,11 +344,13 @@ func (a *App) newRemoveCmd() *cobra.Command {
 // newCloneCmd creates the clone command
 func (a *App) newCloneCmd() *cobra.Command {
 	var recursive bool
+	var includeLazy bool
 	
 	cmd := &cobra.Command{
 		Use:   "clone",
-		Short: "Clone lazy repositories at current node",
-		Long:  `Clone repositories marked as lazy that haven't been cloned yet.`,
+		Short: "Clone non-lazy repositories at current node",
+		Long:  `Clone repositories that haven't been cloned yet. By default, only clones non-lazy repositories.
+Use --include-lazy to also clone lazy repositories.`,
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr, err := manager.LoadFromCurrentDir()
@@ -356,11 +358,12 @@ func (a *App) newCloneCmd() *cobra.Command {
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
-			return mgr.CloneRepos("", recursive)
+			return mgr.CloneRepos("", recursive, includeLazy)
 		},
 	}
 	
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Clone recursively in subtree")
+	cmd.Flags().BoolVar(&includeLazy, "include-lazy", false, "Include lazy repositories when cloning")
 	
 	return cmd
 }
@@ -617,7 +620,6 @@ func (a *App) newPullCmd() *cobra.Command {
 	var recursive bool
 	var force bool
 	var all bool
-	var includeLazy bool
 	var configOverrides []string
 	var branch string
 	var parallel int
@@ -625,7 +627,7 @@ func (a *App) newPullCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pull [path]",
 		Short: "Pull repositories at current or specified node",
-		Long: `Pull latest changes for repositories at the current node.
+		Long: `Pull latest changes for already cloned repositories at the current node.
 		
 Target is determined by:
 1. Explicit path if provided
@@ -635,7 +637,7 @@ Target is determined by:
 
 Use --all to pull all cloned repositories in the workspace.
 Use --force to override local changes.
-Use --include-lazy with --recursive to also clone lazy repositories before pulling.`,
+Note: This command only pulls already cloned repositories. Use 'muno clone' first for new repositories.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr, err := manager.LoadFromCurrentDir()
@@ -688,14 +690,14 @@ Use --include-lazy with --recursive to also clone lazy repositories before pulli
 				recursive = true
 			}
 			
-			return mgr.PullNodeWithOptions(path, recursive, force, includeLazy)
+			// Pull command never clones new repositories
+			return mgr.PullNodeWithOptions(path, recursive, force, false)
 		},
 	}
 	
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Pull recursively in subtree")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force pull, overriding local changes")
 	cmd.Flags().BoolVarP(&all, "all", "a", false, "Pull all cloned repositories in workspace")
-	cmd.Flags().BoolVar(&includeLazy, "include-lazy", false, "Also clone lazy repositories when pulling recursively")
 	cmd.Flags().StringSliceVar(&configOverrides, "config", nil, "Override config values (key=value)")
 	cmd.Flags().StringVar(&branch, "branch", "", "Override default branch for this operation")
 	cmd.Flags().IntVar(&parallel, "parallel", 0, "Max parallel pull operations")

@@ -1220,7 +1220,7 @@ func (m *Manager) RemoveNode(name string) error {
 }
 
 // CloneRepos clones lazy repositories
-func (m *Manager) CloneRepos(path string, recursive bool) error {
+func (m *Manager) CloneRepos(path string, recursive bool, includeLazy bool) error {
 	if !m.initialized {
 		return fmt.Errorf("manager not initialized")
 	}
@@ -1263,36 +1263,36 @@ func (m *Manager) CloneRepos(path string, recursive bool) error {
 	var toClone []interfaces.NodeInfo
 	
 	// Helper function to collect nodes to clone
-	var collectNodes func(node interfaces.NodeInfo, stopAtLazy bool)
-	collectNodes = func(node interfaces.NodeInfo, stopAtLazy bool) {
-		// Clone this node if it's not lazy and not already cloned
-		if !node.IsLazy && !node.IsCloned && node.Repository != "" {
-			toClone = append(toClone, node)
+	var collectNodes func(node interfaces.NodeInfo)
+	collectNodes = func(node interfaces.NodeInfo) {
+		// Clone this node if it hasn't been cloned yet and:
+		// - it's not lazy, OR
+		// - it's lazy and includeLazy is true
+		if !node.IsCloned && node.Repository != "" {
+			if !node.IsLazy || includeLazy {
+				toClone = append(toClone, node)
+			}
 		}
 		
-		// If this node is lazy and stopAtLazy is true, don't recurse into children
-		if node.IsLazy && stopAtLazy && !recursive {
-			return
-		}
-		
-		// Recurse into children
-		for _, child := range node.Children {
-			collectNodes(child, stopAtLazy)
+		// Recurse into children if in recursive mode
+		if recursive {
+			for _, child := range node.Children {
+				collectNodes(child)
+			}
 		}
 	}
 	
 	// Start collection from current node
-	// For non-recursive mode: clone all non-lazy repos until hitting lazy ones
-	// For recursive mode: clone all repos including going through lazy ones
 	if recursive {
-		// Recursive mode: clone all lazy repos in the subtree
-		collectNodes(current, false)
+		// Recursive mode: collect all eligible repos in the subtree
+		collectNodes(current)
 	} else {
-		// Non-recursive mode: clone all non-lazy repos, stop at lazy boundaries
-		// First, check direct children only
+		// Non-recursive mode: check direct children only
 		for _, child := range current.Children {
-			if !child.IsLazy && !child.IsCloned && child.Repository != "" {
-				toClone = append(toClone, child)
+			if !child.IsCloned && child.Repository != "" {
+				if !child.IsLazy || includeLazy {
+					toClone = append(toClone, child)
+				}
 			}
 		}
 	}

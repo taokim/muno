@@ -164,7 +164,7 @@ func TestManager_Initialize_NotInitialized(t *testing.T) {
 		},
 		{
 			"CloneRepos",
-			func(m *Manager) error { return m.CloneRepos("", false) },
+			func(m *Manager) error { return m.CloneRepos("", false, false) },
 		},
 	}
 	

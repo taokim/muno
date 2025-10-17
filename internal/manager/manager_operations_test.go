@@ -92,7 +92,7 @@ func TestManager_CloneRepos(t *testing.T) {
 			}
 
 			// Execute
-			err := manager.CloneRepos(tt.path, tt.recursive)
+			err := manager.CloneRepos(tt.path, tt.recursive, false)
 
 			// Assert
 			if tt.wantErr {
