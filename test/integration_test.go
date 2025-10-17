@@ -91,7 +91,7 @@ func TestConfigValidation(t *testing.T) {
 	binary := buildBinary(t, tmpDir)
 	
 	// Try to run commands without config
-	commands := []string{"list", "start wms", "status wms", "pull wms"}
+	commands := []string{"list", "status wms", "pull wms"}
 	
 	for _, cmdStr := range commands {
 		t.Run(fmt.Sprintf("Command_%s", cmdStr), func(t *testing.T) {

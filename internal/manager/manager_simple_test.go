@@ -155,10 +155,6 @@ func TestManager_Initialize_NotInitialized(t *testing.T) {
 			func(m *Manager) error { return m.CommitNode("", "test", false) },
 		},
 		{
-			"StartClaude",
-			func(m *Manager) error { return m.StartClaude("") },
-		},
-		{
 			"AddRepoSimple",
 			func(m *Manager) error { return m.AddRepoSimple("url", "name", false) },
 		},

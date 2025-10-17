@@ -384,23 +384,7 @@ run_tests() {
     # 4. AGENT INTEGRATION TESTS (10 tests)
     echo -e "${MAGENTA}▶ Agent Integration${NC}"
     
-    # Claude agent tests
-    test_case "Claude command exists" "$MUNO_BIN claude --help"
-    test_case "Claude starts at current path" "timeout 1 $MUNO_BIN claude 2>&1 | grep -qE 'Claude|claude' || true"
-    test_case "Claude starts with path argument" "timeout 1 $MUNO_BIN claude /main-app 2>&1 | grep -qE 'Claude|claude|main-app' || true"
-    
-    # Gemini agent tests  
-    test_case "Gemini command exists" "$MUNO_BIN gemini --help"
-    test_case "Gemini starts at current path" "timeout 1 $MUNO_BIN gemini 2>&1 | grep -qE 'Gemini|gemini' || true"
-    test_case "Gemini starts with path argument" "timeout 1 $MUNO_BIN gemini /api-service 2>&1 | grep -qE 'Gemini|gemini|api-service' || true"
-    
-    # Generic agent tests
-    test_case "Agent command exists" "$MUNO_BIN agent --help"
-    test_case "Agent lists available agents" "$MUNO_BIN agent --list 2>/dev/null || $MUNO_BIN agent 2>&1 | grep -qE 'claude|gemini'"
-    test_case "Agent starts claude" "timeout 1 $MUNO_BIN agent claude 2>&1 | grep -qE 'Claude|claude' || true"
-    test_case "Agent handles unknown agent" "! $MUNO_BIN agent unknown-agent 2>&1 | grep -qE 'Error|error|not found'"
-    echo ""
-    
+    echo ""    
     # 5. ADVANCED ERROR HANDLING (15 tests)
     echo -e "${MAGENTA}▶ Advanced Error Handling${NC}"
     
