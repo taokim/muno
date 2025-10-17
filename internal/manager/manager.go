@@ -2,17 +2,14 @@ package manager
 
 import (
 	"context"
-	"embed"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"time"
 	
-	"github.com/mattn/go-isatty"
 	"github.com/taokim/muno/internal/adapters"
 	"github.com/taokim/muno/internal/config"
 	"github.com/taokim/muno/internal/interfaces"
@@ -22,9 +19,6 @@ import (
 
 // Embed the AI Agent Context documentation as a file system
 //
-//go:embed docs/AI_AGENT_CONTEXT.md
-var agentContextFS embed.FS
-
 // Manager is the refactored manager with full dependency injection
 type Manager struct {
 	// Core dependencies (injected)
@@ -1264,18 +1258,46 @@ func (m *Manager) CloneRepos(path string, recursive bool) error {
 		return fmt.Errorf("getting current node: %w", err)
 	}
 	
-	// Clone lazy repos
+	// Clone repos: fetch all structure until meeting lazy repos
+	// This means clone all non-lazy repos and stop at lazy ones
 	var toClone []interfaces.NodeInfo
+	
+	// Helper function to collect nodes to clone
+	var collectNodes func(node interfaces.NodeInfo, stopAtLazy bool)
+	collectNodes = func(node interfaces.NodeInfo, stopAtLazy bool) {
+		// Clone this node if it's not lazy and not already cloned
+		if !node.IsLazy && !node.IsCloned && node.Repository != "" {
+			toClone = append(toClone, node)
+		}
+		
+		// If this node is lazy and stopAtLazy is true, don't recurse into children
+		if node.IsLazy && stopAtLazy && !recursive {
+			return
+		}
+		
+		// Recurse into children
+		for _, child := range node.Children {
+			collectNodes(child, stopAtLazy)
+		}
+	}
+	
+	// Start collection from current node
+	// For non-recursive mode: clone all non-lazy repos until hitting lazy ones
+	// For recursive mode: clone all repos including going through lazy ones
 	if recursive {
-		toClone = collectLazyNodes(current)
+		// Recursive mode: clone all lazy repos in the subtree
+		collectNodes(current, false)
 	} else {
+		// Non-recursive mode: clone all non-lazy repos, stop at lazy boundaries
+		// First, check direct children only
 		for _, child := range current.Children {
-			if child.IsLazy && !child.IsCloned {
+			if !child.IsLazy && !child.IsCloned && child.Repository != "" {
 				toClone = append(toClone, child)
 			}
 		}
 	}
 	
+	// Clone the collected repositories
 	for _, node := range toClone {
 		m.logProvider.Info(fmt.Sprintf("Cloning repository %s from %s", node.Name, node.Repository))
 		if err := m.gitProvider.Clone(node.Repository, m.computeFilesystemPath(node.Path), interfaces.CloneOptions{}); err != nil {
@@ -1288,6 +1310,12 @@ func (m *Manager) CloneRepos(path string, recursive bool) error {
 		if err := m.treeProvider.UpdateNode(node.Path, node); err != nil {
 			return fmt.Errorf("updating node: %w", err)
 		}
+	}
+	
+	if len(toClone) == 0 {
+		m.logProvider.Info("No repositories to clone")
+	} else {
+		m.logProvider.Info(fmt.Sprintf("Successfully cloned %d repositories", len(toClone)))
 	}
 	
 	return m.saveConfig()
@@ -1455,58 +1483,64 @@ func (m *Manager) StatusNode(path string, recursive bool) error {
 }
 
 func (m *Manager) showStatusRecursive(node interfaces.NodeInfo) error {
-	status, err := m.gitProvider.Status(m.computeFilesystemPath(node.Path))
-	if err != nil {
-		m.uiProvider.Info(fmt.Sprintf("%s: error - %v", node.Name, err))
-	} else {
-		// Display basic status
-		statusMsg := fmt.Sprintf("%s: branch=%s", node.Name, status.Branch)
-		
-		// Add summary if there are changes
-		if !status.IsClean {
-			details := []string{}
-			if status.HasUntracked {
-				untrackedCount := 0
-				for _, f := range status.Files {
-					if f.Status == "untracked" {
-						untrackedCount++
+	// Only check status for cloned repositories
+	if node.IsCloned && !node.IsLazy {
+		status, err := m.gitProvider.Status(m.computeFilesystemPath(node.Path))
+		if err != nil {
+			m.uiProvider.Info(fmt.Sprintf("%s: error - %v", node.Name, err))
+		} else {
+			// Display basic status
+			statusMsg := fmt.Sprintf("%s: branch=%s", node.Name, status.Branch)
+			
+			// Add summary if there are changes
+			if !status.IsClean {
+				details := []string{}
+				if status.HasUntracked {
+					untrackedCount := 0
+					for _, f := range status.Files {
+						if f.Status == "untracked" {
+							untrackedCount++
+						}
+					}
+					if untrackedCount > 0 {
+						details = append(details, fmt.Sprintf("%d untracked", untrackedCount))
 					}
 				}
-				if untrackedCount > 0 {
-					details = append(details, fmt.Sprintf("%d untracked", untrackedCount))
-				}
-			}
-			if status.HasModified {
-				modifiedCount := 0
-				for _, f := range status.Files {
-					if f.Status == "modified" && !f.Staged {
-						modifiedCount++
+				if status.HasModified {
+					modifiedCount := 0
+					for _, f := range status.Files {
+						if f.Status == "modified" && !f.Staged {
+							modifiedCount++
+						}
+					}
+					if modifiedCount > 0 {
+						details = append(details, fmt.Sprintf("%d modified", modifiedCount))
 					}
 				}
-				if modifiedCount > 0 {
-					details = append(details, fmt.Sprintf("%d modified", modifiedCount))
-				}
-			}
-			if status.HasStaged {
-				stagedCount := 0
-				for _, f := range status.Files {
-					if f.Staged {
-						stagedCount++
+				if status.HasStaged {
+					stagedCount := 0
+					for _, f := range status.Files {
+						if f.Staged {
+							stagedCount++
+						}
+					}
+					if stagedCount > 0 {
+						details = append(details, fmt.Sprintf("%d staged", stagedCount))
 					}
 				}
-				if stagedCount > 0 {
-					details = append(details, fmt.Sprintf("%d staged", stagedCount))
+				
+				if len(details) > 0 {
+					statusMsg += " (" + strings.Join(details, ", ") + ")"
 				}
+			} else {
+				statusMsg += " (clean)"
 			}
 			
-			if len(details) > 0 {
-				statusMsg += " (" + strings.Join(details, ", ") + ")"
-			}
-		} else {
-			statusMsg += " (clean)"
+			m.uiProvider.Info(statusMsg)
 		}
-		
-		m.uiProvider.Info(statusMsg)
+	} else if node.IsLazy && !node.IsCloned {
+		// Show lazy repositories that haven't been cloned
+		m.uiProvider.Info(fmt.Sprintf("%s: (lazy - not cloned)", node.Name))
 	}
 	
 	for _, child := range node.Children {
@@ -1751,8 +1785,9 @@ func (m *Manager) pullRecursiveWithOptions(node interfaces.NodeInfo, force bool,
 		m.uiProvider.Success(fmt.Sprintf("   ✅ Cloned successfully: %s", node.Name))
 	}
 	
-	// Then pull if it's a cloned repository (terminal node)
-	if len(node.Children) == 0 && node.IsCloned {
+	// Pull only if it's a cloned repository (not lazy or already cloned)
+	// Only pull terminal nodes (repositories without children)
+	if len(node.Children) == 0 && node.IsCloned && !node.IsLazy {
 		fullPath := m.computeFilesystemPath(node.Path)
 		m.uiProvider.Info(fmt.Sprintf("📦 Pulling: %s", node.Name))
 		
@@ -1763,6 +1798,9 @@ func (m *Manager) pullRecursiveWithOptions(node interfaces.NodeInfo, force bool,
 		} else {
 			m.uiProvider.Success(fmt.Sprintf("   ✅ Success: %s", node.Name))
 		}
+	} else if len(node.Children) == 0 && node.IsLazy && !node.IsCloned {
+		// Skip lazy repositories that haven't been cloned
+		m.logProvider.Debug(fmt.Sprintf("Skipping lazy repository: %s", node.Name))
 	}
 	
 	// Recurse into children
@@ -1913,155 +1951,9 @@ func (m *Manager) CommitNode(path string, message string, recursive bool) error 
 	return m.gitProvider.Commit(fullPath, message, interfaces.CommitOptions{})
 }
 
-// StartClaude starts a Claude session
-// Deprecated: Use StartAgent("claude", path, nil) instead
-func (m *Manager) StartClaude(path string) error {
-	if !m.initialized {
-		return fmt.Errorf("manager not initialized")
-	}
-	
-	targetPath := path
-	if targetPath == "" {
-		// Use pwd-based resolution
-		pwd, err := os.Getwd()
-		if err != nil {
-			return fmt.Errorf("getting current directory: %w", err)
-		}
-		
-		workspaceRoot := m.workspace
-		reposDir := filepath.Join(workspaceRoot, m.getReposDir())
-		
-		if strings.HasPrefix(pwd, reposDir) {
-			relPath, err := filepath.Rel(reposDir, pwd)
-			if err != nil {
-				return fmt.Errorf("getting relative path: %w", err)
-			}
-			if relPath == "." {
-				targetPath = "/"
-			} else {
-				targetPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
-			}
-		} else if pwd == workspaceRoot {
-			targetPath = "/"
-		} else {
-			targetPath = "/"
-		}
-	}
-	
-	node, err := m.treeProvider.GetNode(targetPath)
-	if err != nil {
-		return fmt.Errorf("getting node: %w", err)
-	}
-	
-	// Start Claude session using process provider
-	// For root level, use workspace root instead of repos directory
-	var fullPath string
-	if node.Path == "/" || node.Path == "" {
-		fullPath = m.workspace
-	} else {
-		fullPath = m.computeFilesystemPath(node.Path)
-	}
-	
-	m.logProvider.Info("Starting Claude session")
-	m.logProvider.Info(fmt.Sprintf("  Tree path: %s", node.Path))
-	m.logProvider.Info(fmt.Sprintf("  Directory: %s", fullPath))
-	
-	result, err := m.processProvider.ExecuteShell(context.Background(), fmt.Sprintf("cd %s && claude", fullPath), interfaces.ProcessOptions{})
-	if err != nil {
-		return fmt.Errorf("starting Claude: %w", err)
-	}
-	
-	if result.ExitCode != 0 {
-		return fmt.Errorf("Claude exited with code %d: %s", result.ExitCode, result.Stderr)
-	}
-	
-	return nil
-}
 
-// createAgentContext creates a context file with MUNO documentation and workspace info
-func (m *Manager) createAgentContext(node *interfaces.NodeInfo, workDir string) error {
-	// Create .muno directory if it doesn't exist
-	contextDir := filepath.Join(workDir, ".muno")
-	if err := m.fsProvider.MkdirAll(contextDir, 0755); err != nil {
-		return fmt.Errorf("creating context directory: %w", err)
-	}
-	
-	// Add .muno to .gitignore if this is a git repository
-	if err := m.ensureGitignoreEntry(workDir, ".muno/"); err != nil {
-		// Log but don't fail - .gitignore update is optional
-		m.logProvider.Debug(fmt.Sprintf("Could not update .gitignore: %v", err))
-	}
-	
-	// Generate tree structure
-	treeOutput := m.generateTreeContext(node)
-	
-	// Create context content
-	contextContent := fmt.Sprintf(`# MUNO Agent Context
 
-## Current Workspace Information
 
-**Current Position**: %s
-**Working Directory**: %s
-
-## Workspace Tree Structure
-
-%s
-
-### Node Types in the Tree:
-- **[git: URL]**: Git repository node - clones and manages a git repository
-- **[config: PATH]**: Config reference node - delegates subtree management to another muno.yaml file
-- **[lazy]**: Repository will be cloned on-demand when first accessed
-- **[not cloned]**: Repository exists in config but hasn't been cloned yet
-
-## Available MUNO Commands
-
-- **Navigation**: muno use <path> - Navigate to a node in the tree
-- **Status**: muno current - Show current position
-- **Tree**: muno tree - Display full tree structure
-- **Git**: muno pull/push/status - Git operations at current node
-- **Repos**: muno add <url> - Add new repository
-
-## Documentation Links
-
-### For AI Agents - READ THESE:
-- **AI Agent Guide**: https://raw.githubusercontent.com/taokim/muno/main/docs/AI_AGENT_GUIDE.md
-- **Web Documentation**: https://taokim.github.io/muno/
-- **Examples**: https://github.com/taokim/muno/tree/main/examples
-
-## Configuration Documentation
-
-For complete configuration schema, defaults, and examples, see:
-- **Configuration Schema**: https://raw.githubusercontent.com/taokim/muno/main/docs/MUNO_CONFIG_SCHEMA.md
-
-## Tips for AI Agents
-
-- Use 'muno tree' to understand the full workspace structure
-- Navigate with 'muno use <path>' to move between repositories
-- Check status with 'muno status --recursive' for all repos
-- The current directory is already set to the target repository
-
----
-*This context was generated by MUNO to help AI agents understand the workspace structure.*
-`, node.Path, workDir, treeOutput)
-	
-	// Read and append the embedded AI Agent Context documentation
-	agentContextData, err := agentContextFS.ReadFile("docs/AI_AGENT_CONTEXT.md")
-	if err != nil {
-		m.logProvider.Warn(fmt.Sprintf("Could not read embedded agent context: %v", err))
-		// Continue without the extended context
-	} else {
-		contextContent += "\n\n---\n\n" + string(agentContextData)
-	}
-	
-	// Write context file to .muno directory
-	contextFile := filepath.Join(contextDir, "agent-context.md")
-	if err := m.fsProvider.WriteFile(contextFile, []byte(contextContent), 0644); err != nil {
-		return fmt.Errorf("writing context file: %w", err)
-	}
-	
-	m.logProvider.Info(fmt.Sprintf("  Context created at: %s", contextFile))
-	return nil
-}
 
 // ensureGitignoreEntry adds an entry to .gitignore if not already present
 func (m *Manager) ensureGitignoreEntry(workDir string, entry string) error {
@@ -2199,197 +2091,4 @@ func (m *Manager) writeTreeNode(output *strings.Builder, node *interfaces.NodeIn
 	}
 }
 
-// StartAgent starts an AI agent session (claude, gemini, cursor, etc.)
-func (m *Manager) StartAgent(agentName string, path string, agentArgs []string, withMunoContext bool) error {
-	if !m.initialized {
-		return fmt.Errorf("manager not initialized")
-	}
-	
-	// Default to claude if no agent specified
-	if agentName == "" {
-		agentName = "claude"
-	}
-	
-	targetPath := path
-	if targetPath == "" {
-		// Use pwd-based resolution
-		pwd, err := os.Getwd()
-		if err != nil {
-			// If we can't get pwd, use root
-			targetPath = "/"
-		} else {
-			workspaceRoot := m.workspace
-			reposDir := filepath.Join(workspaceRoot, m.getReposDir())
-			
-			if strings.HasPrefix(pwd, reposDir) {
-				relPath, err := filepath.Rel(reposDir, pwd)
-				if err != nil {
-					targetPath = "/"
-				} else if relPath == "." {
-					targetPath = "/"
-				} else {
-					targetPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
-				}
-			} else if pwd == workspaceRoot {
-				targetPath = "/"
-			} else {
-				targetPath = "/"
-			}
-		}
-	}
-	
-	// Special case for root - create a simple node
-	var node interfaces.NodeInfo
-	if targetPath == "/" || targetPath == "" {
-		// For root, just use workspace directly
-		node = interfaces.NodeInfo{
-			Path: "/",
-			Name: "root",
-		}
-	} else {
-		n, err := m.treeProvider.GetNode(targetPath)
-		if err != nil {
-			return fmt.Errorf("getting node: %w", err)
-		}
-		node = n
-	}
-	
-	// Start agent session using process provider
-	// For agents at root level, use workspace root instead of repos directory
-	var fullPath string
-	if node.Path == "/" || node.Path == "" {
-		fullPath = m.workspace
-	} else {
-		fullPath = m.computeFilesystemPath(node.Path)
-	}
-	
-	// Check if the agent command exists (but don't fail if it's an alias)
-	agentPath, err := exec.LookPath(agentName)
-	if err != nil {
-		// It might be a shell alias, so we'll try to run it anyway
-		m.logProvider.Debug(fmt.Sprintf("%s not found in PATH, might be a shell alias", agentName))
-		agentPath = agentName // Use the name directly, shell will resolve it
-	}
-	
-	m.logProvider.Info(fmt.Sprintf("Starting %s session", agentName))
-	if err == nil {
-		m.logProvider.Info(fmt.Sprintf("  Agent path: %s", agentPath))
-	} else {
-		m.logProvider.Info(fmt.Sprintf("  Agent: %s (possibly shell alias)", agentName))
-	}
-	m.logProvider.Info(fmt.Sprintf("  Tree path: %s", node.Path))
-	m.logProvider.Info(fmt.Sprintf("  Directory: %s", fullPath))
-	
-	// Build the command arguments
-	var contextFile string
-	
-	// If requested, inject MUNO context for the agent
-	if withMunoContext {
-		m.logProvider.Info("  Creating MUNO context for agent...")
-		// Always create context in workspace root for consistency
-		contextPath := m.workspace
-		if err := m.createAgentContext(&node, contextPath); err != nil {
-			m.logProvider.Error(fmt.Sprintf("Failed to create agent context: %v", err))
-			// Continue anyway, context is optional
-		} else {
-			// For Claude, append the context as a system prompt
-			if agentName == "claude" {
-				contextFile := filepath.Join(contextPath, ".muno", "agent-context.md")
-				// Read the context file and pass it via --append-system-prompt
-				if _, err := m.fsProvider.ReadFile(contextFile); err == nil {
-					// We'll use this contextFile path later when building the command
-					m.logProvider.Info("  Appending MUNO context to Claude system prompt")
-				}
-			}
-		}
-	}
-	
-	// Build command arguments
-	var allArgs []string
-	if withMunoContext && agentName == "claude" && contextFile != "" {
-		allArgs = append(allArgs, "--append-system-prompt", contextFile)
-	}
-	allArgs = append(allArgs, agentArgs...)
-	
-	// For interactive agents, we need to run them directly with stdin/stdout connected
-	m.logProvider.Debug(fmt.Sprintf("Starting interactive agent: %s", agentName))
-	
-	// Check if we're in a TTY environment
-	isInteractive := isatty.IsTerminal(os.Stdin.Fd()) || isatty.IsCygwinTerminal(os.Stdin.Fd())
-	
-	if !isInteractive {
-		// Not in a TTY - agent command might fail or behave unexpectedly
-		m.logProvider.Warn("Not running in a terminal. Some agents may not work properly.")
-		m.logProvider.Warn("Consider using --print flag for non-interactive mode if supported by the agent.")
-	}
-	
-	// Create the command
-	// We need to use the user's shell to support aliases
-	// Detect the user's shell
-	userShell := os.Getenv("SHELL")
-	if userShell == "" {
-		userShell = "/bin/sh" // fallback to sh
-	}
-	
-	// Build the command string for the shell
-	// Use -i for interactive shell to load aliases and -c to execute command
-	var shellCmd string
-	if len(allArgs) > 0 {
-		// Properly escape arguments
-		quotedArgs := make([]string, len(allArgs))
-		for i, arg := range allArgs {
-			// Simple escaping - wrap in single quotes and escape any single quotes
-			quotedArgs[i] = "'" + strings.ReplaceAll(arg, "'", "'\\''") + "'"
-		}
-		shellCmd = fmt.Sprintf("cd %s && %s %s", fullPath, agentName, strings.Join(quotedArgs, " "))
-	} else {
-		shellCmd = fmt.Sprintf("cd %s && %s", fullPath, agentName)
-	}
-	
-	// Use -i for interactive shell to load RC files (aliases)
-	// But we also need -c to run a command
-	// For zsh/bash, we can use: shell -i -c "command"
-	cmd := exec.Command(userShell, "-i", "-c", shellCmd)
-	cmd.Dir = fullPath
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	
-	// Set up the environment
-	cmd.Env = os.Environ()
-	
-	// Run the interactive command
-	m.logProvider.Debug(fmt.Sprintf("Executing via %s: %s", userShell, shellCmd))
-	if err := cmd.Run(); err != nil {
-		// Check if the error is due to various issues
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			if exitErr.ExitCode() == 127 {
-				// Command not found - provide helpful message
-				installMsg := ""
-				switch agentName {
-				case "claude":
-					installMsg = "Install with: npm install -g @anthropic-ai/cli"
-				case "gemini":
-					installMsg = "Install with: npm install -g @google/gemini-cli"
-				case "cursor":
-					installMsg = "Download from: https://cursor.sh"
-				case "windsurf":
-					installMsg = "Download from: https://www.codeium.com/windsurf"
-				case "aider":
-					installMsg = "Install with: pip install aider-chat"
-				default:
-					installMsg = fmt.Sprintf("Make sure %s is installed or aliased in your shell", agentName)
-				}
-				return fmt.Errorf("%s not found. %s", agentName, installMsg)
-			}
-			if exitErr.ExitCode() == 126 {
-				return fmt.Errorf("%s found but not executable. Check file permissions", agentName)
-			}
-			// For other exit codes, just pass through the error
-			return fmt.Errorf("%s exited with error: %w", agentName, err)
-		}
-		return fmt.Errorf("failed to run %s: %w", agentName, err)
-	}
-	
-	return nil
-}
+
