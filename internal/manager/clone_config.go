@@ -32,10 +32,13 @@ func (m *Manager) processConfigNode(node interfaces.NodeInfo, recursive bool, in
 		return nil // Don't fail entire clone if one config can't be loaded
 	}
 
-	// Copy or link the config file into the node directory for reference
+	// Create symlink to the config file in the node directory for reference
 	targetConfigPath := filepath.Join(configNodePath, "muno.yaml")
-	if err := m.copyConfigFile(configFilePath, targetConfigPath); err != nil {
-		m.logProvider.Warn(fmt.Sprintf("Failed to copy config file: %v", err))
+	if err := os.Symlink(configFilePath, targetConfigPath); err != nil {
+		// If symlink fails, try to copy as fallback
+		if err := m.copyConfigFile(configFilePath, targetConfigPath); err != nil {
+			m.logProvider.Warn(fmt.Sprintf("Failed to link/copy config file: %v", err))
+		}
 	}
 
 	// Process nodes from the loaded configuration
