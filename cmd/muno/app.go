@@ -76,13 +76,13 @@ func getDocumentationURLs() string {
 func (a *App) setupCommands() {
 	a.rootCmd = &cobra.Command{
 		Use:   "muno",
-		Short: "Multi-repository orchestration for Claude Code with tree-based workspaces",
-		Long: fmt.Sprintf(`MUNO (Multi-repository UNified Orchestration) orchestrates Claude Code sessions across multiple 
+		Short: "Multi-repository orchestration with tree-based workspaces",
+		Long: fmt.Sprintf(`MUNO (Multi-repository UNified Orchestration) orchestrates multiple 
 repositories with tree-based navigation and lazy loading.
 
 Features:
 - Tree-based navigation: Navigate workspace like a filesystem
-- Lazy loading: Repos clone on-demand when parent is used
+- Lazy loading: Repos clone on-demand when accessed
 - CWD-first resolution: Commands operate based on current directory
 - Simple configuration: Everything is just a repository
 
@@ -93,9 +93,6 @@ Features:
 	// Core commands
 	a.rootCmd.AddCommand(a.newInitCmd())
 	a.rootCmd.AddCommand(a.newListCmd())
-	a.rootCmd.AddCommand(a.newAgentCmd())
-	a.rootCmd.AddCommand(a.newClaudeCmd())
-	a.rootCmd.AddCommand(a.newGeminiCmd())
 	a.rootCmd.AddCommand(a.newStatusCmd())
 	
 	// Navigation commands
@@ -115,9 +112,6 @@ Features:
 	
 	// Version
 	a.rootCmd.AddCommand(a.newVersionCmd())
-	
-	// Convenience alias
-	a.rootCmd.AddCommand(a.newStartCmd())
 }
 
 // newInitCmd creates the init command
@@ -145,6 +139,14 @@ Creates:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectName := ""
 			projectPath := "."
+			
+			// Check if muno.yaml already exists
+			configPath := filepath.Join(projectPath, "muno.yaml")
+			if _, err := os.Stat(configPath); err == nil && !force {
+				fmt.Fprintf(cmd.OutOrStdout(), "Project already initialized (muno.yaml exists)\n")
+				fmt.Fprintf(cmd.OutOrStdout(), "Use --force to reinitialize\n")
+				return nil
+			}
 			
 			if len(args) > 0 {
 				projectName = args[0]
@@ -189,7 +191,7 @@ Creates:
 		},
 	}
 	
-	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force initialization even if errors occur")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force initialization even if muno.yaml already exists")
 	cmd.Flags().BoolVar(&smart, "smart", true, "Smart detection of existing git repos")
 	cmd.Flags().Bool("no-smart", false, "Disable smart detection")
 	cmd.Flags().BoolVarP(&nonInteractive, "non-interactive", "n", false, "Skip all prompts and use defaults")
@@ -226,168 +228,11 @@ Shows:
 	return cmd
 }
 
-// newAgentCmd creates the agent command
-func (a *App) newAgentCmd() *cobra.Command {
-	var withContext bool
-	
-	cmd := &cobra.Command{
-		Use:   "agent [agent-name] [path] [-- agent-args]",
-		Short: "Start an AI agent session (claude, gemini, cursor, etc.)",
-		Long: `Start an AI agent session at the current node or a specified path.
 
-Available agents:
-- claude (default) - Anthropic's Claude CLI
-- gemini - Google's Gemini CLI (npm install -g @google/gemini-cli)
-- cursor - Cursor AI editor
-- windsurf - Windsurf AI editor
-- aider - Aider AI pair programmer
-- Or any other agent CLI installed in your PATH
 
-Usage examples:
-  muno agent                    # Start default agent (claude) at current location
-  muno agent gemini            # Start Gemini at current location
-  muno agent claude backend    # Start Claude at backend node
-  muno agent gemini . -- --model pro  # Start Gemini with extra args
-  muno agent claude --with-context  # Include MUNO docs for repo organization
 
-The working directory will be set to the node's directory.
-Use --with-context when organizing repositories or building workspace hierarchies.`,
-		Args: cobra.ArbitraryArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return fmt.Errorf("loading workspace: %w", err)
-			}
-			
-			// Parse arguments: [agent-name] [path] [-- agent-args]
-			// Note: Cobra removes the "--" separator, so args after it are just positional args
-			agentName := "claude" // default
-			path := ""
-			var agentArgs []string
-			
-			// Process arguments
-			// If we have args, the first is always the agent name (unless it starts with -)
-			argIndex := 0
-			if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-				agentName = args[0]
-				argIndex++
-			}
-			
-			// The second arg (if present) could be a path or could be an agent arg
-			// If it starts with "-", it's likely an agent arg that came after "--"
-			if argIndex < len(args) {
-				if strings.HasPrefix(args[argIndex], "-") {
-					// This is likely an agent argument (user used -- separator)
-					agentArgs = args[argIndex:]
-				} else {
-					// This is a path
-					path = args[argIndex]
-					argIndex++
-					// Everything after the path is agent args
-					if argIndex < len(args) {
-						agentArgs = args[argIndex:]
-					}
-				}
-			}
-			
-			return mgr.StartAgent(agentName, path, agentArgs, withContext)
-		},
-	}
-	
-	cmd.Flags().BoolVar(&withContext, "with-context", false, "Include MUNO documentation and workspace context for repository organization tasks")
-	
-	return cmd
-}
 
-// newClaudeCmd creates the claude command (alias for agent claude)
-func (a *App) newClaudeCmd() *cobra.Command {
-	var withContext bool
-	
-	cmd := &cobra.Command{
-		Use:   "claude [path] [-- agent-args]",
-		Short: "Start a Claude session (alias for 'agent claude')",
-		Long:  `Start a Claude Code session at the current node or a specified path.`,
-		Args:  cobra.ArbitraryArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return fmt.Errorf("loading workspace: %w", err)
-			}
-			
-			// Parse arguments: [path] [-- agent-args]
-			// Note: Cobra removes the "--" separator, so args after it are just positional args
-			path := ""
-			var agentArgs []string
-			
-			// Process arguments
-			if len(args) > 0 {
-				// If the first arg starts with "-", it's likely an agent argument (user used -- separator)
-				if strings.HasPrefix(args[0], "-") {
-					// All args are agent arguments
-					agentArgs = args
-				} else {
-					// First arg is a path
-					path = args[0]
-					// Everything after the path is agent args
-					if len(args) > 1 {
-						agentArgs = args[1:]
-					}
-				}
-			}
-			
-			return mgr.StartAgent("claude", path, agentArgs, withContext)
-		},
-	}
-	
-	cmd.Flags().BoolVar(&withContext, "with-context", false, "Include MUNO documentation and workspace context for repository organization tasks")
-	
-	return cmd
-}
 
-// newGeminiCmd creates the gemini command (alias for agent gemini)
-func (a *App) newGeminiCmd() *cobra.Command {
-	var withContext bool
-	
-	cmd := &cobra.Command{
-		Use:   "gemini [path] [-- agent-args]",
-		Short: "Start a Gemini session (alias for 'agent gemini')",
-		Long:  `Start a Gemini AI session at the current node or a specified path.`,
-		Args:  cobra.ArbitraryArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return fmt.Errorf("loading workspace: %w", err)
-			}
-			
-			// Parse arguments: [path] [-- agent-args]
-			// Note: Cobra removes the "--" separator, so args after it are just positional args
-			path := ""
-			var agentArgs []string
-			
-			// Process arguments
-			if len(args) > 0 {
-				// If the first arg starts with "-", it's likely an agent argument (user used -- separator)
-				if strings.HasPrefix(args[0], "-") {
-					// All args are agent arguments
-					agentArgs = args
-				} else {
-					// First arg is a path
-					path = args[0]
-					// Everything after the path is agent args
-					if len(args) > 1 {
-						agentArgs = args[1:]
-					}
-				}
-			}
-			
-			return mgr.StartAgent("gemini", path, agentArgs, withContext)
-		},
-	}
-	
-	cmd.Flags().BoolVar(&withContext, "with-context", false, "Include MUNO documentation and workspace context for repository organization tasks")
-	
-	return cmd
-}
 
 // newStatusCmd creates the status command
 func (a *App) newStatusCmd() *cobra.Command {
@@ -925,26 +770,7 @@ func (a *App) newPushCmd() *cobra.Command {
 
 
 // newVersionCmd creates the version command
-func (a *App) newStartCmd() *cobra.Command {
-	// Alias for starting default agent (claude)
-	cmd := &cobra.Command{
-		Use:   "start [path]",
-		Short: "Start default agent (claude) at current or specified path",
-		Args:  cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return fmt.Errorf("loading workspace: %w", err)
-			}
-			path := ""
-			if len(args) > 0 {
-				path = args[0]
-			}
-			return mgr.StartAgent("claude", path, nil, false)
-		},
-	}
-	return cmd
-}
+
 
 // newVersionCmd creates the version command
 func (a *App) newVersionCmd() *cobra.Command {
