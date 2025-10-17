@@ -659,7 +659,7 @@ func (m *Manager) ResolvePath(target string, ensure bool) (string, error) {
 					// Found a config parent - process it to expand its children
 					// When navigating to a specific child, we want to clone it even if lazy
 					var toClone []interfaces.NodeInfo
-					if err := m.processConfigNode(parentNode, true, &toClone); err != nil {
+					if err := m.processConfigNode(parentNode, false, true, &toClone); err != nil {
 						m.logProvider.Warn(fmt.Sprintf("Failed to process config node during navigation: %v", err))
 					}
 					// Find and clone the specific child we're navigating to
@@ -687,7 +687,7 @@ func (m *Manager) ResolvePath(target string, ensure bool) (string, error) {
 			if node.IsConfig && node.ConfigFile != "" {
 				// Process config node to find repositories to clone
 				var toClone []interfaces.NodeInfo
-				if err := m.processConfigNode(node, false, &toClone); err != nil {
+				if err := m.processConfigNode(node, false, false, &toClone); err != nil {
 					m.logProvider.Warn(fmt.Sprintf("Failed to process config node during navigation: %v", err))
 				}
 				// Clone any found repositories
@@ -1327,7 +1327,7 @@ func (m *Manager) CloneRepos(path string, recursive bool, includeLazy bool) erro
 	collectNodes = func(node interfaces.NodeInfo) {
 		// Handle config nodes - expand them to find repositories
 		if node.IsConfig {
-			if err := m.processConfigNode(node, includeLazy, &toClone); err != nil {
+			if err := m.processConfigNode(node, recursive, includeLazy, &toClone); err != nil {
 				m.logProvider.Warn(fmt.Sprintf("Failed to process config node %s: %v", node.Name, err))
 			}
 			return // Config nodes are fully handled by processConfigNode
@@ -1359,7 +1359,7 @@ func (m *Manager) CloneRepos(path string, recursive bool, includeLazy bool) erro
 		for _, child := range current.Children {
 			// Process config nodes
 			if child.IsConfig {
-				if err := m.processConfigNode(child, includeLazy, &toClone); err != nil {
+				if err := m.processConfigNode(child, false, includeLazy, &toClone); err != nil {
 					m.logProvider.Warn(fmt.Sprintf("Failed to process config node %s: %v", child.Name, err))
 				}
 			} else if !child.IsCloned && child.Repository != "" {

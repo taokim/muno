@@ -11,7 +11,7 @@ import (
 )
 
 // processConfigNode handles expansion of config reference nodes during clone
-func (m *Manager) processConfigNode(node interfaces.NodeInfo, includeLazy bool, toClone *[]interfaces.NodeInfo) error {
+func (m *Manager) processConfigNode(node interfaces.NodeInfo, recursive bool, includeLazy bool, toClone *[]interfaces.NodeInfo) error {
 	if !node.IsConfig || node.ConfigFile == "" {
 		return nil
 	}
@@ -55,18 +55,20 @@ func (m *Manager) processConfigNode(node interfaces.NodeInfo, includeLazy bool, 
 				shouldClone = true
 			}
 		} else if nodeDef.File != "" {
-			// It's another config node - recurse into it
-			childNode := interfaces.NodeInfo{
-				Name:       nodeDef.Name,
-				Path:       childPath,
-				ConfigFile: nodeDef.File,
-				IsConfig:   true,
-				IsLazy:     false,
-				Children:   []interfaces.NodeInfo{},
-			}
-			// Recursively process nested config node
-			if err := m.processConfigNode(childNode, includeLazy, toClone); err != nil {
-				m.logProvider.Warn(fmt.Sprintf("Failed to process nested config %s: %v", nodeDef.Name, err))
+			// It's another config node - only recurse if in recursive mode
+			if recursive {
+				childNode := interfaces.NodeInfo{
+					Name:       nodeDef.Name,
+					Path:       childPath,
+					ConfigFile: nodeDef.File,
+					IsConfig:   true,
+					IsLazy:     false,
+					Children:   []interfaces.NodeInfo{},
+				}
+				// Recursively process nested config node
+				if err := m.processConfigNode(childNode, recursive, includeLazy, toClone); err != nil {
+					m.logProvider.Warn(fmt.Sprintf("Failed to process nested config %s: %v", nodeDef.Name, err))
+				}
 			}
 			continue
 		}
@@ -145,7 +147,7 @@ func (m *Manager) copyConfigFile(src, dst string) error {
 func (m *Manager) expandConfigNodes(node interfaces.NodeInfo, recursive bool, includeLazy bool, toClone *[]interfaces.NodeInfo) error {
 	// Process this node if it's a config node
 	if node.IsConfig {
-		if err := m.processConfigNode(node, includeLazy, toClone); err != nil {
+		if err := m.processConfigNode(node, recursive, includeLazy, toClone); err != nil {
 			return err
 		}
 		// Config nodes are always processed recursively to find repos
