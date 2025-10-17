@@ -368,6 +368,8 @@ func (t *treeProviderAdapter) nodeToNodeInfo(path string, node *tree.TreeNode) i
 		Name:       node.Name,
 		Path:       path,
 		Repository: node.URL,
+		ConfigFile: node.FilePath,
+		IsConfig:   node.Type == tree.NodeTypeFile || node.FilePath != "",
 		IsLazy:     node.Lazy,
 		IsCloned:   actualState == tree.RepoStateCloned || actualState == tree.RepoStateModified,
 		HasChanges: actualState == tree.RepoStateModified,

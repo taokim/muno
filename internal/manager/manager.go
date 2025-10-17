@@ -645,23 +645,81 @@ func (m *Manager) ResolvePath(target string, ensure bool) (string, error) {
 	
 	// If ensure is true, check if the node exists and clone if needed
 	if ensure {
+		// First, try to find the exact node
 		node, err := m.treeProvider.GetNode(resolvedPath)
-		if err == nil && node.IsLazy && !node.IsCloned && node.Repository != "" {
-			// Clone the repository
-			physPath := m.computeFilesystemPath(resolvedPath)
-			if _, err := os.Stat(physPath); os.IsNotExist(err) {
-				// Clone options
-			opts := interfaces.CloneOptions{
-				Recursive: false,
-				Quiet:     false,
-			}
-				if err := m.gitProvider.Clone(node.Repository, physPath, opts); err != nil {
-					return "", fmt.Errorf("cloning lazy repository: %w", err)
+		
+		// If the exact node wasn't found, check if a parent is a config node
+		if err != nil && strings.Contains(resolvedPath, "/") {
+			parts := strings.Split(strings.TrimPrefix(resolvedPath, "/"), "/")
+			// Check each parent level to find config nodes
+			for i := len(parts) - 1; i > 0; i-- {
+				parentPath := "/" + strings.Join(parts[:i], "/")
+				parentNode, parentErr := m.treeProvider.GetNode(parentPath)
+				if parentErr == nil && parentNode.IsConfig && parentNode.ConfigFile != "" {
+					// Found a config parent - process it to expand its children
+					// When navigating to a specific child, we want to clone it even if lazy
+					var toClone []interfaces.NodeInfo
+					if err := m.processConfigNode(parentNode, true, &toClone); err != nil {
+						m.logProvider.Warn(fmt.Sprintf("Failed to process config node during navigation: %v", err))
+					}
+					// Find and clone the specific child we're navigating to
+					targetName := parts[i] // The child name under the config node
+					for _, repo := range toClone {
+						if repo.Name == targetName {
+							clonePath := m.computeFilesystemPath(repo.Path)
+							if _, err := os.Stat(clonePath); os.IsNotExist(err) {
+								opts := interfaces.CloneOptions{
+									Recursive: false,
+									Quiet:     false,
+								}
+								if err := m.gitProvider.Clone(repo.Repository, clonePath, opts); err != nil {
+									m.logProvider.Warn(fmt.Sprintf("Failed to clone %s: %v", repo.Name, err))
+								}
+							}
+							break
+						}
+					}
+					break // Found and processed the config parent
 				}
-				// Update node state
-				node.IsLazy = false
-				node.IsCloned = true
-				m.treeProvider.UpdateNode(resolvedPath, node)
+			}
+		} else if err == nil {
+			// Found the exact node
+			if node.IsConfig && node.ConfigFile != "" {
+				// Process config node to find repositories to clone
+				var toClone []interfaces.NodeInfo
+				if err := m.processConfigNode(node, false, &toClone); err != nil {
+					m.logProvider.Warn(fmt.Sprintf("Failed to process config node during navigation: %v", err))
+				}
+				// Clone any found repositories
+				for _, repo := range toClone {
+					clonePath := m.computeFilesystemPath(repo.Path)
+					if _, err := os.Stat(clonePath); os.IsNotExist(err) {
+						opts := interfaces.CloneOptions{
+							Recursive: false,
+							Quiet:     false,
+						}
+						if err := m.gitProvider.Clone(repo.Repository, clonePath, opts); err != nil {
+							m.logProvider.Warn(fmt.Sprintf("Failed to clone %s: %v", repo.Name, err))
+						}
+					}
+				}
+			} else if node.IsLazy && !node.IsCloned && node.Repository != "" {
+				// Clone lazy repository
+				physPath := m.computeFilesystemPath(resolvedPath)
+				if _, err := os.Stat(physPath); os.IsNotExist(err) {
+					// Clone options
+					opts := interfaces.CloneOptions{
+						Recursive: false,
+						Quiet:     false,
+					}
+					if err := m.gitProvider.Clone(node.Repository, physPath, opts); err != nil {
+						return "", fmt.Errorf("cloning lazy repository: %w", err)
+					}
+					// Update node state
+					node.IsLazy = false
+					node.IsCloned = true
+					m.treeProvider.UpdateNode(resolvedPath, node)
+				}
 			}
 		}
 	}
@@ -918,13 +976,14 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 	// If parent is a git repo, children go inside it
 	// Otherwise, they go in parallel under repos dir
 	
-	// Check if the first part is a cloned repository
+	// Check if the first part is a cloned repository or config node
 	parentPath := filepath.Join(m.workspace, reposDir, parts[0])
 	gitPath := filepath.Join(parentPath, ".git")
+	configPath := filepath.Join(parentPath, "muno.yaml")
 	
-	// If parent is a git repository, nest children inside it
-	if m.fsProvider.Exists(gitPath) {
-		// Build path inside the parent repository
+	// If parent is a git repository OR a config node directory, nest children inside it
+	if m.fsProvider.Exists(gitPath) || m.fsProvider.Exists(configPath) {
+		// Build path inside the parent directory
 		fsPath := parentPath
 		for i := 1; i < len(parts); i++ {
 			fsPath = filepath.Join(fsPath, parts[i])
@@ -932,7 +991,8 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 		return fsPath
 	}
 	
-	// Otherwise, use flat structure under repos dir
+	// Otherwise, use hierarchical structure under repos dir
+	// This allows for nested paths even if parent doesn't exist yet
 	fsPath := filepath.Join(m.workspace, reposDir)
 	for _, part := range parts {
 		fsPath = filepath.Join(fsPath, part)
@@ -1259,12 +1319,20 @@ func (m *Manager) CloneRepos(path string, recursive bool, includeLazy bool) erro
 	}
 	
 	// Clone repos: fetch all structure until meeting lazy repos
-	// This means clone all non-lazy repos and stop at lazy ones
+	// This includes expanding config nodes to find their repositories
 	var toClone []interfaces.NodeInfo
 	
 	// Helper function to collect nodes to clone
 	var collectNodes func(node interfaces.NodeInfo)
 	collectNodes = func(node interfaces.NodeInfo) {
+		// Handle config nodes - expand them to find repositories
+		if node.IsConfig {
+			if err := m.processConfigNode(node, includeLazy, &toClone); err != nil {
+				m.logProvider.Warn(fmt.Sprintf("Failed to process config node %s: %v", node.Name, err))
+			}
+			return // Config nodes are fully handled by processConfigNode
+		}
+		
 		// Clone this node if it hasn't been cloned yet and:
 		// - it's not lazy, OR
 		// - it's lazy and includeLazy is true
@@ -1289,7 +1357,13 @@ func (m *Manager) CloneRepos(path string, recursive bool, includeLazy bool) erro
 	} else {
 		// Non-recursive mode: check direct children only
 		for _, child := range current.Children {
-			if !child.IsCloned && child.Repository != "" {
+			// Process config nodes
+			if child.IsConfig {
+				if err := m.processConfigNode(child, includeLazy, &toClone); err != nil {
+					m.logProvider.Warn(fmt.Sprintf("Failed to process config node %s: %v", child.Name, err))
+				}
+			} else if !child.IsCloned && child.Repository != "" {
+				// Process repository nodes
 				if !child.IsLazy || includeLazy {
 					toClone = append(toClone, child)
 				}
@@ -1299,16 +1373,28 @@ func (m *Manager) CloneRepos(path string, recursive bool, includeLazy bool) erro
 	
 	// Clone the collected repositories
 	for _, node := range toClone {
+		// Determine the filesystem path for cloning
+		clonePath := m.computeFilesystemPath(node.Path)
+		
+		// For config node children, adjust the path
+		// Config node children should go directly under the config node directory
+		// e.g., /backend-team/api-service instead of /repos/backend-team/repos/api-service
+		if strings.Contains(node.Path, "/") && strings.Count(node.Path, "/") > 1 {
+			// This might be a child of a config node
+			// The computeFilesystemPath should handle this correctly
+		}
+		
 		m.logProvider.Info(fmt.Sprintf("Cloning repository %s from %s", node.Name, node.Repository))
-		if err := m.gitProvider.Clone(node.Repository, m.computeFilesystemPath(node.Path), interfaces.CloneOptions{}); err != nil {
+		if err := m.gitProvider.Clone(node.Repository, clonePath, interfaces.CloneOptions{}); err != nil {
 			return fmt.Errorf("cloning %s: %w", node.Name, err)
 		}
 		
-		// Update node status
+		// Update node status if it exists in tree
 		node.IsCloned = true
 		node.IsLazy = false
 		if err := m.treeProvider.UpdateNode(node.Path, node); err != nil {
-			return fmt.Errorf("updating node: %w", err)
+			// Config node children might not exist in tree yet, that's ok
+			m.logProvider.Debug(fmt.Sprintf("Could not update node status for %s: %v", node.Path, err))
 		}
 	}
 	

@@ -327,8 +327,14 @@ func (m *Manager) GetNode(logicalPath string) *TreeNode {
 	}
 	
 	if nodeDef != nil {
-		node.URL = nodeDef.URL
-		node.Lazy = nodeDef.Fetch == "lazy"
+		// Check if this is a config reference node
+		if nodeDef.File != "" {
+			node.Type = NodeTypeFile
+			node.FilePath = nodeDef.File
+		} else {
+			node.URL = nodeDef.URL
+			node.Lazy = nodeDef.Fetch == "lazy"
+		}
 	}
 	
 	// Check filesystem state

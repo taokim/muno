@@ -186,6 +186,8 @@ type NodeInfo struct {
 	Name        string
 	Path        string
 	Repository  string
+	ConfigFile  string     // Path to config file for config nodes
+	IsConfig    bool       // True if this is a config reference node
 	IsLazy      bool
 	IsCloned    bool
 	HasChanges  bool
