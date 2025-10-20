@@ -10,88 +10,188 @@ import (
 	"github.com/taokim/muno/internal/interfaces"
 )
 
-// processConfigNode handles expansion of config reference nodes during clone
-func (m *Manager) processConfigNode(node interfaces.NodeInfo, recursive bool, includeLazy bool, toClone *[]interfaces.NodeInfo) error {
-	if !node.IsConfig || node.ConfigFile == "" {
-		return nil
-	}
-
-	// Create directory for config node
-	configNodePath := m.computeFilesystemPath(node.Path)
-	if err := m.fsProvider.MkdirAll(configNodePath, 0755); err != nil {
-		return fmt.Errorf("creating config node directory: %w", err)
-	}
-
-	// Resolve config file path
-	configFilePath := m.resolveConfigPath(node.ConfigFile, node.Path)
+// visitNodeForClone is the unified function that visits and processes any node (config or git)
+// It follows these steps:
+// 1. Create directory for the node if needed
+// 2. If config node: symlink the muno.yaml; If git node: clone the repository
+// 3. Load muno.yaml from the directory (if exists)
+// 4. Recursively visit each child node
+func (m *Manager) visitNodeForClone(node interfaces.NodeInfo, recursive bool, includeLazy bool) error {
+	nodeFsPath := m.computeFilesystemPath(node.Path)
 	
-	// Load the referenced configuration
-	cfg, err := config.LoadTree(configFilePath)
-	if err != nil {
-		m.logProvider.Warn(fmt.Sprintf("Failed to load config from %s: %v", configFilePath, err))
-		return nil // Don't fail entire clone if one config can't be loaded
+	// Step 1: Create directory if needed
+	if err := m.fsProvider.MkdirAll(nodeFsPath, 0755); err != nil {
+		return fmt.Errorf("creating node directory: %w", err)
 	}
 
-	// Create symlink to the config file in the node directory for reference
-	targetConfigPath := filepath.Join(configNodePath, "muno.yaml")
-	if err := os.Symlink(configFilePath, targetConfigPath); err != nil {
-		// If symlink fails, try to copy as fallback
-		if err := m.copyConfigFile(configFilePath, targetConfigPath); err != nil {
-			m.logProvider.Warn(fmt.Sprintf("Failed to link/copy config file: %v", err))
+	// Step 2: Process based on node type
+	if node.IsConfig && node.ConfigFile != "" {
+		// Config node: symlink the external muno.yaml
+		configFilePath := node.ConfigFile
+		if !filepath.IsAbs(configFilePath) && !strings.HasPrefix(configFilePath, "http") {
+			configFilePath = m.resolveConfigPath(node.ConfigFile, node.Path)
+		}
+		
+		targetConfigPath := filepath.Join(nodeFsPath, "muno.yaml")
+		if err := os.Symlink(configFilePath, targetConfigPath); err != nil {
+			// If symlink fails, try to copy as fallback
+			if err := m.copyConfigFile(configFilePath, targetConfigPath); err != nil {
+				m.logProvider.Warn(fmt.Sprintf("Failed to link/copy config file: %v", err))
+				return nil
+			}
+		}
+	} else if node.Repository != "" && !node.IsCloned {
+		// Git node: clone the repository
+		if node.IsLazy && !includeLazy {
+			// Skip lazy repositories unless includeLazy is set
+			return nil
+		}
+		
+		m.logProvider.Info(fmt.Sprintf("Cloning repository %s from %s", node.Name, node.Repository))
+		if err := m.gitProvider.Clone(node.Repository, nodeFsPath, interfaces.CloneOptions{}); err != nil {
+			m.logProvider.Warn(fmt.Sprintf("Failed to clone %s: %v", node.Name, err))
+			return nil
+		}
+		
+		// Update node status
+		node.IsCloned = true
+		node.IsLazy = false
+		if err := m.treeProvider.UpdateNode(node.Path, node); err != nil {
+			m.logProvider.Debug(fmt.Sprintf("Could not update node status for %s: %v", node.Path, err))
 		}
 	}
-
-	// Process nodes from the loaded configuration
+	
+	// Step 3: Stop here if not recursive
+	if !recursive {
+		return nil
+	}
+	
+	// Step 4: Load muno.yaml from the directory (if it exists)
+	munoYamlPath := filepath.Join(nodeFsPath, "muno.yaml")
+	if _, err := os.Stat(munoYamlPath); err != nil {
+		// No muno.yaml, nothing more to do
+		return nil
+	}
+	
+	cfg, err := config.LoadTree(munoYamlPath)
+	if err != nil {
+		m.logProvider.Warn(fmt.Sprintf("Failed to load muno.yaml from %s: %v", node.Name, err))
+		return nil
+	}
+	
+	// Step 5: Recursively visit each child node defined in muno.yaml
 	for _, nodeDef := range cfg.Nodes {
 		childPath := node.Path + "/" + nodeDef.Name
 		if node.Path == "/" {
 			childPath = "/" + nodeDef.Name
 		}
-
-		// Determine if this child should be cloned
-		isLazy := nodeDef.IsLazy()
-		shouldClone := false
-
+		
+		// Create child node info
+		var childNode interfaces.NodeInfo
+		
 		if nodeDef.URL != "" {
-			// It's a repository node
-			if !isLazy || includeLazy {
-				shouldClone = true
-			}
-		} else if nodeDef.File != "" {
-			// It's another config node - only recurse if in recursive mode
-			if recursive {
-				childNode := interfaces.NodeInfo{
-					Name:       nodeDef.Name,
-					Path:       childPath,
-					ConfigFile: nodeDef.File,
-					IsConfig:   true,
-					IsLazy:     false,
-					Children:   []interfaces.NodeInfo{},
-				}
-				// Recursively process nested config node
-				if err := m.processConfigNode(childNode, recursive, includeLazy, toClone); err != nil {
-					m.logProvider.Warn(fmt.Sprintf("Failed to process nested config %s: %v", nodeDef.Name, err))
-				}
-			}
-			continue
-		}
-
-		if shouldClone {
-			// Check if already cloned
-			childFsPath := filepath.Join(configNodePath, nodeDef.Name)
-			if _, err := os.Stat(filepath.Join(childFsPath, ".git")); err == nil {
-				// Already cloned
-				continue
-			}
-
-			// Add to clone list
-			*toClone = append(*toClone, interfaces.NodeInfo{
+			// Git repository node
+			childNode = interfaces.NodeInfo{
 				Name:       nodeDef.Name,
 				Path:       childPath,
 				Repository: nodeDef.URL,
-				IsLazy:     isLazy,
+				IsLazy:     nodeDef.IsLazy(),
 				IsCloned:   false,
-			})
+			}
+		} else if nodeDef.File != "" {
+			// Config reference node
+			childConfigFile := nodeDef.File
+			if !filepath.IsAbs(childConfigFile) && !strings.HasPrefix(childConfigFile, "http") {
+				// Resolve relative to the real path of the current config
+				realConfigPath, err := filepath.EvalSymlinks(munoYamlPath)
+				if err != nil {
+					realConfigPath = munoYamlPath
+				}
+				currentConfigDir := filepath.Dir(realConfigPath)
+				childConfigFile = filepath.Join(currentConfigDir, nodeDef.File)
+			}
+			
+			childNode = interfaces.NodeInfo{
+				Name:       nodeDef.Name,
+				Path:       childPath,
+				ConfigFile: childConfigFile,
+				IsConfig:   true,
+				IsLazy:     false,
+			}
+		} else {
+			// Invalid node definition, skip
+			continue
+		}
+		
+		// Recursively visit the child node
+		if err := m.visitNodeForClone(childNode, recursive, includeLazy); err != nil {
+			m.logProvider.Warn(fmt.Sprintf("Failed to process child %s: %v", nodeDef.Name, err))
+			// Continue with other children even if one fails
+		}
+	}
+	
+	return nil
+}
+
+// processConfigNode is now a simple wrapper that calls visitNodeForClone
+func (m *Manager) processConfigNode(node interfaces.NodeInfo, recursive bool, includeLazy bool, toClone *[]interfaces.NodeInfo) error {
+	// This function is kept for backward compatibility but now just delegates to visitNodeForClone
+	return m.visitNodeForClone(node, recursive, includeLazy)
+}
+
+// cloneConfigNodeRecursive is now deprecated in favor of visitNodeForClone
+// but kept for backward compatibility
+func (m *Manager) cloneConfigNodeRecursive(dirPath string, nodePath string, includeLazy bool, toClone *[]interfaces.NodeInfo) error {
+	// Load the muno.yaml from the directory
+	munoYamlPath := filepath.Join(dirPath, "muno.yaml")
+	cfg, err := config.LoadTree(munoYamlPath)
+	if err != nil {
+		m.logProvider.Warn(fmt.Sprintf("Failed to load config from %s: %v", munoYamlPath, err))
+		return nil
+	}
+
+	// Process each child node defined in the config
+	for _, nodeDef := range cfg.Nodes {
+		childPath := nodePath + "/" + nodeDef.Name
+		if nodePath == "/" {
+			childPath = "/" + nodeDef.Name
+		}
+
+		var childNode interfaces.NodeInfo
+		
+		if nodeDef.URL != "" {
+			childNode = interfaces.NodeInfo{
+				Name:       nodeDef.Name,
+				Path:       childPath,
+				Repository: nodeDef.URL,
+				IsLazy:     nodeDef.IsLazy(),
+				IsCloned:   false,
+			}
+		} else if nodeDef.File != "" {
+			childConfigFile := nodeDef.File
+			if !filepath.IsAbs(childConfigFile) && !strings.HasPrefix(childConfigFile, "http") {
+				realConfigPath, err := filepath.EvalSymlinks(munoYamlPath)
+				if err != nil {
+					realConfigPath = munoYamlPath
+				}
+				currentConfigDir := filepath.Dir(realConfigPath)
+				childConfigFile = filepath.Join(currentConfigDir, nodeDef.File)
+			}
+			
+			childNode = interfaces.NodeInfo{
+				Name:       nodeDef.Name,
+				Path:       childPath,
+				ConfigFile: childConfigFile,
+				IsConfig:   true,
+				IsLazy:     false,
+			}
+		} else {
+			continue
+		}
+		
+		// Use the unified visit function
+		if err := m.visitNodeForClone(childNode, true, includeLazy); err != nil {
+			m.logProvider.Warn(fmt.Sprintf("Failed to process child %s: %v", nodeDef.Name, err))
 		}
 	}
 
@@ -111,7 +211,7 @@ func (m *Manager) resolveConfigPath(configFile string, nodePath string) string {
 		return configFile
 	}
 
-	// Relative path - resolve from workspace root or current node directory
+	// Relative path - resolve from workspace root or parent directory
 	workspaceRoot := m.workspace
 	
 	// Try relative to workspace root first
