@@ -114,9 +114,15 @@ func GetDefaultWorkspaceName() string {
 	return defaultConfig.Workspace.Name
 }
 
-// GetDefaultReposDir returns the default repos directory name
-func GetDefaultReposDir() string {
+// GetDefaultNodesDir returns the default nodes directory name (for all node types)
+func GetDefaultNodesDir() string {
 	return defaultConfig.Workspace.ReposDir
+}
+
+// GetDefaultReposDir is deprecated, use GetDefaultNodesDir instead
+// Kept for backward compatibility
+func GetDefaultReposDir() string {
+	return GetDefaultNodesDir()
 }
 
 // GetEagerLoadPatterns returns the patterns that trigger eager loading
