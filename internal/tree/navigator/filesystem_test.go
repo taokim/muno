@@ -420,13 +420,15 @@ func TestFilesystemNavigatorHelpers(t *testing.T) {
 		// The filesystem navigator uses a repos directory for root,
 		// but top-level repos go directly in workspace
 		// Without config, findNodeDefinition returns nil, so nested paths use repos dir
+		// Get the actual default nodes directory from config
+		nodesDir := config.GetDefaultNodesDir()
 		tests := []struct {
 			nodePath string
 			expected string
 		}{
-			{"/", filepath.Join(workspace, "repos")},
+			{"/", filepath.Join(workspace, nodesDir)},
 			{"/repo", filepath.Join(workspace, "repo")},  // Top-level repo goes directly in workspace
-			{"/repo/sub", filepath.Join(workspace, "repos", "repo", "sub")}, // Without config, uses repos dir
+			{"/repo/sub", filepath.Join(workspace, nodesDir, "repo", "sub")}, // Without config, uses nodes dir
 		}
 		
 		for _, tt := range tests {

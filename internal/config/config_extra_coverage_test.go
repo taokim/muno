@@ -21,7 +21,8 @@ func TestConfigTree_Methods(t *testing.T) {
 		
 		// Test with empty ReposDir
 		cfg.Workspace.ReposDir = ""
-		assert.Equal(t, "repos", cfg.GetReposDir())
+		expected := GetDefaultNodesDir() // Use actual default, not hardcoded
+		assert.Equal(t, expected, cfg.GetReposDir())
 	})
 	
 
@@ -31,7 +32,8 @@ func TestConfigTree_Methods(t *testing.T) {
 
 // Test GetDefaultReposDir
 func TestGetDefaultReposDir(t *testing.T) {
-	assert.Equal(t, "repos", GetDefaultReposDir())
+	expected := GetDefaultNodesDir() // Use actual default, not hardcoded
+	assert.Equal(t, expected, GetDefaultReposDir())
 }
 
 // Test LoadTree

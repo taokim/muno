@@ -946,38 +946,44 @@ func extractRepoName(url string) string {
 	return url
 }
 
-// getReposDir returns the configured repos directory name
-func (m *Manager) getReposDir() string {
+// getNodesDir returns the configured nodes directory name
+func (m *Manager) getNodesDir() string {
 	if m.config != nil {
-		return m.config.GetReposDir()
+		return m.config.GetNodesDir()
 	}
-	return config.GetDefaultReposDir()
+	return config.GetDefaultNodesDir()
+}
+
+// getReposDir is deprecated, use getNodesDir instead
+// Kept for backward compatibility
+func (m *Manager) getReposDir() string {
+	return m.getNodesDir()
 }
 
 // computeFilesystemPath computes the actual filesystem path from a logical tree path
 // This replicates the logic from tree.Manager.ComputeFilesystemPath
 func (m *Manager) computeFilesystemPath(logicalPath string) string {
-	reposDir := m.getReposDir()
+	nodesDir := m.getNodesDir()
 	
-	// For root, always use repos directory
+	// For root, always use nodes directory
 	if logicalPath == "/" || logicalPath == "" {
-		return filepath.Join(m.workspace, reposDir)
+		return filepath.Join(m.workspace, nodesDir)
 	}
 	
 	// Split the path into parts
 	parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
 	
-	// For top-level repository
+	// For top-level node
 	if len(parts) == 1 {
-		return filepath.Join(m.workspace, reposDir, parts[0])
+		return filepath.Join(m.workspace, nodesDir, parts[0])
 	}
 	
 	// For nested paths, we need to check if parent is a git repo
 	// If parent is a git repo, children go inside it
-	// Otherwise, they go in parallel under repos dir
+	// Otherwise, they go in parallel under nodes dir
 	
 	// Check if the first part is a cloned repository or config node
-	parentPath := filepath.Join(m.workspace, reposDir, parts[0])
+	parentPath := filepath.Join(m.workspace, nodesDir, parts[0])
 	gitPath := filepath.Join(parentPath, ".git")
 	configPath := filepath.Join(parentPath, "muno.yaml")
 	
@@ -991,9 +997,9 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 		return fsPath
 	}
 	
-	// Otherwise, use hierarchical structure under repos dir
+	// Otherwise, use hierarchical structure under nodes dir
 	// This allows for nested paths even if parent doesn't exist yet
-	fsPath := filepath.Join(m.workspace, reposDir)
+	fsPath := filepath.Join(m.workspace, nodesDir)
 	for _, part := range parts {
 		fsPath = filepath.Join(fsPath, part)
 	}
@@ -1024,7 +1030,8 @@ func (m *Manager) displayTreeRecursiveWithPrefix(node interfaces.NodeInfo, prefi
 	var status []string
 	
 	// Check if this is a terminal node (leaf) or non-terminal (parent)
-	isTerminal := len(node.Children) == 0
+	// Config nodes are never terminal, even if they don't have children loaded yet
+	isTerminal := len(node.Children) == 0 && !node.IsConfig
 	
 	if isTerminal {
 		// Terminal nodes (actual repositories)
@@ -1042,9 +1049,11 @@ func (m *Manager) displayTreeRecursiveWithPrefix(node interfaces.NodeInfo, prefi
 			status = append(status, "📝 modified")
 		}
 	} else {
-		// Non-terminal nodes (parent nodes with children)
-		// Check if it's a config reference node or git parent node
-		if m.config != nil {
+		// Non-terminal nodes (parent nodes with children or config nodes)
+		// Check if node is explicitly marked as config
+		if node.IsConfig {
+			status = append(status, "📄 config")
+		} else if m.config != nil {
 			// Look up in config to determine node type
 			nodeFound := false
 			for _, nodeDef := range m.config.Nodes {
@@ -1318,61 +1327,33 @@ func (m *Manager) CloneRepos(path string, recursive bool, includeLazy bool) erro
 		return fmt.Errorf("getting current node: %w", err)
 	}
 	
-	// Clone repos: fetch all structure until meeting lazy repos
-	// This includes expanding config nodes to find their repositories
-	var toClone []interfaces.NodeInfo
+	// Use the unified visit pattern for cloning
+	// The visitNodeForClone function handles both config and git nodes uniformly
+	clonedCount := 0
 	
-	// Helper function to collect nodes to clone
-	var collectNodes func(node interfaces.NodeInfo)
-	collectNodes = func(node interfaces.NodeInfo) {
-		// Handle config nodes - expand them to find repositories
-		if node.IsConfig {
-			if err := m.processConfigNode(node, recursive, includeLazy, &toClone); err != nil {
-				m.logProvider.Warn(fmt.Sprintf("Failed to process config node %s: %v", node.Name, err))
-			}
-			return // Config nodes are fully handled by processConfigNode
-		}
-		
-		// Clone this node if it hasn't been cloned yet and:
-		// - it's not lazy, OR
-		// - it's lazy and includeLazy is true
-		if !node.IsCloned && node.Repository != "" {
-			if !node.IsLazy || includeLazy {
-				toClone = append(toClone, node)
-			}
-		}
-		
-		// Recurse into children if in recursive mode
-		if recursive {
-			for _, child := range node.Children {
-				collectNodes(child)
-			}
-		}
-	}
-	
-	// Start collection from current node
 	if recursive {
-		// Recursive mode: collect all eligible repos in the subtree
-		collectNodes(current)
-	} else {
-		// Non-recursive mode: check direct children only
+		// Visit the current node's children and all their descendants
 		for _, child := range current.Children {
-			// Process config nodes
-			if child.IsConfig {
-				if err := m.processConfigNode(child, false, includeLazy, &toClone); err != nil {
-					m.logProvider.Warn(fmt.Sprintf("Failed to process config node %s: %v", child.Name, err))
-				}
-			} else if !child.IsCloned && child.Repository != "" {
-				// Process repository nodes
-				if !child.IsLazy || includeLazy {
-					toClone = append(toClone, child)
-				}
+			if err := m.visitNodeForClone(child, recursive, includeLazy); err != nil {
+				m.logProvider.Warn(fmt.Sprintf("Failed to process child %s: %v", child.Name, err))
+			}
+		}
+		// Count how many repos were cloned (this is a simplified count, could be improved)
+		clonedCount = m.countClonedInSubtree(current)
+	} else {
+		// Non-recursive: only visit direct children
+		for _, child := range current.Children {
+			if err := m.visitNodeForClone(child, false, includeLazy); err != nil {
+				m.logProvider.Warn(fmt.Sprintf("Failed to process child %s: %v", child.Name, err))
+			}
+		}
+		// Count cloned children
+		for _, child := range current.Children {
+			if child.IsCloned {
+				clonedCount++
 			}
 		}
 	}
-	
-	// Clone repositories and recursively process their muno.yaml files
-	clonedCount := m.cloneAndProcessRepositories(toClone, recursive, includeLazy)
 	
 	if clonedCount == 0 {
 		m.logProvider.Info("No repositories to clone")
@@ -1383,107 +1364,32 @@ func (m *Manager) CloneRepos(path string, recursive bool, includeLazy bool) erro
 	return m.saveConfig()
 }
 
-// cloneAndProcessRepositories clones repositories and recursively processes their muno.yaml files
+// countClonedInSubtree counts how many repositories are cloned in a subtree
+func (m *Manager) countClonedInSubtree(node interfaces.NodeInfo) int {
+	count := 0
+	if node.IsCloned && node.Repository != "" {
+		count = 1
+	}
+	
+	for _, child := range node.Children {
+		count += m.countClonedInSubtree(child)
+	}
+	
+	return count
+}
+
+// cloneAndProcessRepositories is deprecated in favor of visitNodeForClone
+// This function is kept for backward compatibility in case other parts of the code use it
 func (m *Manager) cloneAndProcessRepositories(toClone []interfaces.NodeInfo, recursive bool, includeLazy bool) int {
-	if len(toClone) == 0 {
-		return 0
-	}
-	
 	clonedCount := 0
-	var newlyCloned []interfaces.NodeInfo
 	
-	// Clone all repositories in the current batch
+	// Use the unified visit pattern for each node to clone
 	for _, node := range toClone {
-		clonePath := m.computeFilesystemPath(node.Path)
-		
-		m.logProvider.Info(fmt.Sprintf("Cloning repository %s from %s", node.Name, node.Repository))
-		if err := m.gitProvider.Clone(node.Repository, clonePath, interfaces.CloneOptions{}); err != nil {
-			m.logProvider.Warn(fmt.Sprintf("Failed to clone %s: %v", node.Name, err))
-			continue
+		if err := m.visitNodeForClone(node, recursive, includeLazy); err != nil {
+			m.logProvider.Warn(fmt.Sprintf("Failed to process node %s: %v", node.Name, err))
+		} else if node.Repository != "" {
+			clonedCount++ // Count successful repository clones
 		}
-		
-		clonedCount++
-		newlyCloned = append(newlyCloned, node)
-		
-		// Update node status
-		node.IsCloned = true
-		node.IsLazy = false
-		if err := m.treeProvider.UpdateNode(node.Path, node); err != nil {
-			m.logProvider.Debug(fmt.Sprintf("Could not update node status for %s: %v", node.Path, err))
-		}
-	}
-	
-	// If not recursive, stop here
-	if !recursive {
-		return clonedCount
-	}
-	
-	// Process newly cloned repositories for muno.yaml files
-	var childrenToClone []interfaces.NodeInfo
-	
-	for _, clonedNode := range newlyCloned {
-		clonedPath := m.computeFilesystemPath(clonedNode.Path)
-		munoYamlPath := filepath.Join(clonedPath, "muno.yaml")
-		
-		// Check if this repository contains a muno.yaml
-		if _, err := os.Stat(munoYamlPath); err != nil {
-			continue // No muno.yaml, skip
-		}
-		
-		// Load and process the muno.yaml
-		cfg, err := config.LoadTree(munoYamlPath)
-		if err != nil {
-			m.logProvider.Warn(fmt.Sprintf("Failed to load muno.yaml from %s: %v", clonedNode.Name, err))
-			continue
-		}
-		
-		// Process children defined in this repository's muno.yaml
-		for _, nodeDef := range cfg.Nodes {
-			childPath := clonedNode.Path + "/" + nodeDef.Name
-			
-			if nodeDef.URL != "" {
-				// Repository node
-				isLazy := nodeDef.IsLazy()
-				if !isLazy || includeLazy {
-					// Check if already cloned
-					childFsPath := filepath.Join(clonedPath, nodeDef.Name)
-					if _, err := os.Stat(filepath.Join(childFsPath, ".git")); err != nil {
-						// Not cloned yet
-						childrenToClone = append(childrenToClone, interfaces.NodeInfo{
-							Name:       nodeDef.Name,
-							Path:       childPath,
-							Repository: nodeDef.URL,
-							IsLazy:     isLazy,
-							IsCloned:   false,
-						})
-					}
-				}
-			} else if nodeDef.File != "" {
-				// Config node - process it to find its repositories
-				// Resolve config file path relative to the cloned repository
-				configFilePath := nodeDef.File
-				if !filepath.IsAbs(configFilePath) {
-					configFilePath = filepath.Join(clonedPath, nodeDef.File)
-				}
-				
-				configNode := interfaces.NodeInfo{
-					Name:       nodeDef.Name,
-					Path:       childPath,
-					ConfigFile: configFilePath,
-					IsConfig:   true,
-					IsLazy:     false,
-				}
-				if err := m.processConfigNode(configNode, recursive, includeLazy, &childrenToClone); err != nil {
-					m.logProvider.Warn(fmt.Sprintf("Failed to process config node %s: %v", nodeDef.Name, err))
-				}
-			}
-		}
-	}
-	
-	// Recursively clone and process children
-	if len(childrenToClone) > 0 {
-		childCount := m.cloneAndProcessRepositories(childrenToClone, recursive, includeLazy)
-		clonedCount += childCount
 	}
 	
 	return clonedCount
@@ -1910,12 +1816,58 @@ func (m *Manager) pullAllRepositories(force bool) error {
 func (m *Manager) collectClonedRepos(node interfaces.NodeInfo) []interfaces.NodeInfo {
 	var repos []interfaces.NodeInfo
 	
-	// Only add terminal nodes that are cloned
-	if len(node.Children) == 0 && node.IsCloned {
+	// Handle config nodes - expand them to find repositories
+	if node.IsConfig && node.ConfigFile != "" {
+		// Load the config and process its children
+		configFilePath := node.ConfigFile
+		if !filepath.IsAbs(configFilePath) && !strings.HasPrefix(configFilePath, "http") {
+			configFilePath = m.resolveConfigPath(node.ConfigFile, node.Path)
+		}
+		
+		if cfg, err := config.LoadTree(configFilePath); err == nil {
+			// Process each child node from the config
+			for _, nodeDef := range cfg.Nodes {
+				childPath := node.Path + "/" + nodeDef.Name
+				if node.Path == "/" {
+					childPath = "/" + nodeDef.Name
+				}
+				
+				if nodeDef.URL != "" {
+					// It's a repository - check if it's cloned
+					childFsPath := m.computeFilesystemPath(childPath)
+					if _, err := os.Stat(filepath.Join(childFsPath, ".git")); err == nil {
+						// Repository is cloned, add it
+						repos = append(repos, interfaces.NodeInfo{
+							Name:       nodeDef.Name,
+							Path:       childPath,
+							Repository: nodeDef.URL,
+							IsCloned:   true,
+						})
+					}
+				} else if nodeDef.File != "" {
+					// It's another config node - recurse into it
+					childConfigFile := nodeDef.File
+					if !filepath.IsAbs(childConfigFile) && !strings.HasPrefix(childConfigFile, "http") {
+						currentConfigDir := filepath.Dir(configFilePath)
+						childConfigFile = filepath.Join(currentConfigDir, nodeDef.File)
+					}
+					
+					childNode := interfaces.NodeInfo{
+						Name:       nodeDef.Name,
+						Path:       childPath,
+						ConfigFile: childConfigFile,
+						IsConfig:   true,
+					}
+					repos = append(repos, m.collectClonedRepos(childNode)...)
+				}
+			}
+		}
+	} else if len(node.Children) == 0 && node.IsCloned {
+		// Terminal node that is cloned
 		repos = append(repos, node)
 	}
 	
-	// Recurse into children
+	// Recurse into children (for non-config nodes)
 	for _, child := range node.Children {
 		repos = append(repos, m.collectClonedRepos(child)...)
 	}
@@ -1953,9 +1905,61 @@ func (m *Manager) pullRecursiveWithOptions(node interfaces.NodeInfo, force bool,
 		m.uiProvider.Success(fmt.Sprintf("   ✅ Cloned successfully: %s", node.Name))
 	}
 	
-	// Pull only if it's a cloned repository (not lazy or already cloned)
-	// Only pull terminal nodes (repositories without children)
-	if len(node.Children) == 0 && node.IsCloned && !node.IsLazy {
+	// Handle config nodes - expand them to find repositories
+	if node.IsConfig && node.ConfigFile != "" {
+		// Process config node similar to pullRecursive
+		configFilePath := node.ConfigFile
+		if !filepath.IsAbs(configFilePath) && !strings.HasPrefix(configFilePath, "http") {
+			configFilePath = m.resolveConfigPath(node.ConfigFile, node.Path)
+		}
+		
+		if cfg, err := config.LoadTree(configFilePath); err == nil {
+			for _, nodeDef := range cfg.Nodes {
+				childPath := node.Path + "/" + nodeDef.Name
+				if node.Path == "/" {
+					childPath = "/" + nodeDef.Name
+				}
+				
+				if nodeDef.URL != "" {
+					childNode := interfaces.NodeInfo{
+						Name:       nodeDef.Name,
+						Path:       childPath,
+						Repository: nodeDef.URL,
+						IsLazy:     nodeDef.IsLazy(),
+						IsCloned:   false,
+					}
+					// Check if cloned
+					childFsPath := m.computeFilesystemPath(childPath)
+					if _, err := os.Stat(filepath.Join(childFsPath, ".git")); err == nil {
+						childNode.IsCloned = true
+					}
+					// Recursively process this child
+					if err := m.pullRecursiveWithOptions(childNode, force, includeLazy); err != nil {
+						return err
+					}
+				} else if nodeDef.File != "" {
+					// Nested config node
+					childConfigFile := nodeDef.File
+					if !filepath.IsAbs(childConfigFile) && !strings.HasPrefix(childConfigFile, "http") {
+						currentConfigDir := filepath.Dir(configFilePath)
+						childConfigFile = filepath.Join(currentConfigDir, nodeDef.File)
+					}
+					
+					childNode := interfaces.NodeInfo{
+						Name:       nodeDef.Name,
+						Path:       childPath,
+						ConfigFile: childConfigFile,
+						IsConfig:   true,
+					}
+					if err := m.pullRecursiveWithOptions(childNode, force, includeLazy); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	} else if len(node.Children) == 0 && node.IsCloned && !node.IsLazy {
+		// Pull only if it's a cloned repository (not lazy or already cloned)
+		// Only pull terminal nodes (repositories without children)
 		fullPath := m.computeFilesystemPath(node.Path)
 		m.uiProvider.Info(fmt.Sprintf("📦 Pulling: %s", node.Name))
 		
@@ -1971,7 +1975,7 @@ func (m *Manager) pullRecursiveWithOptions(node interfaces.NodeInfo, force bool,
 		m.logProvider.Debug(fmt.Sprintf("Skipping lazy repository: %s", node.Name))
 	}
 	
-	// Recurse into children
+	// Recurse into children (for non-config nodes)
 	for _, child := range node.Children {
 		if err := m.pullRecursiveWithOptions(child, force, includeLazy); err != nil {
 			return err
@@ -1982,8 +1986,57 @@ func (m *Manager) pullRecursiveWithOptions(node interfaces.NodeInfo, force bool,
 }
 
 func (m *Manager) pullRecursive(node interfaces.NodeInfo, force bool) error {
-	// Only pull terminal nodes (actual repositories)
-	if len(node.Children) == 0 && node.IsCloned {
+	// Handle config nodes - expand them to find repositories
+	if node.IsConfig && node.ConfigFile != "" {
+		// Load the config and process its children
+		configFilePath := node.ConfigFile
+		if !filepath.IsAbs(configFilePath) && !strings.HasPrefix(configFilePath, "http") {
+			configFilePath = m.resolveConfigPath(node.ConfigFile, node.Path)
+		}
+		
+		if cfg, err := config.LoadTree(configFilePath); err == nil {
+			// Process each child node from the config
+			for _, nodeDef := range cfg.Nodes {
+				childPath := node.Path + "/" + nodeDef.Name
+				if node.Path == "/" {
+					childPath = "/" + nodeDef.Name
+				}
+				
+				if nodeDef.URL != "" {
+					// It's a repository - check if it's cloned and pull it
+					childFsPath := m.computeFilesystemPath(childPath)
+					if _, err := os.Stat(filepath.Join(childFsPath, ".git")); err == nil {
+						// Repository is cloned, pull it
+						m.uiProvider.Info(fmt.Sprintf("📦 Pulling: %s", nodeDef.Name))
+						pullOpts := interfaces.PullOptions{Force: force}
+						if err := m.gitProvider.Pull(childFsPath, pullOpts); err != nil {
+							m.uiProvider.Error(fmt.Sprintf("   ❌ Failed at %s: %v", childPath, err))
+						} else {
+							m.uiProvider.Success(fmt.Sprintf("   ✅ Success: %s", nodeDef.Name))
+						}
+					}
+				} else if nodeDef.File != "" {
+					// It's another config node - recurse into it
+					childConfigFile := nodeDef.File
+					if !filepath.IsAbs(childConfigFile) && !strings.HasPrefix(childConfigFile, "http") {
+						currentConfigDir := filepath.Dir(configFilePath)
+						childConfigFile = filepath.Join(currentConfigDir, nodeDef.File)
+					}
+					
+					childNode := interfaces.NodeInfo{
+						Name:       nodeDef.Name,
+						Path:       childPath,
+						ConfigFile: childConfigFile,
+						IsConfig:   true,
+					}
+					if err := m.pullRecursive(childNode, force); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	} else if len(node.Children) == 0 && node.IsCloned {
+		// Terminal node that is cloned - pull it
 		fullPath := m.computeFilesystemPath(node.Path)
 		m.uiProvider.Info(fmt.Sprintf("📦 Pulling: %s", node.Name))
 		
@@ -1996,7 +2049,7 @@ func (m *Manager) pullRecursive(node interfaces.NodeInfo, force bool) error {
 		}
 	}
 	
-	// Recurse into children
+	// Recurse into children (for non-config nodes)
 	for _, child := range node.Children {
 		if err := m.pullRecursive(child, force); err != nil {
 			return err

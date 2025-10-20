@@ -691,7 +691,7 @@ Note: This command only pulls already cloned repositories. Use 'muno clone' firs
 			}
 			
 			// Pull command never clones new repositories
-			return mgr.PullNodeWithOptions(path, recursive, force, false)
+			return mgr.PullNode(path, recursive, force)
 		},
 	}
 	

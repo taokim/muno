@@ -2,6 +2,7 @@ package manager
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,13 +14,15 @@ import (
 // Test computeFilesystemPath
 func TestComputeFilesystemPath(t *testing.T) {
 	mockFS := mocks.NewMockFileSystemProvider()
+	// Get the actual default nodes directory from config
+	nodesDir := config.GetDefaultNodesDir()
 	
 	mgr := &Manager{
 		workspace: "/test/workspace",
 		fsProvider: mockFS,
 		config: &config.ConfigTree{
 			Workspace: config.WorkspaceTree{
-				ReposDir: "repos",
+				ReposDir: nodesDir,
 			},
 		},
 	}
@@ -32,22 +35,22 @@ func TestComputeFilesystemPath(t *testing.T) {
 		{
 			name: "root path",
 			path: "/",
-			want: "/test/workspace/repos",
+			want: filepath.Join("/test/workspace", nodesDir),
 		},
 		{
 			name: "empty path",
 			path: "",
-			want: "/test/workspace/repos",
+			want: filepath.Join("/test/workspace", nodesDir),
 		},
 		{
 			name: "top-level repo",
 			path: "/backend",
-			want: "/test/workspace/repos/backend",
+			want: filepath.Join("/test/workspace", nodesDir, "backend"),
 		},
 		{
 			name: "nested path without git",
 			path: "/backend/service",
-			want: "/test/workspace/repos/backend/service",
+			want: filepath.Join("/test/workspace", nodesDir, "backend", "service"),
 		},
 	}
 	
@@ -74,7 +77,9 @@ func TestGetReposDir(t *testing.T) {
 	
 	t.Run("without config", func(t *testing.T) {
 		mgr := &Manager{}
-		assert.Equal(t, "repos", mgr.getReposDir())
+		// Get the actual default nodes directory from config
+		expected := config.GetDefaultNodesDir()
+		assert.Equal(t, expected, mgr.getReposDir())
 	})
 }
 

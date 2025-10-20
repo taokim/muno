@@ -19,7 +19,7 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 		m.config = &config.ConfigTree{
 			Workspace: config.WorkspaceTree{
 				Name:     projectName,
-				ReposDir: config.GetDefaultReposDir(),
+				ReposDir: config.GetDefaultNodesDir(),
 			},
 			Nodes: []config.NodeDefinition{},
 		}
@@ -53,20 +53,20 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 		return fmt.Errorf("saving config: %w", err)
 	}
 	
-	// Create the repos directory if it doesn't exist
-	reposDir := m.getReposDir()
-	if reposDir == "" {
-		reposDir = "repos"
+	// Create the nodes directory if it doesn't exist
+	nodesDir := m.getNodesDir()
+	if nodesDir == "" {
+		nodesDir = "nodes"
 	}
-	reposDirPath := filepath.Join(m.workspace, reposDir)
-	if err := m.fsProvider.MkdirAll(reposDirPath, 0755); err != nil {
-		return fmt.Errorf("creating repos directory: %w", err)
+	nodesDirPath := filepath.Join(m.workspace, nodesDir)
+	if err := m.fsProvider.MkdirAll(nodesDirPath, 0755); err != nil {
+		return fmt.Errorf("creating nodes directory: %w", err)
 	}
 	
 	// Add MUNO-specific entries to .gitignore if this is a git repository
 	gitignoreEntries := []string{
 		".muno/",                       // Agent context directory
-		reposDir + "/",                 // Repositories directory
+		nodesDir + "/",                 // Nodes directory (repositories and config nodes)
 	}
 	
 	for _, entry := range gitignoreEntries {

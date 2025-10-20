@@ -12,7 +12,8 @@ func TestDefaultConfigTree(t *testing.T) {
 	cfg := DefaultConfigTree("test-workspace")
 	
 	assert.Equal(t, "test-workspace", cfg.Workspace.Name)
-	assert.Equal(t, "repos", cfg.Workspace.ReposDir)
+	expected := GetDefaultNodesDir() // Use actual default, not hardcoded
+	assert.Equal(t, expected, cfg.Workspace.ReposDir)
 	assert.Empty(t, cfg.Nodes)
 }
 
@@ -91,7 +92,7 @@ func TestConfigTreeValidate(t *testing.T) {
 					ReposDir: "",
 				},
 			},
-			wantError: false, // Empty repos dir is valid, defaults to "repos"
+			wantError: false, // Empty repos dir is valid, defaults to nodes directory
 		},
 		{
 			name: "node with both URL and Config",
@@ -179,7 +180,8 @@ func TestGetReposDir(t *testing.T) {
 	assert.Equal(t, "custom-repos", cfg.GetReposDir())
 	
 	cfg.Workspace.ReposDir = ""
-	assert.Equal(t, "repos", cfg.GetReposDir())
+	expected := GetDefaultNodesDir() // Use actual default, not hardcoded
+	assert.Equal(t, expected, cfg.GetReposDir())
 }
 
 func TestLoadTreeWithInvalidFile(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	
@@ -655,7 +656,9 @@ func TestManager_Remove(t *testing.T) {
 					Path:     "/service-a",
 					IsCloned: true,
 				})
-				fs.SetExists("/test/repos/service-a", true)
+				// Get the actual nodes directory from config
+				nodesDir := config.GetDefaultNodesDir()
+				fs.SetExists(filepath.Join("/test", nodesDir, "service-a"), true)
 				ui.SetConfirm("Remove service-a and all its contents?", true)
 			},
 			wantErr: false,
@@ -769,7 +772,9 @@ func TestManager_InitializeWithConfig(t *testing.T) {
 	}
 	mockConfig.SetConfig("/test/workspace/muno.yaml", existingConfig)
 	mockFS.SetExists("/test/workspace/muno.yaml", true)
-	mockFS.SetExists("/test/workspace/repos", true)
+	// Get the actual nodes directory from config
+	nodesDir := config.GetDefaultNodesDir()
+	mockFS.SetExists(filepath.Join("/test/workspace", nodesDir), true)
 	
 	manager, err := NewManager(ManagerOptions{
 		ConfigProvider: mockConfig,
@@ -807,7 +812,9 @@ func TestManager_ExecutePluginCommand(t *testing.T) {
 	
 	// Initialize manager first
 	mockFS.SetExists("/test/workspace/muno.yaml", false)
-	mockFS.SetExists("/test/workspace/repos", false)
+	// Get the actual nodes directory from config
+	nodesDir := config.GetDefaultNodesDir()
+	mockFS.SetExists(filepath.Join("/test/workspace", nodesDir), false)
 	err = manager.Initialize(context.Background(), "/test/workspace")
 	require.NoError(t, err)
 	
@@ -899,7 +906,9 @@ func TestManager_SaveConfig(t *testing.T) {
 	}
 	mockConfig.SetConfig("/test/workspace/muno.yaml", existingConfig)
 	mockFS.SetExists("/test/workspace/muno.yaml", true)
-	mockFS.SetExists("/test/workspace/repos", true)
+	// Get the actual nodes directory from config
+	nodesDir := config.GetDefaultNodesDir()
+	mockFS.SetExists(filepath.Join("/test/workspace", nodesDir), true)
 	mockConfig.SetExists("/test/workspace/muno.yaml", true)
 	
 	err = manager.Initialize(context.Background(), "/test/workspace")
@@ -933,7 +942,9 @@ func TestManager_HandlePluginAction(t *testing.T) {
 	
 	// Initialize manager
 	mockFS.SetExists("/test/workspace/muno.yaml", false)
-	mockFS.SetExists("/test/workspace/repos", false)
+	// Get the actual nodes directory from config
+	nodesDir := config.GetDefaultNodesDir()
+	mockFS.SetExists(filepath.Join("/test/workspace", nodesDir), false)
 	err = manager.Initialize(context.Background(), "/test/workspace")
 	require.NoError(t, err)
 	
@@ -1044,7 +1055,9 @@ func TestManager_HandlePluginActionNavigation(t *testing.T) {
 	}
 	mockConfig.SetConfig("/test/workspace/muno.yaml", existingConfig)
 	mockFS.SetExists("/test/workspace/muno.yaml", true)
-	mockFS.SetExists("/test/workspace/repos", true)
+	// Get the actual nodes directory from config
+	nodesDir := config.GetDefaultNodesDir()
+	mockFS.SetExists(filepath.Join("/test/workspace", nodesDir), true)
 	mockConfig.SetExists("/test/workspace/muno.yaml", true)
 	
 	err = manager.Initialize(context.Background(), "/test/workspace")

@@ -14,7 +14,8 @@ func TestAdditionalCoverage(t *testing.T) {
 	
 	t.Run("GetDefaultReposDir", func(t *testing.T) {
 		dir := GetDefaultReposDir()
-		assert.Equal(t, "repos", dir)
+		expected := GetDefaultNodesDir() // Use the actual default, not hardcoded
+		assert.Equal(t, expected, dir)
 	})
 	
 	t.Run("GetStateFileName", func(t *testing.T) {

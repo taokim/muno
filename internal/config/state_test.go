@@ -155,7 +155,9 @@ func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig("test-project")
 	
 	assert.Equal(t, "test-project", cfg.Workspace.Name)
-	assert.Equal(t, "repos", cfg.Workspace.RootPath)
+	// Get the actual default nodes directory from config
+	expectedRootPath := GetDefaultNodesDir()
+	assert.Equal(t, expectedRootPath, cfg.Workspace.RootPath)
 	assert.NotNil(t, cfg.Repositories)
 	assert.NotEmpty(t, cfg.Repositories)
 	

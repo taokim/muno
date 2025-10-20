@@ -224,14 +224,20 @@ func (c *ConfigTree) Validate() error {
 	return nil
 }
 
-// GetReposDir returns the configured repos directory name
-func (c *ConfigTree) GetReposDir() string {
+// GetNodesDir returns the configured nodes directory name
+func (c *ConfigTree) GetNodesDir() string {
 	// If ReposDir is empty, return the default
 	if c.Workspace.ReposDir == "" {
-		return GetDefaultReposDir()
+		return GetDefaultNodesDir()
 	}
 	// Otherwise return the configured value
 	return c.Workspace.ReposDir
+}
+
+// GetReposDir is deprecated, use GetNodesDir instead
+// Kept for backward compatibility
+func (c *ConfigTree) GetReposDir() string {
+	return c.GetNodesDir()
 }
 
 // State management functions removed - now stateless operation

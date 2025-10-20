@@ -94,7 +94,7 @@ func NewManagerForInit(projectPath string) (*Manager, error) {
 	cfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     filepath.Base(absPath),
-			ReposDir: "repos",
+			ReposDir: config.GetDefaultNodesDir(),
 		},
 		Nodes: []config.NodeDefinition{},
 	}
