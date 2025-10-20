@@ -206,7 +206,7 @@ func TestGetNodeStateless(t *testing.T) {
 	cfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "test",
-			ReposDir: "repos",
+			ReposDir: config.GetDefaultNodesDir(),
 		},
 		Nodes: []config.NodeDefinition{
 			{Name: "repo1", URL: "https://github.com/test/repo1.git"},
@@ -218,7 +218,9 @@ func TestGetNodeStateless(t *testing.T) {
 	require.NoError(t, cfg.Save(configPath))
 	
 	// Create repos directory
-	reposDir := filepath.Join(tmpDir, "repos")
+	// Get the actual nodes directory from config
+	nodesDir := config.GetDefaultNodesDir()
+	reposDir := filepath.Join(tmpDir, nodesDir)
 	require.NoError(t, os.MkdirAll(reposDir, 0755))
 	
 	// Create repo1 with .git

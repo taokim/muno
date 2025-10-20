@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	
+	"github.com/taokim/muno/internal/config"
 )
 
 // TestSimplifiedStateIntegration tests that the new implementation
@@ -39,16 +41,18 @@ func TestSimplifiedStateIntegration(t *testing.T) {
 	}
 	
 	// Test filesystem path computation
+	// Get the actual nodes directory from config
+	nodesDir := config.GetDefaultNodesDir()
 	pathTests := []struct {
 		logical  string
 		expected string
 	}{
-		{"/", filepath.Join(tmpDir, "repos")},
-		{"/level1", filepath.Join(tmpDir, "repos", "level1")}, // Git repos use repos/ subdir
-		{"/level1/level2", filepath.Join(tmpDir, "repos", "level1", "level2")}, // Nested git repo
-		{"/level1/level2/level3", filepath.Join(tmpDir, "repos", "level1", "level2", "level3")}, // Nested git repo
-		{"/shared", filepath.Join(tmpDir, "repos", "shared")}, // Git repos use repos/ subdir
-		{"/level1/sibling", filepath.Join(tmpDir, "repos", "level1", "sibling")}, // Nested git repo
+		{"/", filepath.Join(tmpDir, nodesDir)},
+		{"/level1", filepath.Join(tmpDir, nodesDir, "level1")}, // Git repos use nodes/ subdir
+		{"/level1/level2", filepath.Join(tmpDir, nodesDir, "level1", "level2")}, // Nested git repo
+		{"/level1/level2/level3", filepath.Join(tmpDir, nodesDir, "level1", "level2", "level3")}, // Nested git repo
+		{"/shared", filepath.Join(tmpDir, nodesDir, "shared")}, // Git repos use nodes/ subdir
+		{"/level1/sibling", filepath.Join(tmpDir, nodesDir, "level1", "sibling")}, // Nested git repo
 	}
 	
 	t.Run("FilesystemPathComputation", func(t *testing.T) {
@@ -69,18 +73,18 @@ func TestSimplifiedStateIntegration(t *testing.T) {
 		}
 		
 		// In stateless mode, verify nodes exist in filesystem
-		level1Path := filepath.Join(tmpDir, "repos", "level1")
+		level1Path := filepath.Join(tmpDir, nodesDir, "level1")
 		if _, err := os.Stat(level1Path); os.IsNotExist(err) {
 			t.Errorf("level1 directory should exist")
 		}
 		
 		// Verify other directories exist
-		level2Path := filepath.Join(tmpDir, "repos", "level1", "level2")
+		level2Path := filepath.Join(tmpDir, nodesDir, "level1", "level2")
 		if _, err := os.Stat(level2Path); os.IsNotExist(err) {
 			t.Errorf("level2 directory should exist")
 		}
 		
-		sharedPath := filepath.Join(tmpDir, "repos", "shared")
+		sharedPath := filepath.Join(tmpDir, nodesDir, "shared")
 		if _, err := os.Stat(sharedPath); os.IsNotExist(err) {
 			t.Errorf("shared directory should exist")
 		}
@@ -97,7 +101,7 @@ func TestSimplifiedStateIntegration(t *testing.T) {
 		
 		// In stateless mode, children are discovered from filesystem
 		// So we check if directories exist instead
-		level3Path := filepath.Join(tmpDir, "repos", "level1", "level2", "level3")
+		level3Path := filepath.Join(tmpDir, nodesDir, "level1", "level2", "level3")
 		if _, err := os.Stat(level3Path); err == nil {
 			t.Log("level3 directory exists as expected")
 		}
@@ -126,7 +130,7 @@ func TestSimplifiedStateIntegration(t *testing.T) {
 		
 		// Verify we can still compute filesystem paths for any logical path
 		fsPath := mgr.ComputeFilesystemPath("/level1/level2")
-		expectedPath := filepath.Join(tmpDir, "repos", "level1", "level2")
+		expectedPath := filepath.Join(tmpDir, nodesDir, "level1", "level2")
 		if fsPath != expectedPath {
 			t.Errorf("ComputeFilesystemPath(/level1/level2) = %s, want %s", fsPath, expectedPath)
 		}

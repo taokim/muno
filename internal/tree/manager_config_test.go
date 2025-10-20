@@ -57,7 +57,7 @@ func TestManagerCustomReposDir(t *testing.T) {
 	mockGit := &MockGitInterface{}
 	
 	// Test with custom repos_dir
-	customDir := "repos"
+	customDir := config.GetDefaultNodesDir()
 	cfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "test-workspace",

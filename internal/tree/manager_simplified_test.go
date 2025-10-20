@@ -53,7 +53,7 @@ func TestComputeFilesystemPath(t *testing.T) {
 	cfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "test-workspace",
-			ReposDir: "repos",
+			ReposDir: config.GetDefaultNodesDir(),
 		},
 		Nodes: []config.NodeDefinition{},
 	}
@@ -69,14 +69,16 @@ func TestComputeFilesystemPath(t *testing.T) {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
 	
+	// Get the actual nodes directory from config
+	nodesDir := config.GetDefaultNodesDir()
 	tests := []struct {
 		logical  string
 		expected string
 	}{
-		{"/", filepath.Join(tmpDir, "repos")},
-		{"/level1", filepath.Join(tmpDir, "repos", "level1")},
-		{"/level1/level2", filepath.Join(tmpDir, "repos", "level1", "level2")},
-		{"/a/b/c", filepath.Join(tmpDir, "repos", "a", "b", "c")},
+		{"/", filepath.Join(tmpDir, nodesDir)},
+		{"/level1", filepath.Join(tmpDir, nodesDir, "level1")},
+		{"/level1/level2", filepath.Join(tmpDir, nodesDir, "level1", "level2")},
+		{"/a/b/c", filepath.Join(tmpDir, nodesDir, "a", "b", "c")},
 	}
 	
 	for _, test := range tests {
@@ -94,7 +96,7 @@ func TestStateManagement(t *testing.T) {
 	cfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "test-workspace",
-			ReposDir: "repos",
+			ReposDir: config.GetDefaultNodesDir(),
 		},
 		Nodes: []config.NodeDefinition{
 			{Name: "repo1", URL: "https://github.com/test/repo1.git", Fetch: "lazy"},
@@ -214,7 +216,9 @@ func TestTreeNavigation(t *testing.T) {
 	
 	// Verify filesystem path - level1 is a top-level git repo (in repos/ subdir)
 	// level2 is nested under level1
-	expectedFS := filepath.Join(tmpDir, "repos", "level1", "level2")
+	// Get the actual nodes directory from config
+	nodesDir := config.GetDefaultNodesDir()
+	expectedFS := filepath.Join(tmpDir, nodesDir, "level1", "level2")
 	actualFS := mgr.ComputeFilesystemPath("/level1/level2")
 	if actualFS != expectedFS {
 		t.Errorf("Filesystem path = %s, want %s", actualFS, expectedFS)

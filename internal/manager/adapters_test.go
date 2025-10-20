@@ -340,7 +340,7 @@ func TestAdapterCreation(t *testing.T) {
 		cfg := &config.ConfigTree{
 			Workspace: config.WorkspaceTree{
 				Name: "test",
-				ReposDir: "repos",
+				ReposDir: config.GetDefaultNodesDir(),
 			},
 			Nodes: []config.NodeDefinition{},
 		}
@@ -363,7 +363,7 @@ func TestTreeProviderAdapter(t *testing.T) {
 	cfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name: "test",
-			ReposDir: "repos",
+			ReposDir: config.GetDefaultNodesDir(),
 		},
 		Nodes: []config.NodeDefinition{},
 	}
@@ -548,7 +548,7 @@ func TestTreeProviderAdapterHelpers(t *testing.T) {
 	cfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name: "test",
-			ReposDir: "repos",
+			ReposDir: config.GetDefaultNodesDir(),
 		},
 		Nodes: []config.NodeDefinition{},
 	}

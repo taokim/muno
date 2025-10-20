@@ -16,7 +16,9 @@ func TestEmbeddedDefaults(t *testing.T) {
 	
 	assert.NotNil(t, defaults)
 	assert.Equal(t, "muno-workspace", defaults.Workspace.Name)
-	assert.Equal(t, "repos", defaults.Workspace.ReposDir)
+	// Get the actual default nodes directory  
+	expectedReposDir := GetDefaultNodesDir()
+	assert.Equal(t, expectedReposDir, defaults.Workspace.ReposDir)
 	
 	// Test eager patterns
 	patterns := GetEagerLoadPatterns()
@@ -58,14 +60,14 @@ func TestConfigurationOverride(t *testing.T) {
 			name: "empty config uses defaults",
 			configContent: ``,
 			expectedName:  "muno-workspace",
-			expectedRepos: "repos",
+			expectedRepos: GetDefaultNodesDir(),
 		},
 		{
 			name: "partial override - name only",
 			configContent: `workspace:
   name: my-project`,
 			expectedName:  "my-project",
-			expectedRepos: "repos", // should use default
+			expectedRepos: GetDefaultNodesDir(), // should use default
 		},
 		{
 			name: "partial override - repos_dir only",
@@ -114,7 +116,7 @@ func TestMergeWithDefaults(t *testing.T) {
 			expected: &ConfigTree{
 				Workspace: WorkspaceTree{
 					Name:     "muno-workspace",
-					ReposDir: "repos",
+					ReposDir: GetDefaultNodesDir(),
 				},
 			},
 		},
@@ -124,7 +126,7 @@ func TestMergeWithDefaults(t *testing.T) {
 			expected: &ConfigTree{
 				Workspace: WorkspaceTree{
 					Name:     "muno-workspace",
-					ReposDir: "repos",
+					ReposDir: GetDefaultNodesDir(),
 				},
 			},
 		},
@@ -138,7 +140,7 @@ func TestMergeWithDefaults(t *testing.T) {
 			expected: &ConfigTree{
 				Workspace: WorkspaceTree{
 					Name:     "my-project",
-					ReposDir: "repos",
+					ReposDir: GetDefaultNodesDir(),
 				},
 			},
 		},
@@ -147,13 +149,13 @@ func TestMergeWithDefaults(t *testing.T) {
 			input: &ConfigTree{
 				Workspace: WorkspaceTree{
 					Name:     "custom",
-					ReposDir: "repos",
+					ReposDir: GetDefaultNodesDir(),
 				},
 			},
 			expected: &ConfigTree{
 				Workspace: WorkspaceTree{
 					Name:     "custom",
-					ReposDir: "repos",
+					ReposDir: GetDefaultNodesDir(),
 				},
 			},
 		},
