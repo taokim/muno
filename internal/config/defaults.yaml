@@ -4,8 +4,8 @@
 workspace:
   # Default workspace name when not specified
   name: "muno-workspace"
-  # Default directory name for repositories
-  repos_dir: "repos"
+  # Default directory name for all nodes (repositories and config nodes)
+  repos_dir: "nodes"
   # Root repository URL (if the workspace root itself is a git repo)
   root_repo: ""
 
