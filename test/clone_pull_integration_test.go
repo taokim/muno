@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/taokim/muno/internal/config"
 )
 
 // TestClonePullIntegration tests the separation of clone and pull commands
@@ -23,8 +24,10 @@ func TestClonePullIntegration(t *testing.T) {
 	binary := buildBinary(t, tmpDir)
 
 	// Create test repositories
-	repo1Dir := filepath.Join(tmpDir, "repos", "repo1")
-	repo2Dir := filepath.Join(tmpDir, "repos", "repo2")
+	// Get the actual nodes directory from config
+	nodesDir := config.GetDefaultNodesDir()
+	repo1Dir := filepath.Join(tmpDir, nodesDir, "repo1")
+	repo2Dir := filepath.Join(tmpDir, nodesDir, "repo2")
 	
 	// Setup repo1 (non-lazy by naming it "monorepo")
 	require.NoError(t, os.MkdirAll(repo1Dir, 0755))
@@ -85,10 +88,12 @@ func TestClonePullIntegration(t *testing.T) {
 		require.NoError(t, err, "Clone failed: %s", string(output))
 		
 		// Check that non-lazy repo is cloned
-		assert.DirExists(t, filepath.Join(workspaceDir, "repos", "test-monorepo", ".git"))
+		// Get the actual nodes directory from config
+		nodesDir := config.GetDefaultNodesDir()
+		assert.DirExists(t, filepath.Join(workspaceDir, nodesDir, "test-monorepo", ".git"))
 		
 		// Check that lazy repo is NOT cloned
-		assert.NoDirExists(t, filepath.Join(workspaceDir, "repos", "service", ".git"))
+		assert.NoDirExists(t, filepath.Join(workspaceDir, nodesDir, "service", ".git"))
 	})
 
 	t.Run("CloneWithIncludeLazy", func(t *testing.T) {
@@ -100,15 +105,15 @@ func TestClonePullIntegration(t *testing.T) {
 		require.NoError(t, err, "Clone --include-lazy failed: %s", string(output))
 		
 		// Now lazy repo should be cloned
-		assert.DirExists(t, filepath.Join(workspaceDir, "repos", "service", ".git"))
+		assert.DirExists(t, filepath.Join(workspaceDir, nodesDir, "service", ".git"))
 	})
 
 	t.Run("PullDoesNotCloneNew", func(t *testing.T) {
 		// Remove the lazy repo to simulate it not being cloned
-		os.RemoveAll(filepath.Join(workspaceDir, "repos", "service"))
+		os.RemoveAll(filepath.Join(workspaceDir, nodesDir, "service"))
 		
 		// Create repo3 (another lazy repo)
-		repo3Dir := filepath.Join(tmpDir, "repos", "repo3")
+		repo3Dir := filepath.Join(tmpDir, nodesDir, "repo3")
 		require.NoError(t, os.MkdirAll(repo3Dir, 0755))
 		cmd = exec.Command("git", "init")
 		cmd.Dir = repo3Dir
@@ -135,7 +140,7 @@ func TestClonePullIntegration(t *testing.T) {
 		// Pull might fail because repos aren't proper remotes, but shouldn't crash
 		
 		// Verify lazy repos are still not cloned
-		assert.NoDirExists(t, filepath.Join(workspaceDir, "repos", "service", ".git"))
-		assert.NoDirExists(t, filepath.Join(workspaceDir, "repos", "repo3", ".git"))
+		assert.NoDirExists(t, filepath.Join(workspaceDir, nodesDir, "service", ".git"))
+		assert.NoDirExists(t, filepath.Join(workspaceDir, nodesDir, "repo3", ".git"))
 	})
 }

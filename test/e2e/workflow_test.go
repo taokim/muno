@@ -30,7 +30,7 @@ func TestCompleteWorkflow(t *testing.T) {
 		cfg := &config.ConfigTree{
 			Workspace: config.WorkspaceTree{
 				Name:     "test-workspace",
-				ReposDir: "repos",
+				ReposDir: config.GetDefaultNodesDir(),
 			},
 			Nodes: []config.NodeDefinition{},
 		}
