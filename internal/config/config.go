@@ -32,9 +32,10 @@ type Config struct {
 
 // Defaults contains default settings for repositories
 type Defaults struct {
-	Lazy         bool   `yaml:"lazy,omitempty"`          // Default: true (lazy load by default)
-	LazyPattern  string `yaml:"lazy_pattern,omitempty"`  // Regex for repos to lazy-load
-	EagerPattern string `yaml:"eager_pattern,omitempty"` // Regex for repos to eager-load (meta-repos)
+	Lazy          bool   `yaml:"lazy,omitempty"`          // Default: true (lazy load by default)
+	LazyPattern   string `yaml:"lazy_pattern,omitempty"`  // Regex for repos to lazy-load
+	EagerPattern  string `yaml:"eager_pattern,omitempty"` // Regex for repos to eager-load (meta-repos)
+	SSHPreference bool   `yaml:"ssh_preference,omitempty"` // Default: true (prefer SSH over HTTPS for GitHub)
 }
 
 // Repository represents a simplified repository definition
@@ -63,8 +64,9 @@ type Scope struct {
 // DefaultDefaults returns the default configuration for repository loading
 func DefaultDefaults() Defaults {
 	return Defaults{
-		Lazy:         true,                            // Everything lazy by default
-		EagerPattern: DefaultMetaRepoPattern,          // Meta-repos fetched eagerly
+		Lazy:          true,                            // Everything lazy by default
+		EagerPattern:  DefaultMetaRepoPattern,          // Meta-repos fetched eagerly
+		SSHPreference: true,                            // Prefer SSH over HTTPS for GitHub
 	}
 }
 

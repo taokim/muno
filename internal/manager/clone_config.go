@@ -48,7 +48,10 @@ func (m *Manager) visitNodeForClone(node interfaces.NodeInfo, recursive bool, in
 		}
 		
 		m.logProvider.Info(fmt.Sprintf("Cloning repository %s from %s", node.Name, node.Repository))
-		if err := m.gitProvider.Clone(node.Repository, nodeFsPath, interfaces.CloneOptions{}); err != nil {
+		cloneOptions := interfaces.CloneOptions{
+			SSHPreference: m.getSSHPreference(),
+		}
+		if err := m.gitProvider.Clone(node.Repository, nodeFsPath, cloneOptions); err != nil {
 			m.logProvider.Warn(fmt.Sprintf("Failed to clone %s: %v", node.Name, err))
 			return nil
 		}

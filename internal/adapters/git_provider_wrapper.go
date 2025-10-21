@@ -3,25 +3,28 @@ package adapters
 import (
 	"strings"
 	
+	"github.com/taokim/muno/internal/git"
 	"github.com/taokim/muno/internal/interfaces"
 )
 
 // GitProviderWrapper wraps RealGit to implement GitProvider interface
 type GitProviderWrapper struct {
 	*RealGit
+	simpleGit *git.Git // SSH-aware git implementation
 }
 
 // NewGitProvider creates a new GitProvider
 func NewGitProvider() interfaces.GitProvider {
 	return &GitProviderWrapper{
-		RealGit: NewRealGit(),
+		RealGit:   NewRealGit(),
+		simpleGit: git.New(),
 	}
 }
 
 // Clone implements GitProvider.Clone
 func (g *GitProviderWrapper) Clone(url, path string, options interfaces.CloneOptions) error {
-	// Call the underlying RealGit.Clone which has a simpler signature
-	return g.RealGit.Clone(url, path)
+	// Use SSH-aware clone method with SSH preference from options
+	return g.simpleGit.CloneWithSSHPreference(url, path, options.SSHPreference)
 }
 
 // Pull implements GitProvider.Pull

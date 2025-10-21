@@ -41,10 +41,11 @@ type GitProvider interface {
 
 // CloneOptions for git clone operations
 type CloneOptions struct {
-	Branch    string
-	Depth     int
-	Recursive bool
-	Quiet     bool
+	Branch        string
+	Depth         int
+	Recursive     bool
+	Quiet         bool
+	SSHPreference bool // Whether to prefer SSH over HTTPS for GitHub repos
 }
 
 // PullOptions for git pull operations

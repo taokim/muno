@@ -16,6 +16,64 @@ func New() *Git {
 
 // Clone clones a repository
 func (g *Git) Clone(url, path string) error {
+	return g.CloneWithSSHPreference(url, path, true) // Default to SSH preference enabled
+}
+
+// CloneWithSSHPreference clones a repository with SSH preference support
+func (g *Git) CloneWithSSHPreference(url, path string, sshPreference bool) error {
+	originalURL := url
+	
+	// Check if repository already exists
+	if isRepositoryAlreadyCloned(path) {
+		fmt.Printf("ℹ️  Repository already exists at %s, skipping clone\n", path)
+		return nil
+	}
+	
+	// If SSH preference is enabled and this is a GitHub HTTPS URL, try SSH first
+	if sshPreference {
+		if sshURL, isGitHub := GitHubHTTPSToSSH(url); isGitHub {
+			fmt.Printf("🔑 Trying SSH clone: %s\n", sshURL)
+			err := g.cloneWithURL(sshURL, path)
+			if err == nil {
+				fmt.Printf("✅ SSH clone successful\n")
+				return nil
+			}
+			
+			// Log the SSH failure reason
+			fmt.Printf("❌ SSH clone failed: %v\n", err)
+			
+			// Check if this is a recoverable SSH error that should trigger fallback
+			if shouldFallbackToHTTPS(err) {
+				if IsSSHAuthError(err) {
+					fmt.Printf("🔄 SSH authentication failed, falling back to HTTPS: %s\n", originalURL)
+				} else {
+					fmt.Printf("🔄 SSH connection failed, falling back to HTTPS: %s\n", originalURL)
+				}
+				
+				// Attempt HTTPS fallback
+				fmt.Printf("🌐 Trying HTTPS clone: %s\n", originalURL)
+				fallbackErr := g.cloneWithURL(originalURL, path)
+				if fallbackErr == nil {
+					fmt.Printf("✅ HTTPS clone successful\n")
+					return nil
+				}
+				
+				fmt.Printf("❌ HTTPS clone also failed: %v\n", fallbackErr)
+				return fallbackErr
+			} else {
+				// Non-recoverable error (e.g., repository doesn't exist, already exists, etc.)
+				return err
+			}
+		}
+	}
+	
+	// Default: clone with original URL (non-GitHub or SSH disabled)
+	fmt.Printf("🌐 Cloning with original URL: %s\n", originalURL)
+	return g.cloneWithURL(originalURL, path)
+}
+
+// cloneWithURL performs the actual clone operation
+func (g *Git) cloneWithURL(url, path string) error {
 	cmd := exec.Command("git", "clone", url, path)
 	output, err := cmd.CombinedOutput()
 	if err != nil {

@@ -325,7 +325,8 @@ func (m *Manager) Add(ctx context.Context, repoURL string, options AddOptions) e
 		progress.Start()
 		
 		if err := m.gitProvider.Clone(repoURL, repoPath, interfaces.CloneOptions{
-			Recursive: options.Recursive,
+			Recursive:     options.Recursive,
+			SSHPreference: m.getSSHPreference(),
 		}); err != nil {
 			progress.Error(err)
 			return fmt.Errorf("failed to clone: %w", err)
@@ -551,6 +552,15 @@ func (m *Manager) saveConfig() error {
 	return m.configProvider.Save(configPath, m.config)
 }
 
+// getSSHPreference returns the SSH preference setting from configuration
+func (m *Manager) getSSHPreference() bool {
+	if m.config != nil {
+		return m.config.Defaults.SSHPreference
+	}
+	// Default to true if config is not available
+	return true
+}
+
 // Close performs cleanup
 func (m *Manager) Close() error {
 	// Check if logProvider exists before using it
@@ -669,8 +679,9 @@ func (m *Manager) ResolvePath(target string, ensure bool) (string, error) {
 							clonePath := m.computeFilesystemPath(repo.Path)
 							if _, err := os.Stat(clonePath); os.IsNotExist(err) {
 								opts := interfaces.CloneOptions{
-									Recursive: false,
-									Quiet:     false,
+									Recursive:     false,
+									Quiet:         false,
+									SSHPreference: m.getSSHPreference(),
 								}
 								if err := m.gitProvider.Clone(repo.Repository, clonePath, opts); err != nil {
 									m.logProvider.Warn(fmt.Sprintf("Failed to clone %s: %v", repo.Name, err))
@@ -695,8 +706,9 @@ func (m *Manager) ResolvePath(target string, ensure bool) (string, error) {
 					clonePath := m.computeFilesystemPath(repo.Path)
 					if _, err := os.Stat(clonePath); os.IsNotExist(err) {
 						opts := interfaces.CloneOptions{
-							Recursive: false,
-							Quiet:     false,
+							Recursive:     false,
+							Quiet:         false,
+							SSHPreference: m.getSSHPreference(),
 						}
 						if err := m.gitProvider.Clone(repo.Repository, clonePath, opts); err != nil {
 							m.logProvider.Warn(fmt.Sprintf("Failed to clone %s: %v", repo.Name, err))
@@ -709,8 +721,9 @@ func (m *Manager) ResolvePath(target string, ensure bool) (string, error) {
 				if _, err := os.Stat(physPath); os.IsNotExist(err) {
 					// Clone options
 					opts := interfaces.CloneOptions{
-						Recursive: false,
-						Quiet:     false,
+						Recursive:     false,
+						Quiet:         false,
+						SSHPreference: m.getSSHPreference(),
 					}
 					if err := m.gitProvider.Clone(node.Repository, physPath, opts); err != nil {
 						return "", fmt.Errorf("cloning lazy repository: %w", err)
@@ -1883,7 +1896,10 @@ func (m *Manager) pullRecursiveWithOptions(node interfaces.NodeInfo, force bool,
 		m.uiProvider.Info(fmt.Sprintf("   URL: %s", node.Repository))
 		
 		// Clone the repository
-		if err := m.gitProvider.Clone(node.Repository, fullPath, interfaces.CloneOptions{}); err != nil {
+		cloneOptions := interfaces.CloneOptions{
+			SSHPreference: m.getSSHPreference(),
+		}
+		if err := m.gitProvider.Clone(node.Repository, fullPath, cloneOptions); err != nil {
 			m.uiProvider.Error(fmt.Sprintf("   ❌ Clone failed: %v", err))
 			return fmt.Errorf("cloning %s: %w", node.Name, err)
 		}

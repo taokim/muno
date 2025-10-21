@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -294,7 +295,7 @@ func (n *FilesystemNavigator) TriggerLazyLoad(nodePath string) error {
 		return fmt.Errorf("git command not configured")
 	}
 	fmt.Printf("Cloning %s to %s\n", node.URL, fsPath)
-	if err := n.gitCmd.Clone(node.URL, fsPath); err != nil {
+	if err := n.cloneWithSSHPreference(node.URL, fsPath); err != nil {
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}
 
@@ -540,4 +541,164 @@ func (n *FilesystemNavigator) saveCurrentPath() error {
 	}
 
 	return os.WriteFile(n.currentFile, []byte(n.currentPath), 0644)
+}
+
+// cloneWithSSHPreference clones a repository using SSH preference from config
+func (n *FilesystemNavigator) cloneWithSSHPreference(url, path string) error {
+	// Check if repository already exists
+	if n.isRepositoryAlreadyCloned(path) {
+		fmt.Printf("ℹ️  Repository already exists at %s, skipping clone\n", path)
+		return nil
+	}
+	
+	// Get SSH preference from config defaults
+	sshPreference := n.config.Defaults.SSHPreference
+	
+	// If SSH preference is disabled, use regular clone
+	if !sshPreference {
+		fmt.Printf("🌐 SSH preference disabled, cloning with original URL: %s\n", url)
+		return n.gitCmd.Clone(url, path)
+	}
+	
+	// If SSH preference is enabled and this is a GitHub HTTPS URL, try SSH first
+	if sshURL, isGitHub := gitHubHTTPSToSSH(url); isGitHub {
+		fmt.Printf("🔑 Trying SSH clone: %s\n", sshURL)
+		err := n.gitCmd.Clone(sshURL, path)
+		if err == nil {
+			fmt.Printf("✅ SSH clone successful\n")
+			return nil
+		}
+		
+		// Log the SSH failure reason
+		fmt.Printf("❌ SSH clone failed: %v\n", err)
+		
+		// Check if this is a recoverable SSH error that should trigger fallback
+		if n.shouldFallbackToHTTPS(err) {
+			if isSSHAuthError(err) {
+				fmt.Printf("🔄 SSH authentication failed, falling back to HTTPS: %s\n", url)
+			} else {
+				fmt.Printf("🔄 SSH connection failed, falling back to HTTPS: %s\n", url)
+			}
+			
+			// Attempt HTTPS fallback
+			fmt.Printf("🌐 Trying HTTPS clone: %s\n", url)
+			fallbackErr := n.gitCmd.Clone(url, path)
+			if fallbackErr == nil {
+				fmt.Printf("✅ HTTPS clone successful\n")
+				return nil
+			}
+			
+			fmt.Printf("❌ HTTPS clone also failed: %v\n", fallbackErr)
+			return fallbackErr
+		} else {
+			// Non-recoverable error (e.g., repository doesn't exist, already exists, etc.)
+			return err
+		}
+	}
+	
+	// Default: clone with original URL (non-GitHub)
+	fmt.Printf("🌐 Non-GitHub URL, cloning with original URL: %s\n", url)
+	return n.gitCmd.Clone(url, path)
+}
+
+// gitHubHTTPSToSSH converts GitHub HTTPS URLs to SSH format
+func gitHubHTTPSToSSH(url string) (string, bool) {
+	// Pattern to match GitHub HTTPS URLs
+	httpsPattern := regexp.MustCompile(`^https://github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$`)
+	matches := httpsPattern.FindStringSubmatch(url)
+	
+	if len(matches) != 3 {
+		return url, false // Not a GitHub HTTPS URL
+	}
+	
+	user := matches[1]
+	repo := matches[2]
+	
+	// Remove .git suffix from repo if present to avoid double .git
+	repo = strings.TrimSuffix(repo, ".git")
+	
+	// Convert to SSH format
+	sshURL := fmt.Sprintf("git@github.com:%s/%s.git", user, repo)
+	return sshURL, true
+}
+
+// isRepositoryAlreadyCloned checks if a repository is already cloned at the given path
+func (n *FilesystemNavigator) isRepositoryAlreadyCloned(path string) bool {
+	// Check if .git directory exists
+	gitPath := filepath.Join(path, ".git")
+	if info, err := os.Stat(gitPath); err == nil {
+		return info.IsDir()
+	}
+	return false
+}
+
+// shouldFallbackToHTTPS determines if an SSH clone error should trigger HTTPS fallback
+func (n *FilesystemNavigator) shouldFallbackToHTTPS(err error) bool {
+	if err == nil {
+		return false
+	}
+	
+	errStr := err.Error()
+	
+	// Don't fallback for these cases - they indicate fundamental issues
+	nonFallbackErrors := []string{
+		"destination path", // destination path already exists
+		"already exists",   // destination already exists
+		"not empty",        // directory not empty
+		"does not exist",   // repository does not exist (should fail on HTTPS too)
+		"not found",        // repository not found (should fail on HTTPS too)
+	}
+	
+	for _, nonFallback := range nonFallbackErrors {
+		if strings.Contains(strings.ToLower(errStr), nonFallback) {
+			return false
+		}
+	}
+	
+	// Fallback for these SSH-specific issues
+	fallbackErrors := []string{
+		"Permission denied (publickey)",
+		"Host key verification failed",
+		"ssh: connect to host",
+		"git@github.com: Permission denied",
+		"fatal: Could not read from remote repository",
+		"fatal: The remote end hung up unexpectedly",
+		"Connection refused",
+		"ssh_exchange_identification",
+		"No route to host",
+	}
+	
+	for _, fallbackErr := range fallbackErrors {
+		if strings.Contains(errStr, fallbackErr) {
+			return true
+		}
+	}
+	
+	// Default: don't fallback for unknown errors
+	return false
+}
+
+// isSSHAuthError checks if an error is related to SSH authentication
+func isSSHAuthError(err error) bool {
+	if err == nil {
+		return false
+	}
+	
+	errStr := err.Error()
+	sshErrors := []string{
+		"Permission denied (publickey)",
+		"Host key verification failed",
+		"ssh: connect to host github.com port 22:",
+		"git@github.com: Permission denied",
+		"fatal: Could not read from remote repository",
+		"fatal: The remote end hung up unexpectedly",
+	}
+	
+	for _, sshErr := range sshErrors {
+		if strings.Contains(errStr, sshErr) {
+			return true
+		}
+	}
+	
+	return false
 }

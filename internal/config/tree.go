@@ -18,12 +18,18 @@ const (
 
 // ConfigTree represents the tree-based configuration
 type ConfigTree struct {
-	Workspace WorkspaceTree          `yaml:"workspace"`
-	Nodes     []NodeDefinition       `yaml:"nodes"`  // Flat list of direct children only
-	Overrides map[string]interface{} `yaml:"overrides,omitempty"` // Workspace-level config overrides
+	Workspace     WorkspaceTree          `yaml:"workspace"`
+	Nodes         []NodeDefinition       `yaml:"nodes"`  // Flat list of direct children only
+	Defaults      TreeDefaults           `yaml:"defaults,omitempty"` // Default settings for repositories
+	Overrides     map[string]interface{} `yaml:"overrides,omitempty"` // Workspace-level config overrides
 	
 	// Runtime fields (not in YAML)
 	Path string `yaml:"-"`  // Path to this config file
+}
+
+// TreeDefaults contains default settings for tree-based configuration
+type TreeDefaults struct {
+	SSHPreference bool `yaml:"ssh_preference,omitempty"` // Default: true (prefer SSH over HTTPS for GitHub)
 }
 
 // WorkspaceTree represents workspace configuration for v3
@@ -145,6 +151,9 @@ func DefaultConfigTree(projectName string) *ConfigTree {
 			Name:     projectName,
 			RootRepo: defaults.Workspace.RootRepo,
 			ReposDir: defaults.Workspace.ReposDir,
+		},
+		Defaults: TreeDefaults{
+			SSHPreference: true, // Enable SSH preference by default
 		},
 		Nodes: []NodeDefinition{}, // Empty nodes list
 	}

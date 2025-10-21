@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 )
@@ -514,4 +515,127 @@ func (m *Manager) GetRepositories() []Repository {
 	repos := make([]Repository, len(m.Repositories))
 	copy(repos, m.Repositories)
 	return repos
+}
+
+// GitHubHTTPSToSSH converts GitHub HTTPS URLs to SSH format
+func GitHubHTTPSToSSH(url string) (string, bool) {
+	// Pattern to match GitHub HTTPS URLs
+	httpsPattern := regexp.MustCompile(`^https://github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$`)
+	matches := httpsPattern.FindStringSubmatch(url)
+	
+	if len(matches) != 3 {
+		return url, false // Not a GitHub HTTPS URL
+	}
+	
+	user := matches[1]
+	repo := matches[2]
+	
+	// Remove .git suffix from repo if present to avoid double .git
+	repo = strings.TrimSuffix(repo, ".git")
+	
+	// Convert to SSH format
+	sshURL := fmt.Sprintf("git@github.com:%s/%s.git", user, repo)
+	return sshURL, true
+}
+
+// GitHubSSHToHTTPS converts GitHub SSH URLs to HTTPS format  
+func GitHubSSHToHTTPS(url string) (string, bool) {
+	// Pattern to match GitHub SSH URLs
+	sshPattern := regexp.MustCompile(`^git@github\.com:([^/]+)/([^/]+?)(?:\.git)?/?$`)
+	matches := sshPattern.FindStringSubmatch(url)
+	
+	if len(matches) != 3 {
+		return url, false // Not a GitHub SSH URL
+	}
+	
+	user := matches[1]
+	repo := matches[2]
+	
+	// Remove .git suffix from repo if present to avoid double .git
+	repo = strings.TrimSuffix(repo, ".git")
+	
+	// Convert to HTTPS format
+	httpsURL := fmt.Sprintf("https://github.com/%s/%s.git", user, repo)
+	return httpsURL, true
+}
+
+// IsSSHAuthError checks if an error is related to SSH authentication
+func IsSSHAuthError(err error) bool {
+	if err == nil {
+		return false
+	}
+	
+	errStr := err.Error()
+	sshErrors := []string{
+		"Permission denied (publickey)",
+		"Host key verification failed",
+		"ssh: connect to host github.com port 22:",
+		"git@github.com: Permission denied",
+		"fatal: Could not read from remote repository",
+		"fatal: The remote end hung up unexpectedly",
+	}
+	
+	for _, sshErr := range sshErrors {
+		if strings.Contains(errStr, sshErr) {
+			return true
+		}
+	}
+	
+	return false
+}
+
+// isRepositoryAlreadyCloned checks if a repository is already cloned at the given path
+func isRepositoryAlreadyCloned(path string) bool {
+	// Check if .git directory exists
+	gitPath := filepath.Join(path, ".git")
+	if info, err := os.Stat(gitPath); err == nil {
+		return info.IsDir()
+	}
+	return false
+}
+
+// shouldFallbackToHTTPS determines if an SSH clone error should trigger HTTPS fallback
+func shouldFallbackToHTTPS(err error) bool {
+	if err == nil {
+		return false
+	}
+	
+	errStr := err.Error()
+	
+	// Don't fallback for these cases - they indicate fundamental issues
+	nonFallbackErrors := []string{
+		"destination path", // destination path already exists
+		"already exists",   // destination already exists
+		"not empty",        // directory not empty
+		"does not exist",   // repository does not exist (should fail on HTTPS too)
+		"not found",        // repository not found (should fail on HTTPS too)
+	}
+	
+	for _, nonFallback := range nonFallbackErrors {
+		if strings.Contains(strings.ToLower(errStr), nonFallback) {
+			return false
+		}
+	}
+	
+	// Fallback for these SSH-specific issues
+	fallbackErrors := []string{
+		"Permission denied (publickey)",
+		"Host key verification failed",
+		"ssh: connect to host",
+		"git@github.com: Permission denied",
+		"fatal: Could not read from remote repository",
+		"fatal: The remote end hung up unexpectedly",
+		"Connection refused",
+		"ssh_exchange_identification",
+		"No route to host",
+	}
+	
+	for _, fallbackErr := range fallbackErrors {
+		if strings.Contains(errStr, fallbackErr) {
+			return true
+		}
+	}
+	
+	// Default: don't fallback for unknown errors
+	return false
 }

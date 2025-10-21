@@ -179,7 +179,7 @@ func (m *Manager) AddRepo(parentPath, name, url string, lazy bool) error {
 		targetPath := path.Join(parentPath, name)
 		fsPath := m.ComputeFilesystemPath(targetPath)
 		fmt.Printf("Cloning %s to %s\n", url, fsPath)
-		if err := m.gitCmd.Clone(url, fsPath); err != nil {
+		if err := m.cloneWithSSHPreference(url, fsPath); err != nil {
 			return fmt.Errorf("cloning: %w", err)
 		}
 	}
@@ -422,7 +422,7 @@ func (m *Manager) CloneLazyRepos(targetPath string, recursive bool) error {
 			// Check if needs cloning
 			if _, err := os.Stat(filepath.Join(fsPath, ".git")); os.IsNotExist(err) {
 				fmt.Printf("Cloning %s to %s\n", node.URL, fsPath)
-				if err := m.gitCmd.Clone(node.URL, fsPath); err != nil {
+				if err := m.cloneWithSSHPreference(node.URL, fsPath); err != nil {
 					return fmt.Errorf("cloning %s: %w", node.Name, err)
 				}
 			}
@@ -435,6 +435,20 @@ func (m *Manager) CloneLazyRepos(targetPath string, recursive bool) error {
 	}
 	
 	return nil
+}
+
+// cloneWithSSHPreference clones a repository using SSH preference from config
+func (m *Manager) cloneWithSSHPreference(url, path string) error {
+	// Get SSH preference from config defaults
+	sshPreference := m.config.Defaults.SSHPreference
+	
+	// Use the Git interface with SSH preference support
+	if gitWithSSH, ok := m.gitCmd.(*git.Git); ok {
+		return gitWithSSH.CloneWithSSHPreference(url, path, sshPreference)
+	}
+	
+	// Fallback to regular clone if not the standard Git implementation
+	return m.gitCmd.Clone(url, path)
 }
 
 // The display methods are implemented in display.go
