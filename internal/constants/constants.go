@@ -3,7 +3,7 @@ package constants
 // Default configuration values
 const (
 	// DefaultReposDir is the default directory name for repositories
-	DefaultReposDir = "nodes"
+	DefaultReposDir = ".nodes"
 
 	// DefaultWorkspaceName is the default name when workspace name is not specified
 	DefaultWorkspaceName = "muno-workspace"

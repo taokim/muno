@@ -243,8 +243,8 @@ func TestGetNodeStateless(t *testing.T) {
 	node = mgr.GetNode("/config-ref")
 	assert.NotNil(t, node)
 	assert.Equal(t, "config-ref", node.Name)
-	// Config refs are treated as repos in the tree
-	assert.Equal(t, NodeTypeRepo, node.Type)
+	// Config refs have their own type now
+	assert.Equal(t, NodeTypeFile, node.Type)
 	
 	// Test non-existent node
 	node = mgr.GetNode("/nonexistent")
