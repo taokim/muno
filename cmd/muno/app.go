@@ -67,7 +67,7 @@ func getDocumentationURLs() string {
 	
 	return fmt.Sprintf(`Documentation:
 - Web: https://%s.github.io/%s/
-- AI Agents: https://%s.github.io/%s/AI_AGENT_GUIDE (READ THIS!)
+- User Guide: https://%s.github.io/%s/guide
 - Raw docs: https://raw.githubusercontent.com/%s/%s/main/docs/`,
 		owner, repo, owner, repo, owner, repo)
 }

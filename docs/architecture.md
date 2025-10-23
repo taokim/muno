@@ -92,7 +92,7 @@ muno add <url> → Create Node → Update Parent → Clone/Mark Lazy → Save St
 
 ### Navigation
 ```
-muno use <path> → Resolve Path → Change Position → Auto-Clone Lazy → Update CWD
+cd <path> → Standard filesystem navigation → Access repository directly
 ```
 
 ### Operations

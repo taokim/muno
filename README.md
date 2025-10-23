@@ -48,7 +48,7 @@ MUNO was inspired by [Google's Repo tool](https://gerrit.googlesource.com/git-re
 
 - **Tree Structure**: While Repo manages flat repository collections, MUNO enables true hierarchical organization with parent-child relationships
 - **Parent Documentation**: Repo lacks the ability to document and manage parent nodes - MUNO treats every node as a first-class citizen
-- **Intuitive Navigation**: Navigate your repository tree like a filesystem with `muno use`, unlike Repo's manifest-centric approach
+- **Intuitive Navigation**: Build and navigate your repository tree structure, unlike Repo's manifest-centric approach
 - **Flexible Organization**: Build custom tree structures that match your team's mental model, not forced into flat layouts
 
 ## Key Innovation: Tree-Based Navigation
@@ -78,9 +78,8 @@ muno tree                    # Shows tree from current position
 ### 💤 **Smart Lazy Loading**
 Repositories clone on-demand:
 ```bash
-muno use team-backend        # Auto-clones lazy repos
-muno use --no-clone frontend # Navigate without cloning
-muno clone --recursive       # Manual clone when needed
+cd nodes/team-backend        # Navigate to team directory
+muno clone --recursive       # Clone lazy repositories when needed
 ```
 
 ## Core Features
@@ -377,7 +376,7 @@ muno api visualize             # Visualize API dependencies
 
 ## Documentation
 
-- [AI Agent Guide](docs/AI_AGENT_GUIDE.md) - Comprehensive guide for AI agents to organize repositories
+- [User Guide](docs/GUIDE.md) - Comprehensive guide for using MUNO effectively
 - [CLAUDE.md](CLAUDE.md) - Instructions for Claude Code integration
 - [Examples](examples/) - Sample configurations and use cases
 

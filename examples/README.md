@@ -112,13 +112,13 @@ muno pull team-backend --recursive
 muno status --recursive
 ```
 
-## For AI Agents
+## Additional Resources
 
-See [AI Agent Guide](../docs/AI_AGENT_GUIDE.md) for comprehensive instructions on:
+See [User Guide](../docs/GUIDE.md) for comprehensive instructions on:
 - Analyzing existing repository structures
 - Migrating from other tools (Google Repo, etc.)
 - Organizing large collections of repositories
-- Generating migration scripts
+- Best practices for repository management
 
 ## Tips
 

@@ -7,21 +7,21 @@ description: Complete documentation for MUNO - Multi-repository UNified Orchestr
 
 Welcome to the MUNO documentation hub. Find everything you need to manage multiple repositories with monorepo-like convenience.
 
-## 🤖 For AI Agents
+## 📖 Complete User Guide
 
-### **⚠️ If you are an AI Agent, READ THIS FIRST** 
-**→ [AI Agent Guide](AI_AGENT_GUIDE.md)** - Essential guide for Claude, Gemini, Cursor, and other AI agents to effectively organize repositories using MUNO
+### **[MUNO User Guide](GUIDE.md)**
+Comprehensive guide for effectively using MUNO for multi-repository management.
 
-This comprehensive guide teaches AI agents how to:
-- Analyze existing repository structures
-- Recommend optimal organization strategies
-- Generate migration scripts
-- Execute repository reorganization
-- Validate successful migrations
+This guide covers:
+- Repository organization strategies (team-based, service-type, domain-based)
+- Migration scenarios from Google Repo, flat structures, and monorepos
+- Common workflows and best practices
+- Essential commands and configuration examples
+- Troubleshooting and validation
 
-**Direct URL for agents to fetch**: 
-- HTML: `{{ site.url }}{{ site.baseurl }}/AI_AGENT_GUIDE`
-- Raw Markdown: `https://raw.githubusercontent.com/{{ site.github.owner_name }}/{{ site.github.repository_name }}/main/docs/AI_AGENT_GUIDE.md`
+**Direct URLs**: 
+- Web: `https://taokim.github.io/muno/guide`
+- Raw: `https://raw.githubusercontent.com/taokim/muno/main/docs/GUIDE.md`
 
 ---
 
@@ -52,21 +52,21 @@ This comprehensive guide teaches AI agents how to:
 
 ### For Repository Migration
 **If you need to migrate from another tool:**
-- From Google Repo → See [AI Agent Guide - Migration Scenarios](AI_AGENT_GUIDE.md#migration-scenarios)
-- From flat repository structure → See [Scenario 4](AI_AGENT_GUIDE.md#scenario-4-migrating-from-flat-structure)
-- From monorepo → See [Scenario 3](AI_AGENT_GUIDE.md#scenario-3-splitting-a-monorepo)
+- From Google Repo → See [User Guide - Migration Scenarios](GUIDE.md#migration-scenarios)
+- From flat repository structure → See [Migration from Flat Structure](GUIDE.md#from-flat-repository-structure)
+- From monorepo → See [Splitting a Monorepo](GUIDE.md#from-monorepo)
 
 ### For Repository Organization
 **If you need to organize many repositories:**
-- 20-50 repos → [Team-based strategy](AI_AGENT_GUIDE.md#1-team-based-organization)
-- 50-100 repos → [Service-type strategy](AI_AGENT_GUIDE.md#2-service-type-organization)
-- 100+ repos → [Domain-based strategy](AI_AGENT_GUIDE.md#3-domain-based-organization)
+- 20-50 repos → [Team-based strategy](GUIDE.md#1-team-based-organization)
+- 50-100 repos → [Service-type strategy](GUIDE.md#2-service-type-organization)
+- 100+ repos → [Domain-based strategy](GUIDE.md#3-domain-based-organization)
 
-### For AI/Automation Integration
+### For Automation Integration
 **If you're building automation:**
-- Command patterns → [AI Agent Guide - Command Patterns](AI_AGENT_GUIDE.md#command-patterns)
-- Validation workflows → [AI Agent Guide - Validation](AI_AGENT_GUIDE.md#validation-and-verification)
-- Best practices → [AI Agent Guide - Best Practices](AI_AGENT_GUIDE.md#best-practices-for-ai-agents)
+- Essential commands → [User Guide - Essential Commands](GUIDE.md#essential-commands)
+- Validation workflows → [User Guide - Validation](GUIDE.md#validation-checklist)
+- Best practices → [User Guide - Best Practices](GUIDE.md#best-practices)
 
 ---
 

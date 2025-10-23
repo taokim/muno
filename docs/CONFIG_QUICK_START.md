@@ -64,8 +64,8 @@ nodes:
 ```bash
 muno init backend
 muno tree                    # View structure
-muno use auth-service        # Navigate to service
-muno pull --all              # Update all services
+cd .nodes/auth-service       # Navigate to service
+muno pull --recursive        # Update all services
 ```
 
 ### Scenario 2: Multiple Teams with Delegation
@@ -104,8 +104,8 @@ nodes:
 **Usage:**
 ```bash
 muno init company
-muno use team-backend/api    # Navigate to team's service
-muno tree                     # See full hierarchy
+cd .nodes/team-backend/.nodes/api    # Navigate to team's service
+muno tree                            # See full hierarchy
 ```
 
 ### Scenario 3: Development vs Production
@@ -210,13 +210,13 @@ muno init .
 muno tree
 
 # Navigate to node
-muno use backend/service
+cd .nodes/backend/.nodes/service
 
 # Show current location
-muno current
+pwd
 
-# Return to root
-muno use /
+# Return to workspace root
+cd ../../..
 ```
 
 ### Manage Repositories
@@ -236,11 +236,12 @@ muno clone --all
 # Pull current repository
 muno pull
 
-# Pull all repositories
-muno pull --all
+# Pull all repositories recursively
+muno pull --recursive
 
-# Pull specific path
-muno pull team-backend
+# Pull from specific directory
+cd .nodes/team-backend
+muno pull --recursive
 ```
 
 ## Configuration Tips
@@ -333,11 +334,12 @@ nodes:
 
 ### Issue: Lazy repositories not cloning
 
-Lazy repositories only clone when accessed:
+Lazy repositories only clone when explicitly requested:
 ```bash
-muno use lazy-repo  # This triggers the clone
-# OR
-muno clone --all    # Force clone all lazy repos
+cd .nodes/lazy-repo  # Navigate to lazy repo directory
+muno clone           # This triggers the clone
+# OR from workspace root:
+muno clone --recursive    # Clone all lazy repos recursively
 ```
 
 ## Next Steps

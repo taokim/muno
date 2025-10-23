@@ -122,7 +122,7 @@ You are at: /team-backend/payment-service
 - web-app (../../team-frontend/web-app)
 
 ## Navigation
-Use `muno use <path>` to navigate the tree.
+Navigate using standard filesystem commands.
 Current directory operations affect the current node.
 ```
 

@@ -94,7 +94,7 @@ When you type `muno`, you're not just running a command—you're invoking:
 
 ```bash
 # Like an octopus extending an arm
-muno use team-backend/payment-service
+cd .nodes/team-backend/.nodes/payment-service
 
 # Like coordinating all arms at once
 muno pull --recursive

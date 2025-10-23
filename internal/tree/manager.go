@@ -9,6 +9,7 @@ import (
 	
 	"github.com/taokim/muno/internal/config"
 	"github.com/taokim/muno/internal/git"
+	"gopkg.in/yaml.v3"
 )
 
 // Manager manages tree without persistent state file
@@ -80,21 +81,55 @@ func (m *Manager) ComputeFilesystemPath(logicalPath string) string {
 				return filepath.Join(m.workspacePath, reposDir, parts[0])
 			}
 			
-			// For nested repos, we need to compute the parent path and add the repo name
+			// For nested repos, we need to compute the parent path
+			// and check if parent has muno.yaml with different repos_dir
 			parentPath := "/" + strings.Join(parts[:len(parts)-1], "/")
 			parentFsPath := m.ComputeFilesystemPath(parentPath)
+			
+			// Check if parent has muno.yaml with custom repos_dir
+			parentMunoYaml := filepath.Join(parentFsPath, "muno.yaml")
+			if _, err := os.Stat(parentMunoYaml); err == nil {
+				// Parent has muno.yaml, check its repos_dir
+				childReposDir := ".nodes" // default
+				if cfg, loadErr := config.LoadTree(parentMunoYaml); loadErr == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
+					childReposDir = cfg.Workspace.ReposDir
+				}
+				return filepath.Join(parentFsPath, childReposDir, parts[len(parts)-1])
+			}
+			
 			return filepath.Join(parentFsPath, parts[len(parts)-1])
 		}
 	}
 	
-	// For config nodes and intermediate directories, use simple path structure
+	// For config nodes and intermediate directories, check if they have nested structure
 	// Split path: /level1/level2 -> [level1, level2]
 	parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
 	
-	// Build filesystem path simply by joining parts
-	pathComponents := []string{m.workspacePath, reposDir}
-	pathComponents = append(pathComponents, parts...)
-	return filepath.Join(pathComponents...)
+	// Build the path considering each parent might have its own repos_dir
+	currentPath := filepath.Join(m.workspacePath, reposDir)
+	
+	for i, part := range parts {
+		if i == 0 {
+			// First level goes directly under workspace repos dir
+			currentPath = filepath.Join(currentPath, part)
+		} else {
+			// For nested levels, check if parent has muno.yaml
+			parentMunoYaml := filepath.Join(currentPath, "muno.yaml")
+			if _, err := os.Stat(parentMunoYaml); err == nil {
+				// Parent has muno.yaml, use its repos_dir
+				childReposDir := ".nodes" // default
+				if cfg, loadErr := config.LoadTree(parentMunoYaml); loadErr == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
+					childReposDir = cfg.Workspace.ReposDir
+				}
+				currentPath = filepath.Join(currentPath, childReposDir, part)
+			} else {
+				// No muno.yaml, continue directly
+				currentPath = filepath.Join(currentPath, part)
+			}
+		}
+	}
+	
+	return currentPath
 }
 
 // GetNodeByPath finds a node by its logical path
@@ -273,6 +308,7 @@ func (m *Manager) GetNode(logicalPath string) *TreeNode {
 		logicalPath = "/"
 	}
 	
+	
 	// For root node
 	if logicalPath == "/" || logicalPath == "" {
 		rootNode := &TreeNode{
@@ -307,11 +343,51 @@ func (m *Manager) GetNode(logicalPath string) *TreeNode {
 	// Try to find it in config for URL and lazy status
 	nodeDef, err := m.GetNodeByPath(logicalPath)
 	
-	// For nested paths, GetNodeByPath returns the top-level parent
-	// We need to verify this is actually the node we're looking for
-	if nodeDef != nil && len(parts) > 1 && nodeDef.Name != nodeName {
-		nodeDef = nil // This is a parent node, not the one we want
-		err = fmt.Errorf("node not found")
+	// For nested paths, check if parent has a muno.yaml first
+	if len(parts) > 1 {
+		// This is a nested node - try to find its definition
+		// First, check if parent has a muno.yaml
+		parentPath := "/" + strings.Join(parts[:len(parts)-1], "/")
+		parentFsPath := m.ComputeFilesystemPath(parentPath)
+		munoYamlPath := filepath.Join(parentFsPath, "muno.yaml")
+		
+		if _, statErr := os.Stat(munoYamlPath); statErr == nil {
+			// Parent has muno.yaml, load it to find child definition
+			if cfg, loadErr := config.LoadTree(munoYamlPath); loadErr == nil && cfg != nil {
+				for _, child := range cfg.Nodes {
+					if child.Name == nodeName {
+						nodeDef = &child
+						err = nil
+						break
+					}
+				}
+			}
+		} else if nodeDef != nil && nodeDef.Name != nodeName {
+			// GetNodeByPath returns the top-level parent
+			// Check if parent is a config reference
+			parentDef := nodeDef
+			nodeDef = nil // Reset nodeDef for the actual node
+			
+			// If parent is a config reference, try to find the child in that config
+			if parentDef.File != "" {
+				refConfig, loadErr := m.loadExternalConfig(parentDef.File)
+				if loadErr == nil && refConfig != nil {
+					// Look for the child node in the referenced config
+					for i := range refConfig.Nodes {
+						if refConfig.Nodes[i].Name == nodeName {
+							// Found the child node definition
+							nodeDef = &refConfig.Nodes[i]
+							err = nil
+							break
+						}
+					}
+				}
+			}
+			
+			if nodeDef == nil {
+				err = fmt.Errorf("node not found")
+			}
+		}
 	}
 	
 	if err != nil && !fileExists {
@@ -350,22 +426,107 @@ func (m *Manager) GetNode(logicalPath string) *TreeNode {
 		} else {
 			node.State = RepoStateCloned  // Directory exists but no git
 		}
-		
-		// Find children by scanning the filesystem
-		if entries, err := os.ReadDir(fsPath); err == nil {
-			for _, entry := range entries {
-				if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
-					// Check if it's a repo (has .git dir)
-					childPath := filepath.Join(fsPath, entry.Name())
-					if _, err := os.Stat(filepath.Join(childPath, ".git")); err == nil {
-						node.Children = append(node.Children, entry.Name())
+	} else {
+		// Directory doesn't exist - it's a lazy repo that hasn't been cloned
+		node.State = RepoStateMissing
+	}
+	
+	// Build children list from both config and filesystem
+	childMap := make(map[string]bool)
+	
+	// First, add children from config if this is the root node
+	if logicalPath == "/" {
+		for _, configNode := range m.config.Nodes {
+			node.Children = append(node.Children, configNode.Name)
+			childMap[configNode.Name] = true
+		}
+	} else if len(parts) == 1 {
+		// For top-level nodes, check if it's a config reference in the main config
+		for _, configNode := range m.config.Nodes {
+			if configNode.Name == nodeName && configNode.File != "" {
+				// This is a config reference node, load its children
+				refConfig, err := m.loadExternalConfig(configNode.File)
+				if err == nil && refConfig != nil {
+					for _, childNode := range refConfig.Nodes {
+						if !childMap[childNode.Name] {
+							node.Children = append(node.Children, childNode.Name)
+							childMap[childNode.Name] = true
+						}
+					}
+				}
+				break
+			}
+		}
+	}
+	
+	// For config reference nodes found via GetNodeByPath, also load the referenced config
+	if nodeDef != nil && nodeDef.File != "" {
+		// Try to load the referenced config file
+		refConfig, err := m.loadExternalConfig(nodeDef.File)
+		if err == nil && refConfig != nil {
+			for _, childNode := range refConfig.Nodes {
+				if !childMap[childNode.Name] {
+					node.Children = append(node.Children, childNode.Name)
+					childMap[childNode.Name] = true
+				}
+			}
+		}
+	}
+	
+	// Then, add children from filesystem (if they're not already in the list)
+	if fileExists {
+		// Check if this node has a muno.yaml - if so, load children from it
+		munoYamlPath := filepath.Join(fsPath, "muno.yaml")
+		if _, err := os.Stat(munoYamlPath); err == nil {
+			// Load the muno.yaml to get child definitions and repos_dir
+			reposDir := ".nodes" // default
+			if cfg, err := config.LoadTree(munoYamlPath); err == nil && cfg != nil {
+				for _, childNode := range cfg.Nodes {
+					if !childMap[childNode.Name] {
+						node.Children = append(node.Children, childNode.Name)
+						childMap[childNode.Name] = true
+					}
+				}
+				
+				// Get the configured repos directory
+				if cfg.Workspace.ReposDir != "" {
+					reposDir = cfg.Workspace.ReposDir
+				}
+			}
+			
+			// Also check configured repos subdirectory for actual cloned repos
+			checkPath := filepath.Join(fsPath, reposDir)
+			if entries, err := os.ReadDir(checkPath); err == nil {
+				for _, entry := range entries {
+					if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
+						// Check if it's a repo (has .git dir)
+						childPath := filepath.Join(checkPath, entry.Name())
+						if _, err := os.Stat(filepath.Join(childPath, ".git")); err == nil {
+							if !childMap[entry.Name()] {
+								node.Children = append(node.Children, entry.Name())
+								childMap[entry.Name()] = true
+							}
+						}
+					}
+				}
+			}
+		} else {
+			// No muno.yaml, check for child repos directly in this directory
+			if entries, err := os.ReadDir(fsPath); err == nil {
+				for _, entry := range entries {
+					if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
+						// Check if it's a repo (has .git dir)
+						childPath := filepath.Join(fsPath, entry.Name())
+						if _, err := os.Stat(filepath.Join(childPath, ".git")); err == nil {
+							if !childMap[entry.Name()] {
+								node.Children = append(node.Children, entry.Name())
+								childMap[entry.Name()] = true
+							}
+						}
 					}
 				}
 			}
 		}
-	} else {
-		// Directory doesn't exist - it's a lazy repo that hasn't been cloned
-		node.State = RepoStateMissing
 	}
 	
 	return node
@@ -571,6 +732,42 @@ func (m *Manager) GetState() *TreeState {
 	}
 	
 	return state
+}
+
+// loadExternalConfig loads an external config file
+func (m *Manager) loadExternalConfig(filePath string) (*config.ConfigTree, error) {
+	// Check if it's a remote URL
+	if strings.HasPrefix(filePath, "http://") || strings.HasPrefix(filePath, "https://") {
+		// For now, we don't support remote configs in tree display
+		// This could be implemented in the future
+		return nil, fmt.Errorf("remote config not supported")
+	}
+	
+	// Load the local config file
+	configPath := filePath
+	if !filepath.IsAbs(filePath) {
+		// Make it relative to the workspace path
+		configPath = filepath.Join(m.workspacePath, filePath)
+	}
+	
+	// Check if file exists
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("config file not found: %s", configPath)
+	}
+	
+	// Read the config file
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading config file: %w", err)
+	}
+	
+	// Parse the YAML
+	var extConfig config.ConfigTree
+	if err := yaml.Unmarshal(data, &extConfig); err != nil {
+		return nil, fmt.Errorf("parsing config file: %w", err)
+	}
+	
+	return &extConfig, nil
 }
 
 // SaveState does nothing as this is a stateless manager

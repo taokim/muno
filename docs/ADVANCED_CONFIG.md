@@ -40,8 +40,8 @@ nodes:
   - name: backend
     lazy: false  # Override for local development
     
-# Runtime Override
-muno use backend --eager  # Force eager loading
+# Clone when needed
+cd .nodes/backend && muno clone  # Clone lazy repo
 ```
 
 ## Override Mechanisms

@@ -986,38 +986,34 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 	// Split the path into parts
 	parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
 	
-	// For top-level node
-	if len(parts) == 1 {
-		return filepath.Join(m.workspace, nodesDir, parts[0])
-	}
+	// Build path iteratively, checking each level for muno.yaml
+	currentPath := filepath.Join(m.workspace, nodesDir)
 	
-	// For nested paths, we need to check if parent is a git repo
-	// If parent is a git repo, children go inside it
-	// Otherwise, they go in parallel under nodes dir
-	
-	// Check if the first part is a cloned repository or config node
-	parentPath := filepath.Join(m.workspace, nodesDir, parts[0])
-	gitPath := filepath.Join(parentPath, ".git")
-	configPath := filepath.Join(parentPath, "muno.yaml")
-	
-	// If parent is a git repository OR a config node directory, nest children inside it
-	if m.fsProvider.Exists(gitPath) || m.fsProvider.Exists(configPath) {
-		// Build path inside the parent directory
-		fsPath := parentPath
-		for i := 1; i < len(parts); i++ {
-			fsPath = filepath.Join(fsPath, parts[i])
+	for i, part := range parts {
+		if i == 0 {
+			// First level goes directly under workspace nodes dir
+			currentPath = filepath.Join(currentPath, part)
+		} else {
+			// For subsequent levels, check if parent has muno.yaml with custom repos_dir
+			parentMunoYaml := filepath.Join(currentPath, "muno.yaml")
+			if m.fsProvider.Exists(parentMunoYaml) {
+				// Parent has muno.yaml, use its repos_dir
+				childReposDir := ".nodes" // default
+				if cfg, err := config.LoadTree(parentMunoYaml); err == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
+					childReposDir = cfg.Workspace.ReposDir
+				}
+				currentPath = filepath.Join(currentPath, childReposDir, part)
+			} else if m.fsProvider.Exists(filepath.Join(currentPath, ".git")) {
+				// Parent is a git repo without muno.yaml, use default .nodes
+				currentPath = filepath.Join(currentPath, ".nodes", part)
+			} else {
+				// Parent is neither git nor has muno.yaml, continue directly
+				currentPath = filepath.Join(currentPath, part)
+			}
 		}
-		return fsPath
 	}
 	
-	// Otherwise, use hierarchical structure under nodes dir
-	// This allows for nested paths even if parent doesn't exist yet
-	fsPath := filepath.Join(m.workspace, nodesDir)
-	for _, part := range parts {
-		fsPath = filepath.Join(fsPath, part)
-	}
-	
-	return fsPath
+	return currentPath
 }
 
 // Helper function to display tree recursively

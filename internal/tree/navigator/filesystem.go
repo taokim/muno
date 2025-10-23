@@ -331,27 +331,43 @@ func (n *FilesystemNavigator) computeFilesystemPath(logicalPath string) string {
 	// Split path into components
 	parts := strings.Split(strings.TrimPrefix(logicalPath, "/"), "/")
 	
-	// Check if this is a top-level repository (directly under root)
+	// For top-level node
 	if len(parts) == 1 {
-		// Top-level repos go directly in workspace
-		return filepath.Join(n.workspace, parts[0])
+		return filepath.Join(n.workspace, reposDir, parts[0])
 	}
 
-	// For nested paths, build the full path
-	pathComponents := []string{n.workspace}
+	// For nested paths, check if parent is a git repo or has muno.yaml
+	// If parent has muno.yaml or .git, children go in configured repos subdirectory
+	parentPath := filepath.Join(n.workspace, reposDir, parts[0])
+	gitPath := filepath.Join(parentPath, ".git")
+	configPath := filepath.Join(parentPath, "muno.yaml")
 	
-	// Check if first component is a repo or uses repos dir
-	firstNodeDef := n.findNodeDefinition("/" + parts[0])
-	if firstNodeDef != nil && firstNodeDef.URL != "" {
-		// It's a repository at top level
-		pathComponents = append(pathComponents, parts...)
-	} else {
-		// Use repos directory for non-repo top-level nodes
-		pathComponents = append(pathComponents, reposDir)
-		pathComponents = append(pathComponents, parts...)
+	if n.pathExists(gitPath) || n.pathExists(configPath) {
+		// Determine the repos directory to use
+		childReposDir := ".nodes" // default
+		
+		// If parent has muno.yaml, read its repos_dir setting
+		if n.pathExists(configPath) {
+			if cfg, err := config.LoadTree(configPath); err == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
+				childReposDir = cfg.Workspace.ReposDir
+			}
+		}
+		
+		// Build path inside the parent directory's repos subdirectory
+		fsPath := filepath.Join(parentPath, childReposDir)
+		for i := 1; i < len(parts); i++ {
+			fsPath = filepath.Join(fsPath, parts[i])
+		}
+		return fsPath
 	}
 
-	return filepath.Join(pathComponents...)
+	// Otherwise, use hierarchical structure under nodes dir
+	fsPath := filepath.Join(n.workspace, reposDir)
+	for _, part := range parts {
+		fsPath = filepath.Join(fsPath, part)
+	}
+	
+	return fsPath
 }
 
 func (n *FilesystemNavigator) getRootChildren() []string {
@@ -430,7 +446,18 @@ func (n *FilesystemNavigator) buildNodeFromPath(nodePath string) *Node {
 }
 
 func (n *FilesystemNavigator) getNodeChildren(nodePath string) []string {
+	childMap := make(map[string]bool)
 	children := []string{}
+
+	// For root node, get children from main config
+	if nodePath == "/" || nodePath == "" {
+		for _, node := range n.config.Nodes {
+			if !childMap[node.Name] {
+				children = append(children, node.Name)
+				childMap[node.Name] = true
+			}
+		}
+	}
 
 	// Check if this is a config reference
 	nodeDef := n.findNodeDefinition(nodePath)
@@ -438,26 +465,39 @@ func (n *FilesystemNavigator) getNodeChildren(nodePath string) []string {
 		// Load referenced config and get its nodes
 		if cfg, err := n.resolver.LoadNodeFile(nodeDef.File, nodeDef); err == nil {
 			for _, child := range cfg.Nodes {
-				children = append(children, child.Name)
+				if !childMap[child.Name] {
+					children = append(children, child.Name)
+					childMap[child.Name] = true
+				}
 			}
 		}
 	}
 
 	// Check filesystem
 	fsPath := n.computeFilesystemPath(nodePath)
-	if entries, err := os.ReadDir(fsPath); err == nil {
+	
+	// For nodes that have muno.yaml, check their configured repos subdirectory for children
+	checkPath := fsPath
+	munoYamlPath := filepath.Join(fsPath, "muno.yaml")
+	if n.pathExists(munoYamlPath) {
+		// Default to .nodes
+		reposDir := ".nodes"
+		
+		// Read the actual repos_dir from muno.yaml
+		if cfg, err := config.LoadTree(munoYamlPath); err == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
+			reposDir = cfg.Workspace.ReposDir
+		}
+		
+		checkPath = filepath.Join(fsPath, reposDir)
+	}
+	
+	if entries, err := os.ReadDir(checkPath); err == nil {
 		for _, entry := range entries {
 			if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
 				// Check if not already in children
-				found := false
-				for _, child := range children {
-					if child == entry.Name() {
-						found = true
-						break
-					}
-				}
-				if !found {
+				if !childMap[entry.Name()] {
 					children = append(children, entry.Name())
+					childMap[entry.Name()] = true
 				}
 			}
 		}
