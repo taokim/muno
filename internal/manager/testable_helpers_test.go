@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/taokim/muno/internal/constants"
 )
 
 func TestTestableHelpers_FindWorkspaceRoot(t *testing.T) {
@@ -178,25 +179,25 @@ func TestTestableHelpers_ComputeNodePath(t *testing.T) {
 			name:      "root path",
 			workspace: "/workspace",
 			nodePath:  "/",
-			expected:  "/workspace/nodes",
+			expected:  filepath.Join("/workspace", constants.DefaultReposDir),
 		},
 		{
 			name:      "empty path",
 			workspace: "/workspace",
 			nodePath:  "",
-			expected:  "/workspace/nodes",
+			expected:  filepath.Join("/workspace", constants.DefaultReposDir),
 		},
 		{
 			name:      "nested path",
 			workspace: "/workspace",
 			nodePath:  "/parent/child",
-			expected:  "/workspace/nodes/parent/child",
+			expected:  filepath.Join("/workspace", constants.DefaultReposDir, "parent/child"),
 		},
 		{
 			name:      "path without leading slash",
 			workspace: "/workspace",
 			nodePath:  "parent/child",
-			expected:  "/workspace/nodes/parent/child",
+			expected:  filepath.Join("/workspace", constants.DefaultReposDir, "parent/child"),
 		},
 	}
 	

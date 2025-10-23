@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/taokim/muno/internal/config"
+	"github.com/taokim/muno/internal/constants"
 )
 
 func TestFilesystemNavigator(t *testing.T) {
@@ -183,7 +184,11 @@ func TestFilesystemNavigator(t *testing.T) {
 		require.NoError(t, cfg.Save(configPath))
 		
 		// Create repo directories with nested structure
-		repo1Path := filepath.Join(workspace, "repo1")
+		reposDir := cfg.Workspace.ReposDir
+		if reposDir == "" {
+			reposDir = constants.DefaultReposDir
+		}
+		repo1Path := filepath.Join(workspace, reposDir, "repo1")
 		require.NoError(t, os.MkdirAll(filepath.Join(repo1Path, ".git"), 0755))
 		
 		// Create a nested muno.yaml in repo1
@@ -232,8 +237,12 @@ func TestFilesystemNavigator(t *testing.T) {
 		configPath := filepath.Join(workspace, "muno.yaml")
 		require.NoError(t, cfg.Save(configPath))
 		
-		// Create cloned repo with .git
-		clonedPath := filepath.Join(workspace, "cloned-repo")
+		// Create cloned repo with .git in the repos directory
+		reposDir := cfg.Workspace.ReposDir
+		if reposDir == "" {
+			reposDir = constants.DefaultReposDir
+		}
+		clonedPath := filepath.Join(workspace, reposDir, "cloned-repo")
 		require.NoError(t, os.MkdirAll(filepath.Join(clonedPath, ".git"), 0755))
 		
 		nav, err := NewFilesystemNavigator(workspace, cfg, nil)
@@ -358,7 +367,11 @@ func TestFilesystemNavigator(t *testing.T) {
 		require.NoError(t, cfg.Save(configPath))
 		
 		// Create repo directory
-		repo1Path := filepath.Join(workspace, "repo1")
+		reposDir := cfg.Workspace.ReposDir
+		if reposDir == "" {
+			reposDir = constants.DefaultReposDir
+		}
+		repo1Path := filepath.Join(workspace, reposDir, "repo1")
 		require.NoError(t, os.MkdirAll(filepath.Join(repo1Path, ".git"), 0755))
 		
 		// Create .muno directory
@@ -427,8 +440,8 @@ func TestFilesystemNavigatorHelpers(t *testing.T) {
 			expected string
 		}{
 			{"/", filepath.Join(workspace, nodesDir)},
-			{"/repo", filepath.Join(workspace, "repo")},  // Top-level repo goes directly in workspace
-			{"/repo/sub", filepath.Join(workspace, nodesDir, "repo", "sub")}, // Without config, uses nodes dir
+			{"/repo", filepath.Join(workspace, nodesDir, "repo")},  // Top-level repo goes in repos directory
+			{"/repo/sub", filepath.Join(workspace, nodesDir, "repo", "sub")}, // Nested path also uses repos dir
 		}
 		
 		for _, tt := range tests {

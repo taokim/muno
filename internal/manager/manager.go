@@ -997,8 +997,13 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 		} else {
 			// For subsequent levels, check if parent has muno.yaml with custom repos_dir
 			parentMunoYaml := filepath.Join(currentPath, "muno.yaml")
-			if m.fsProvider.Exists(parentMunoYaml) {
-				// Parent has muno.yaml, use its repos_dir
+			
+			// Check if this is a symlink (config reference) - if so, don't add repos_dir
+			if info, err := os.Lstat(parentMunoYaml); err == nil && info.Mode()&os.ModeSymlink != 0 {
+				// Config reference node - children go directly under it
+				currentPath = filepath.Join(currentPath, part)
+			} else if m.fsProvider.Exists(parentMunoYaml) {
+				// Parent has real muno.yaml, use its repos_dir
 				childReposDir := constants.DefaultReposDir // default from constants
 				if cfg, err := config.LoadTree(parentMunoYaml); err == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
 					childReposDir = cfg.Workspace.ReposDir
