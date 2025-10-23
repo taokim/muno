@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2024-10-23
+
+### Changed
+- **BREAKING**: Changed default repository directory from `repos` to `.nodes` for better visibility and consistency
+- Improved configuration handling to use configuration object for repos_dir instead of hardcoding
+- Updated regression tests to match new directory structure
+
+### Fixed
+- Fixed test failures after repository directory changes
+- Fixed state management tests to properly check for initialization
+- Fixed re-initialization test to correctly detect blocking behavior
+- SSH preference support for clone operations
+
+### Documentation
+- Simplified and consolidated documentation structure
+- Added comprehensive test documentation in test/README.md
+- Added detailed regression test documentation in test/regression/README.md
+
 ## [0.4.0] - 2024-12-24
 
 ### Added
@@ -105,7 +123,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shared memory for cross-agent coordination
 - Basic git operations (clone, sync, status)
 
-[Unreleased]: https://github.com/taokim/muno/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/taokim/muno/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/taokim/muno/compare/v0.4.0...v1.1.0
 [0.4.0]: https://github.com/taokim/muno/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/taokim/muno/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/taokim/muno/compare/v0.3.0...v0.3.1
