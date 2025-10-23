@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/taokim/muno/internal/config"
-
+	"github.com/taokim/muno/internal/constants"
 	"github.com/taokim/muno/internal/interfaces"
 
 )
@@ -344,7 +344,7 @@ func (n *FilesystemNavigator) computeFilesystemPath(logicalPath string) string {
 	
 	if n.pathExists(gitPath) || n.pathExists(configPath) {
 		// Determine the repos directory to use
-		childReposDir := ".nodes" // default
+		childReposDir := constants.DefaultReposDir // default from constants
 		
 		// If parent has muno.yaml, read its repos_dir setting
 		if n.pathExists(configPath) {

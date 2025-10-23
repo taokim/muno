@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	
 	"github.com/taokim/muno/internal/config"
+	"github.com/taokim/muno/internal/constants"
 )
 
 // SmartInitWorkspace performs intelligent initialization for the workspace
@@ -56,7 +57,7 @@ func (m *Manager) SmartInitWorkspace(projectName string, options InitOptions) er
 	// Create the nodes directory if it doesn't exist
 	nodesDir := m.getNodesDir()
 	if nodesDir == "" {
-		nodesDir = "nodes"
+		nodesDir = constants.DefaultReposDir
 	}
 	nodesDirPath := filepath.Join(m.workspace, nodesDir)
 	if err := m.fsProvider.MkdirAll(nodesDirPath, 0755); err != nil {

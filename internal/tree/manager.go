@@ -8,6 +8,7 @@ import (
 	"strings"
 	
 	"github.com/taokim/muno/internal/config"
+	"github.com/taokim/muno/internal/constants"
 	"github.com/taokim/muno/internal/git"
 	"gopkg.in/yaml.v3"
 )
@@ -90,7 +91,7 @@ func (m *Manager) ComputeFilesystemPath(logicalPath string) string {
 			parentMunoYaml := filepath.Join(parentFsPath, "muno.yaml")
 			if _, err := os.Stat(parentMunoYaml); err == nil {
 				// Parent has muno.yaml, check its repos_dir
-				childReposDir := ".nodes" // default
+				childReposDir := constants.DefaultReposDir // default from constants
 				if cfg, loadErr := config.LoadTree(parentMunoYaml); loadErr == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
 					childReposDir = cfg.Workspace.ReposDir
 				}
@@ -117,7 +118,7 @@ func (m *Manager) ComputeFilesystemPath(logicalPath string) string {
 			parentMunoYaml := filepath.Join(currentPath, "muno.yaml")
 			if _, err := os.Stat(parentMunoYaml); err == nil {
 				// Parent has muno.yaml, use its repos_dir
-				childReposDir := ".nodes" // default
+				childReposDir := constants.DefaultReposDir // default from constants
 				if cfg, loadErr := config.LoadTree(parentMunoYaml); loadErr == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
 					childReposDir = cfg.Workspace.ReposDir
 				}

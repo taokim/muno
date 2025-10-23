@@ -12,6 +12,7 @@ import (
 	
 	"github.com/taokim/muno/internal/adapters"
 	"github.com/taokim/muno/internal/config"
+	"github.com/taokim/muno/internal/constants"
 	"github.com/taokim/muno/internal/interfaces"
 	"github.com/taokim/muno/internal/plugin"
 	"github.com/taokim/muno/internal/tree"
@@ -998,14 +999,14 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 			parentMunoYaml := filepath.Join(currentPath, "muno.yaml")
 			if m.fsProvider.Exists(parentMunoYaml) {
 				// Parent has muno.yaml, use its repos_dir
-				childReposDir := ".nodes" // default
+				childReposDir := constants.DefaultReposDir // default from constants
 				if cfg, err := config.LoadTree(parentMunoYaml); err == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
 					childReposDir = cfg.Workspace.ReposDir
 				}
 				currentPath = filepath.Join(currentPath, childReposDir, part)
 			} else if m.fsProvider.Exists(filepath.Join(currentPath, ".git")) {
-				// Parent is a git repo without muno.yaml, use default .nodes
-				currentPath = filepath.Join(currentPath, ".nodes", part)
+				// Parent is a git repo without muno.yaml, use default
+				currentPath = filepath.Join(currentPath, constants.DefaultReposDir, part)
 			} else {
 				// Parent is neither git nor has muno.yaml, continue directly
 				currentPath = filepath.Join(currentPath, part)

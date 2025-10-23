@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	
+	"github.com/taokim/muno/internal/constants"
 )
 
 // TestableHelpers contains extracted functions that are easier to test
@@ -100,14 +102,17 @@ func (h *TestableHelpers) CreateAgentContextFile(content string) (string, error)
 
 // ComputeNodePath computes the filesystem path for a node
 func (h *TestableHelpers) ComputeNodePath(workspacePath, nodePath string) string {
+	// Use the default repos directory from constants
+	reposDir := constants.DefaultReposDir
+	
 	if nodePath == "" || nodePath == "/" {
-		return filepath.Join(workspacePath, "nodes")
+		return filepath.Join(workspacePath, reposDir)
 	}
 	
 	// Remove leading slash
 	nodePath = strings.TrimPrefix(nodePath, "/")
 	
-	return filepath.Join(workspacePath, "nodes", nodePath)
+	return filepath.Join(workspacePath, reposDir, nodePath)
 }
 
 // IsGitRepository checks if a path contains a git repository
