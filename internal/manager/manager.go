@@ -627,7 +627,11 @@ func (m *Manager) ResolvePath(target string, ensure bool) (string, error) {
 	
 	// Resolve target path
 	resolvedPath := target
-	if target == "." {
+	if target == "." || target == "" {
+		// For current directory, just return cwd unless --ensure is used
+		if !ensure {
+			return cwd, nil
+		}
 		resolvedPath = currentTreePath
 	} else if target == ".." {
 		parts := strings.Split(strings.TrimPrefix(currentTreePath, "/"), "/")
@@ -753,7 +757,12 @@ func (m *Manager) GetTreePath(physicalPath string) (string, error) {
 	
 	reposDir := filepath.Join(m.workspace, m.config.GetReposDir())
 	
-	// Check if the path is within the workspace
+	// Special case: workspace root
+	if physicalPath == m.workspace {
+		return "", fmt.Errorf("not in repository tree")
+	}
+	
+	// Check if the path is within the repos directory
 	if !strings.HasPrefix(physicalPath, reposDir) {
 		return "", fmt.Errorf("path is not within workspace")
 	}
@@ -999,8 +1008,9 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 			// or has muno.yaml with custom repos_dir
 			childReposDir := ""
 			
-			// First check if parent is a config node in our tree
-			if m.treeProvider != nil {
+			// Check if the PARENT (not current) is a config node
+			if m.treeProvider != nil && i > 0 {
+				// The parent is the path up to (but not including) the current part
 				parentLogicalPath := "/" + strings.Join(parts[:i], "/")
 				parentNode, err := m.treeProvider.GetNode(parentLogicalPath)
 				if err == nil && parentNode.IsConfig && parentNode.ConfigFile != "" {
@@ -1018,11 +1028,11 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 				}
 			}
 			
-			// If not a config node or couldn't get repos_dir, check for muno.yaml at the path
+			// If not a config node or couldn't get repos_dir, check for muno.yaml at the parent path
 			if childReposDir == "" {
 				parentMunoYaml := filepath.Join(currentPath, "muno.yaml")
 				if m.fsProvider.Exists(parentMunoYaml) {
-					// Parent has muno.yaml (regular file or symlink), use its repos_dir
+					// Parent has muno.yaml, use its repos_dir
 					childReposDir = constants.DefaultReposDir // default from constants
 					if cfg, err := config.LoadTree(parentMunoYaml); err == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
 						childReposDir = cfg.Workspace.ReposDir
