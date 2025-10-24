@@ -149,16 +149,16 @@ func findWorkspaceRoot(startPath string) string {
 	current := startPath
 	
 	for {
-		// Check for muno.yaml in current directory
+		// Check for muno.yaml in current directory (must be a regular file, not a symlink)
 		configPath := filepath.Join(current, "muno.yaml")
-		if _, err := os.Stat(configPath); err == nil {
+		if info, err := os.Lstat(configPath); err == nil && info.Mode().IsRegular() {
 			return current
 		}
 		
 		// Also check for alternative names
 		for _, name := range []string{"muno.yml", ".muno.yaml", ".muno.yml"} {
 			configPath := filepath.Join(current, name)
-			if _, err := os.Stat(configPath); err == nil {
+			if info, err := os.Lstat(configPath); err == nil && info.Mode().IsRegular() {
 				return current
 			}
 		}
