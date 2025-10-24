@@ -995,21 +995,49 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 			// First level goes directly under workspace nodes dir
 			currentPath = filepath.Join(currentPath, part)
 		} else {
-			// For subsequent levels, check if parent has muno.yaml with custom repos_dir
-			parentMunoYaml := filepath.Join(currentPath, "muno.yaml")
+			// For subsequent levels, check if parent is a config reference node
+			// or has muno.yaml with custom repos_dir
+			childReposDir := ""
 			
-			if m.fsProvider.Exists(parentMunoYaml) {
-				// Parent has muno.yaml (regular file or symlink - doesn't matter), use its repos_dir
-				childReposDir := constants.DefaultReposDir // default from constants
-				if cfg, err := config.LoadTree(parentMunoYaml); err == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
-					childReposDir = cfg.Workspace.ReposDir
+			// First check if parent is a config node in our tree
+			if m.treeProvider != nil {
+				parentLogicalPath := "/" + strings.Join(parts[:i], "/")
+				parentNode, err := m.treeProvider.GetNode(parentLogicalPath)
+				if err == nil && parentNode.IsConfig && parentNode.ConfigFile != "" {
+					// Parent is a config reference node, read its config file
+					configPath := parentNode.ConfigFile
+					if !filepath.IsAbs(configPath) {
+						// Make it absolute relative to workspace
+						configPath = filepath.Join(m.workspace, configPath)
+					}
+					if cfg, err := config.LoadTree(configPath); err == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
+						childReposDir = cfg.Workspace.ReposDir
+					} else {
+						childReposDir = constants.DefaultReposDir
+					}
 				}
+			}
+			
+			// If not a config node or couldn't get repos_dir, check for muno.yaml at the path
+			if childReposDir == "" {
+				parentMunoYaml := filepath.Join(currentPath, "muno.yaml")
+				if m.fsProvider.Exists(parentMunoYaml) {
+					// Parent has muno.yaml (regular file or symlink), use its repos_dir
+					childReposDir = constants.DefaultReposDir // default from constants
+					if cfg, err := config.LoadTree(parentMunoYaml); err == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
+						childReposDir = cfg.Workspace.ReposDir
+					}
+				} else if m.fsProvider.Exists(filepath.Join(currentPath, ".git")) {
+					// Parent is a git repo without muno.yaml, use default
+					childReposDir = constants.DefaultReposDir
+				}
+			}
+			
+			// Apply the repos_dir if we found one
+			if childReposDir != "" {
 				currentPath = filepath.Join(currentPath, childReposDir, part)
-			} else if m.fsProvider.Exists(filepath.Join(currentPath, ".git")) {
-				// Parent is a git repo without muno.yaml, use default
-				currentPath = filepath.Join(currentPath, constants.DefaultReposDir, part)
 			} else {
-				// Parent is neither git nor has muno.yaml, continue directly
+				// Parent is neither config nor git nor has muno.yaml, continue directly
 				currentPath = filepath.Join(currentPath, part)
 			}
 		}
