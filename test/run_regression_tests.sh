@@ -307,6 +307,170 @@ test_tree_navigation() {
     test_case "Path resolution for repo" "$MUNO_BIN path backend-monorepo"
 }
 
+test_path_and_mcd() {
+    start_suite "Path Resolution & MCD Navigation"
+    
+    # Save original directory
+    local ORIG_DIR=$(pwd)
+    cd "$WORKSPACE_DIR"
+    
+    # Setup test structure with config reference nodes
+    cat > muno.yaml << 'EOF'
+workspace:
+    name: test-workspace
+    repos_dir: .nodes
+nodes:
+    - name: regular-repo
+      url: file:///tmp/test-regular
+      fetch: lazy
+    - name: config-ref
+      file: ./external-config.yaml
+EOF
+    
+    # Create external config with custom repos_dir
+    cat > external-config.yaml << 'EOF'
+workspace:
+    name: external
+    repos_dir: custom-repos
+nodes:
+    - name: child1
+      url: file:///tmp/test-child1
+      fetch: lazy
+    - name: child2
+      url: file:///tmp/test-child2
+      fetch: lazy
+EOF
+    
+    # Test path resolution from workspace root
+    test_case "Path / from workspace root" \
+        "[[ \$($MUNO_BIN path /) == \$WORKSPACE_DIR ]]"
+    
+    test_case "Path . from workspace root" \
+        "[[ \$($MUNO_BIN path .) == \$WORKSPACE_DIR ]]"
+    
+    test_case "Path regular-repo from workspace" \
+        "[[ \$($MUNO_BIN path regular-repo) == */.nodes/regular-repo ]]"
+    
+    test_case "Path config-ref from workspace" \
+        "[[ \$($MUNO_BIN path config-ref) == */.nodes/config-ref ]]"
+    
+    # Test path resolution for children under config-ref with custom repos_dir
+    test_case "Path config-ref/child1 (custom repos_dir)" \
+        "[[ \$($MUNO_BIN path config-ref/child1) == */.nodes/config-ref/custom-repos/child1 ]]"
+    
+    test_case "Path config-ref/child2 (custom repos_dir)" \
+        "[[ \$($MUNO_BIN path config-ref/child2) == */.nodes/config-ref/custom-repos/child2 ]]"
+    
+    # Navigate to .nodes directory and test from there
+    if [[ -d .nodes ]]; then
+        cd .nodes
+        
+        test_case "Path / from .nodes dir" \
+            "[[ \$($MUNO_BIN path /) == \$WORKSPACE_DIR ]]"
+        
+        test_case "Path . from .nodes dir" \
+            "[[ \$($MUNO_BIN path .) == \$WORKSPACE_DIR ]]"
+        
+        test_case "Path .. from .nodes dir" \
+            "[[ \$($MUNO_BIN path ..) == \$WORKSPACE_DIR ]]"
+        
+        # Create config-ref directory to simulate navigation
+        mkdir -p config-ref
+        cd config-ref
+        
+        test_case "Path . from config-ref dir" \
+            "[[ \$($MUNO_BIN path .) == \$(pwd) ]]"
+        
+        test_case "Path / from nested location" \
+            "[[ \$($MUNO_BIN path /) == \$WORKSPACE_DIR ]]"
+        
+        test_case "Path .. from config-ref" \
+            "[[ \$($MUNO_BIN path ..) == \$WORKSPACE_DIR ]]"
+        
+        test_case "Path child1 from config-ref" \
+            "[[ \$($MUNO_BIN path child1) == */.nodes/config-ref/custom-repos/child1 ]]"
+        
+        # Test --relative flag
+        test_case "Path . --relative from config-ref" \
+            "[[ \$($MUNO_BIN path . --relative) == '/config-ref' ]]"
+        
+        cd "$WORKSPACE_DIR/.nodes"
+        test_case "Path . --relative from .nodes" \
+            "[[ \$($MUNO_BIN path . --relative) == '/' ]]"
+    fi
+    
+    # Test from outside workspace (should fail appropriately)
+    cd /tmp
+    test_case "Path from outside workspace fails" \
+        "$MUNO_BIN path . 2>&1 | grep -q 'not in repository tree\|not in a MUNO workspace'" \
+        "pass"
+    
+    # Return to workspace to test non-existent paths
+    cd "$WORKSPACE_DIR"
+    
+    # Test non-existent paths (should fail)
+    test_case "Non-existent absolute path fails" \
+        "$MUNO_BIN path /non-existent 2>&1 | grep -q 'path does not exist in tree'" \
+        "pass"
+    
+    test_case "Non-existent relative path fails" \
+        "$MUNO_BIN path non-existent-repo 2>&1 | grep -q 'path does not exist in tree'" \
+        "pass"
+    
+    test_case "Non-existent nested path fails" \
+        "$MUNO_BIN path /regular-repo/non-existent 2>&1 | grep -q 'path does not exist in tree'" \
+        "pass"
+    
+    # Return to original directory
+    cd "$ORIG_DIR"
+    
+    # Test with nested git repos and muno.yaml files
+    cd "$WORKSPACE_DIR"
+    
+    # Create a git repo with muno.yaml
+    mkdir -p .nodes/git-repo
+    cd .nodes/git-repo
+    git init >/dev/null 2>&1
+    cat > muno.yaml << 'EOF'
+workspace:
+    name: git-repo
+    repos_dir: subrepos
+nodes:
+    - name: nested
+      url: file:///tmp/test-nested
+      fetch: lazy
+EOF
+    
+    cd "$WORKSPACE_DIR"
+    
+    # Update main config to include git repo
+    cat >> muno.yaml << EOF
+    - name: git-repo
+      url: file://$WORKSPACE_DIR/.nodes/git-repo
+      fetch: eager
+EOF
+    
+    # Test nested repo under git repo with custom repos_dir
+    test_case "Path git-repo/nested (nested custom repos_dir)" \
+        "[[ \$($MUNO_BIN path git-repo/nested) == */.nodes/git-repo/subrepos/nested ]]"
+    
+    # Test absolute paths
+    test_case "Path with absolute path" \
+        "[[ \$($MUNO_BIN path /regular-repo) == */.nodes/regular-repo ]]"
+    
+    test_case "Path with /config-ref/child1" \
+        "[[ \$($MUNO_BIN path /config-ref/child1) == */.nodes/config-ref/custom-repos/child1 ]]"
+    
+    # Test edge cases
+    test_case "Path with trailing slash" \
+        "[[ \$($MUNO_BIN path regular-repo/) == */.nodes/regular-repo ]]"
+    
+    test_case "Path with multiple slashes" \
+        "[[ \$($MUNO_BIN path //regular-repo//) == */.nodes/regular-repo ]]"
+    
+    cd "$ORIG_DIR"
+}
+
 test_error_handling() {
     if [[ "$QUICK_MODE" == "true" ]]; then
         return 0
@@ -415,6 +579,7 @@ main() {
     test_pull_behavior
     test_git_operations
     test_tree_navigation
+    test_path_and_mcd
     test_error_handling
     test_advanced_features
     

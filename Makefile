@@ -63,7 +63,7 @@ test-all: test-master
 ## test-basic: Run basic regression tests
 test-basic:
 	@echo "Running basic regression tests..."
-	@./test/regression/regression_test.sh
+	@./test/run_regression_tests.sh --quick
 
 ## test-extended: Run extended regression tests  
 test-extended:
@@ -73,7 +73,7 @@ test-extended:
 ## test-master: Run complete test suite
 test-master:
 	@echo "Running complete test suite..."
-	@./test/regression/master_test.sh
+	@./test/run_regression_tests.sh
 
 ## test-go: Run Go unit tests
 test-go:

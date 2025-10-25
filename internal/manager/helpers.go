@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/taokim/muno/internal/adapters"
 	"github.com/taokim/muno/internal/config"
@@ -147,19 +148,25 @@ func NewManagerForInit(projectPath string) (*Manager, error) {
 // findWorkspaceRoot finds the workspace root by looking for muno.yaml
 func findWorkspaceRoot(startPath string) string {
 	current := startPath
+	var candidates []string
 	
 	for {
 		// Check for muno.yaml in current directory (must be a regular file, not a symlink)
 		configPath := filepath.Join(current, "muno.yaml")
 		if info, err := os.Lstat(configPath); err == nil && info.Mode().IsRegular() {
-			return current
+			// Found a muno.yaml, but we need to check if it's the TRUE workspace root
+			// A true workspace root is one that's not inside any .nodes or repos directory
+			candidates = append(candidates, current)
 		}
 		
 		// Also check for alternative names
 		for _, name := range []string{"muno.yml", ".muno.yaml", ".muno.yml"} {
 			configPath := filepath.Join(current, name)
 			if info, err := os.Lstat(configPath); err == nil && info.Mode().IsRegular() {
-				return current
+				// Don't add duplicate if we already found muno.yaml
+				if len(candidates) == 0 || candidates[len(candidates)-1] != current {
+					candidates = append(candidates, current)
+				}
 			}
 		}
 		
@@ -170,6 +177,39 @@ func findWorkspaceRoot(startPath string) string {
 			break
 		}
 		current = parent
+	}
+	
+	// Now find the TRUE workspace root from candidates
+	// The true workspace root is the highest level muno.yaml that's not inside a repos directory
+	for i := len(candidates) - 1; i >= 0; i-- {
+		candidate := candidates[i]
+		
+		// Check if this candidate is inside a .nodes or other repos directory
+		// by checking if any parent directory up to the next candidate contains .nodes
+		isNested := false
+		if i < len(candidates) - 1 {
+			// There's a parent candidate, check if we're under its repos directory
+			parentCandidate := candidates[i+1]
+			relPath, _ := filepath.Rel(parentCandidate, candidate)
+			// Check if the path contains .nodes or starts with .nodes
+			if strings.Contains(relPath, ".nodes") || strings.HasPrefix(relPath, ".nodes") {
+				isNested = true
+			}
+			// Also check for other common repos directory names
+			if strings.Contains(relPath, "nodes") || strings.Contains(relPath, "repos") || 
+			   strings.Contains(relPath, "subrepos") || strings.Contains(relPath, "custom-repos") {
+				isNested = true
+			}
+		}
+		
+		if !isNested {
+			return candidate
+		}
+	}
+	
+	// If all candidates are nested (shouldn't happen), return the topmost one
+	if len(candidates) > 0 {
+		return candidates[len(candidates)-1]
 	}
 	
 	return ""

@@ -201,22 +201,31 @@ Go dependencies (see `go.mod`):
    - Recursive operations for subtrees
    - State persistence across sessions
 
-2. **Git Operations**:
+2. **Path Resolution (v1.1.1+ fixes)**:
+   - **Config Reference Nodes**: Children of config reference nodes use `repos_dir` from the referenced config file, not the parent
+   - **Workspace Root Detection**: Uses `os.Lstat()` to check for regular files only, preventing symlinked muno.yaml from being treated as workspace roots
+   - **Special Path Cases**:
+     - Path `.` returns current directory without tree computation
+     - Path `..` from tree root (.nodes) returns workspace directory
+     - Path resolution works correctly from any location in the tree
+   - **MCD Shell Function**: Integrates with `muno path` command for navigation
+
+3. **Git Operations**:
    - Direct git commands at any tree node
    - Parallel repository operations for performance
    - Branch tracking and status monitoring
 
-3. **Process Management**: 
+4. **Process Management**: 
    - Uses `os/exec` for Claude Code execution
    - Terminal tab creation via AppleScript on macOS
    - Signal handling for graceful shutdown
 
-4. **Error Handling**: 
+5. **Error Handling**: 
    - Graceful degradation when repositories missing
    - Comprehensive error reporting with context
    - Recovery mechanisms for interrupted operations
 
-5. **State Persistence**: 
+6. **State Persistence**: 
    - Tree state saved to JSON file
    - Current position tracking
    - Navigation history maintained
@@ -225,30 +234,56 @@ Go dependencies (see `go.mod`):
 
 **Coverage Target**: 70-80% for all packages
 
-```bash
-# Unit tests
-go test ./internal/...
+### Test Commands
 
-# Integration tests
-go test ./test/...
+```bash
+# Quick regression tests (essential functionality)
+make test-basic
+
+# Full regression test suite (all features)
+make test-master
+
+# Go unit tests
+make test-go
+
+# All tests (unit + regression)
+make test-all
 
 # Coverage report
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
-
-# Regression tests (comprehensive end-to-end testing)
-./test/regression/regression_test.sh
+make test-coverage
 ```
 
-### Testing Guidelines
-- Write unit tests for all new functionality
-- Aim for >80% test coverage per package
-- Use table-driven tests for multiple test cases
-- Mock external dependencies appropriately
-- Test both success and error paths
+### Testing Infrastructure
+
+**IMPORTANT: Test Entry Points are FIXED**
+- **Main Test Runner**: `test/run_regression_tests.sh` - DO NOT create additional test entry points
+- **All new tests MUST be integrated** into the existing test framework as functions within `run_regression_tests.sh`
+- **NO standalone test scripts** should be created - they must be part of the main runner
+- **Makefile targets are FIXED**: Use existing targets (test-basic, test-master, test-all), do not add new ones
+
+### Test Suite Organization
+
+The regression test suite (`test/run_regression_tests.sh`) includes:
+- **Initialization & Configuration**: Workspace setup and config management
+- **Repository Management**: Add, remove, list operations
+- **Clone Behavior**: Lazy loading, eager cloning, recursive operations
+- **Pull Behavior**: Update mechanisms for cloned repos
+- **Git Operations**: Status, commit, push, pull integration
+- **Tree Navigation**: Tree display and traversal
+- **Path Resolution & MCD**: Path command and mcd shell function (v1.1.1+ fixes)
+- **Error Handling**: Invalid operations and edge cases
+- **Advanced Features**: Nested structures, config references, custom repos_dir
+
+### Adding New Tests
+
+When adding new test functionality:
+1. Add a new test function to `test/run_regression_tests.sh` (e.g., `test_new_feature()`)
+2. Use the existing `test_case` helper function for individual assertions
+3. Add the function call to the main execution flow in the `main()` function
+4. DO NOT create new test scripts or entry points
 
 ### Regression Testing
-For comprehensive end-to-end testing of all MUNO functionality, see the [Regression Test Suite](test/regression/README.md). This test suite validates:
+The regression test suite validates:
 - Configuration persistence (add/remove commands)
 - Navigation and lazy loading
 - Git operations
@@ -297,6 +332,37 @@ make clean
 - Release by tagging new version via GitHub Action
 - Verify releases with GitHub API
 - IGNORE all backward compatibility and migration, even rollout strategy if the version is lower than 1.0 (based on git tag)
+
+### Version History & Critical Fixes
+- **v1.1.1**: Fixed mcd functionality broken by symlink handling removal
+  - Issue: Removed symlink special case broke config reference node path resolution
+  - Fix: Config nodes now properly read referenced config for repos_dir
+  - Fix: findWorkspaceRoot uses os.Lstat to ignore symlinked muno.yaml
+  - Fix: Path "." and ".." handle special cases correctly
+
+## Critical Development Notes
+
+### Test Framework Constraints
+**ABSOLUTELY NO NEW TEST ENTRY POINTS OR SCRIPTS**
+- The test infrastructure is FIXED and must not be extended with new entry points
+- All tests MUST integrate into `test/run_regression_tests.sh`
+- No standalone test scripts, launchers, or runners should be created
+- Makefile test targets are FIXED - do not add new ones
+- This constraint ensures maintainability and prevents test framework fragmentation
+
+### Path Resolution Implementation
+When modifying path resolution (`internal/manager/manager.go`):
+- **computeFilesystemPath**: Must check if PARENT node is a config reference for repos_dir
+- **ResolvePath**: Path "." should return current directory without tree computation
+- **findWorkspaceRoot**: Must use `os.Lstat()` not `os.Stat()` to avoid symlink issues
+- Config reference nodes create symlinks that must not be treated as workspace roots
+
+### Config Reference Node Behavior
+Config reference nodes (nodes with `file:` field):
+- Children use `repos_dir` from the REFERENCED config file
+- The referenced config's `repos_dir` overrides parent's setting
+- This enables team-based repository organization with custom layouts
+- Example: team-frontend can use `webapp/` while team-backend uses `services/`
 
 ## Roadmap - API & Schema Management (v1.0)
 
