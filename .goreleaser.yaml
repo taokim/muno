@@ -105,5 +105,31 @@ brews:
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     install: |
       bin.install "muno"
+      
+      # Download and install completions from source
+      system "curl", "-L", "-o", "completions.tar.gz",
+             "https://github.com/taokim/muno/archive/v{{ .Version }}.tar.gz"
+      system "tar", "-xzf", "completions.tar.gz", "--strip-components=1"
+      
+      # Install completions if they exist
+      if Dir.exist?("completions")
+        bash_completion.install "completions/muno.bash" => "muno"
+        zsh_completion.install "completions/muno.zsh" => "_muno"
+        fish_completion.install "completions/muno.fish" => "muno.fish"
+      end
     test: |
       system "#{bin}/muno", "--version"
+      assert_match "muno", shell_output("#{bin}/muno --help")
+    caveats: |
+      To use the mcd function for easy navigation, add this to your shell config:
+      
+      For bash/zsh (~/.bashrc or ~/.zshrc):
+        mcd() { cd "$(muno path "$@")" && pwd; }
+      
+      For fish (~/.config/fish/config.fish):
+        function mcd
+          cd (muno path $argv); and pwd
+        end
+      
+      Shell completions have been installed and will be available after restarting your shell
+      or sourcing your shell configuration file.
