@@ -40,9 +40,8 @@ _{{CMD_NAME}}() {
 }
 
 # Enable completion system if not already enabled
-if ! type compinit > /dev/null 2>&1; then
-    autoload -U compinit && compinit
-fi
+autoload -U compinit
+compinit
 
 # Register the completion function
 compdef _{{CMD_NAME}} {{CMD_NAME}}
