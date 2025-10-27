@@ -202,6 +202,7 @@ Creates:
 // newListCmd creates the list command
 func (a *App) newListCmd() *cobra.Command {
 	var recursive bool
+	var quiet bool
 	
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -219,11 +220,16 @@ Shows:
 				return fmt.Errorf("loading workspace: %w", err)
 			}
 			
+			if quiet {
+				return mgr.ListNodesQuiet(recursive)
+			}
+			
 			return mgr.ListNodesRecursive(recursive)
 		},
 	}
 	
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "List recursively")
+	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Output only node names, one per line")
 	
 	return cmd
 }
@@ -488,107 +494,115 @@ Examples:
 			script := generateShellScript(shellType, cmdName)
 			
 			if install {
-				configFile := getShellConfigFile(shellType)
+				force, _ := cmd.Flags().GetBool("force")
+				home := os.Getenv("HOME")
+				munoDir := filepath.Join(home, ".muno")
 				
-				// Check if already installed
-				content, err := os.ReadFile(configFile)
-				alreadyInstalled := err == nil && strings.Contains(string(content), fmt.Sprintf("# MUNO shell integration for %s", cmdName))
+				// Create ~/.muno directory
+				if err := os.MkdirAll(munoDir, 0755); err != nil {
+					return fmt.Errorf("creating .muno directory: %w", err)
+				}
 				
-				if alreadyInstalled {
-					// Check for --force flag to update
-					force, _ := cmd.Flags().GetBool("force")
-					if !force {
-						fmt.Fprintf(a.stdout, "✓ '%s' is already installed in %s\n", cmdName, configFile)
-						fmt.Fprintf(a.stdout, "To update/reinstall, use: muno shell-init --install --force\n")
-						return nil
+				// Write all shell scripts to ~/.muno
+				shellTypes := []string{"bash", "zsh", "fish"}
+				var scriptFiles []string
+				
+				for _, st := range shellTypes {
+					shellScript := generateShellScript(st, cmdName)
+					scriptFile := filepath.Join(munoDir, fmt.Sprintf("shell-init-%s.%s", cmdName, st))
+					if err := os.WriteFile(scriptFile, []byte(shellScript), 0644); err != nil {
+						return fmt.Errorf("writing %s script: %w", st, err)
+					}
+					scriptFiles = append(scriptFiles, scriptFile)
+				}
+				
+				// Find all existing shell RC files
+				rcFiles := []struct {
+					path    string
+					shell   string
+					srcFile string
+				}{
+					{filepath.Join(home, ".bashrc"), "bash", filepath.Join(munoDir, fmt.Sprintf("shell-init-%s.bash", cmdName))},
+					{filepath.Join(home, ".bash_profile"), "bash", filepath.Join(munoDir, fmt.Sprintf("shell-init-%s.bash", cmdName))},
+					{filepath.Join(home, ".zshrc"), "zsh", filepath.Join(munoDir, fmt.Sprintf("shell-init-%s.zsh", cmdName))},
+					{filepath.Join(home, ".config", "fish", "config.fish"), "fish", filepath.Join(munoDir, fmt.Sprintf("shell-init-%s.fish", cmdName))},
+				}
+				
+				var updatedFiles []string
+				sourceLine := fmt.Sprintf("# MUNO %s integration", cmdName)
+				
+				for _, rc := range rcFiles {
+					// Check if RC file exists
+					if _, err := os.Stat(rc.path); os.IsNotExist(err) {
+						continue
 					}
 					
-					// Remove old installation
-					fmt.Fprintf(a.stdout, "Updating existing '%s' installation...\n", cmdName)
+					// Ensure parent directory exists for fish config
+					if err := os.MkdirAll(filepath.Dir(rc.path), 0755); err != nil {
+						continue
+					}
 					
-					// Read the file and remove old MUNO section
-					lines := strings.Split(string(content), "\n")
-					newLines := []string{}
-					inMunoSection := false
-					inMunoFunction := false
-					bracketDepth := 0
+					content, err := os.ReadFile(rc.path)
+					if err != nil {
+						continue
+					}
 					
-					for _, line := range lines {
-						// Check if this is the start of MUNO section
-						if strings.Contains(line, fmt.Sprintf("# MUNO shell integration for %s", cmdName)) {
-							inMunoSection = true
-							continue
-						}
+					alreadyInstalled := strings.Contains(string(content), sourceLine)
+					
+					if alreadyInstalled && !force {
+						continue
+					}
+					
+					// Remove old source lines if force or already installed
+					if alreadyInstalled {
+						lines := strings.Split(string(content), "\n")
+						var newLines []string
+						skipNext := false
 						
-						if inMunoSection {
-							// Track function bodies
-							if strings.Contains(line, cmdName+"()") || strings.Contains(line, "_"+cmdName+"()") ||
-							   strings.Contains(line, "function "+cmdName) || strings.Contains(line, "function _"+cmdName) {
-								inMunoFunction = true
-								bracketDepth = 0
+						for _, line := range lines {
+							if skipNext {
+								skipNext = false
 								continue
 							}
-							
-							// Track bracket depth for functions
-							if inMunoFunction {
-								if strings.Contains(line, "{") {
-									bracketDepth++
-								}
-								if strings.Contains(line, "}") {
-									bracketDepth--
-									if bracketDepth <= 0 {
-										inMunoFunction = false
-										continue
-									}
-								}
+							if strings.Contains(line, sourceLine) {
+								skipNext = true // Skip the source line too
 								continue
 							}
-							
-							// Skip our specific patterns
-							if strings.Contains(line, "_MUNO_PREV") ||
-							   strings.Contains(line, "complete -F") && strings.Contains(line, cmdName) ||
-							   strings.Contains(line, "compdef") && strings.Contains(line, cmdName) ||
-							   strings.Contains(line, "_arguments") ||
-							   strings.Contains(line, "autoload -U compinit") ||
-							   strings.Contains(line, "type compinit") ||
-							   (strings.HasPrefix(line, "alias mcd") && strings.Contains(line, "='muno ")) {
-								continue
-							}
-							
-							// Empty line might be end of section
-							if strings.TrimSpace(line) == "" {
-								inMunoSection = false
-								continue
-							}
-							
-							// This line doesn't belong to us, end section and keep it
-							inMunoSection = false
-							newLines = append(newLines, line)
-						} else {
 							newLines = append(newLines, line)
 						}
+						content = []byte(strings.Join(newLines, "\n"))
 					}
 					
-					// Write back the cleaned content
-					cleanContent := strings.Join(newLines, "\n")
-					if err := os.WriteFile(configFile, []byte(cleanContent), 0644); err != nil {
-						return fmt.Errorf("updating config file: %w", err)
+					// Append source line
+					newSourceLine := fmt.Sprintf("\n%s\nsource %s\n", sourceLine, rc.srcFile)
+					content = append(content, []byte(newSourceLine)...)
+					
+					if err := os.WriteFile(rc.path, content, 0644); err != nil {
+						fmt.Fprintf(os.Stderr, "Warning: failed to update %s: %v\n", rc.path, err)
+						continue
 					}
+					
+					updatedFiles = append(updatedFiles, rc.path)
 				}
 				
-				// Append to config file
-				f, err := os.OpenFile(configFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-				if err != nil {
-					return fmt.Errorf("opening shell config: %w", err)
-				}
-				defer f.Close()
-				
-				if _, err := f.WriteString("\n" + script); err != nil {
-					return fmt.Errorf("writing to shell config: %w", err)
+				// Output results
+				fmt.Fprintf(a.stdout, "✅ Created shell scripts in %s:\n", munoDir)
+				for _, f := range scriptFiles {
+					fmt.Fprintf(a.stdout, "   %s\n", f)
 				}
 				
-				fmt.Fprintf(a.stdout, "✅ Installed '%s' function to %s\n", cmdName, configFile)
-				fmt.Fprintf(a.stdout, "Run 'source %s' or restart your shell to use it\n", configFile)
+				if len(updatedFiles) > 0 {
+					fmt.Fprintf(a.stdout, "✅ Updated shell configs:\n")
+					for _, f := range updatedFiles {
+						fmt.Fprintf(a.stdout, "   %s\n", f)
+					}
+					fmt.Fprintf(a.stdout, "Run 'source <config>' or restart your shell to use '%s'\n", cmdName)
+				} else {
+					fmt.Fprintf(a.stdout, "ℹ️  No shell config files found or all already up to date\n")
+					fmt.Fprintf(a.stdout, "Add this line to your shell config:\n")
+					fmt.Fprintf(a.stdout, "source %s\n", filepath.Join(munoDir, fmt.Sprintf("shell-init-%s.<shell>", cmdName)))
+				}
+				
 				return nil
 			}
 			

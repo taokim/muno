@@ -1341,7 +1341,91 @@ func (m *Manager) ListNodesRecursive(recursive bool) error {
 	return nil
 }
 
+// ListNodesQuiet lists node names in quiet mode (one per line, names only)
+func (m *Manager) ListNodesQuiet(recursive bool) error {
+	if !m.initialized {
+		return fmt.Errorf("manager not initialized")
+	}
+	
+	tree, err := m.treeProvider.GetTree()
+	if err != nil {
+		return fmt.Errorf("getting tree: %w", err)
+	}
+	
+	// Get current location in tree
+	pwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("getting current directory: %w", err)
+	}
+	
+	// Convert pwd to tree path
+	workspaceRoot := m.workspace
+	reposDir := filepath.Join(workspaceRoot, m.getReposDir())
+	
+	var currentPath string
+	if strings.HasPrefix(pwd, reposDir) {
+		relPath, err := filepath.Rel(reposDir, pwd)
+		if err != nil {
+			return fmt.Errorf("getting relative path: %w", err)
+		}
+		
+		if relPath == "." {
+			currentPath = "/"
+		} else {
+			currentPath = "/" + strings.ReplaceAll(relPath, string(filepath.Separator), "/")
+		}
+	} else {
+		// We're at workspace root
+		currentPath = "/"
+	}
+	
+	// Find current node in tree
+	current := tree
+	if currentPath != "/" {
+		parts := strings.Split(strings.Trim(currentPath, "/"), "/")
+		for _, part := range parts {
+			found := false
+			for _, child := range current.Children {
+				if child.Name == part {
+					current = child
+					found = true
+					break
+				}
+			}
+			if !found {
+				return fmt.Errorf("path not found in tree: %s", currentPath)
+			}
+		}
+	}
+	
+	// Output node names
+	if recursive {
+		m.outputNodesQuietRecursive(current, "")
+	} else {
+		for _, child := range current.Children {
+			fmt.Println(child.Name)
+		}
+	}
+	
+	return nil
+}
 
+// outputNodesQuietRecursive recursively outputs node names with paths
+func (m *Manager) outputNodesQuietRecursive(node interfaces.NodeInfo, pathPrefix string) {
+	// Output current node's children
+	for _, child := range node.Children {
+		childPath := child.Name
+		if pathPrefix != "" {
+			childPath = pathPrefix + "/" + child.Name
+		}
+		fmt.Println(childPath)
+		
+		// Recursively output children
+		if len(child.Children) > 0 {
+			m.outputNodesQuietRecursive(child, childPath)
+		}
+	}
+}
 
 // ShowTreeAtPath shows the tree at a specific path
 func (m *Manager) ShowTreeAtPath(path string, depth int) error {

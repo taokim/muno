@@ -16,14 +16,25 @@
     # Save current position for '-' navigation
     _MUNO_PREV="$(muno path . --relative 2>/dev/null || echo '/')"
     
-    # Resolve path with lazy clone
-    local resolved
-    resolved=$(muno path "$target" --ensure 2>/dev/null)
+    # Try to find muno binary (prefer muno-local from PATH, fallback to system)
+    local muno_cmd="muno"
+    if command -v muno-local >/dev/null 2>&1; then
+        muno_cmd="muno-local"
+    fi
     
-    if [ $? -eq 0 ]; then
+    # Resolve path (try without lazy clone first)
+    local resolved
+    resolved=$($muno_cmd path "$target" 2>/dev/null)
+    
+    # If path doesn't exist, try with lazy clone
+    if [ $? -ne 0 ] || [ ! -d "$resolved" ]; then
+        resolved=$($muno_cmd path "$target" --ensure 2>/dev/null)
+    fi
+    
+    if [ $? -eq 0 ] && [ -d "$resolved" ]; then
         cd "$resolved"
         # Show current position in tree
-        echo "📍 $(muno path . --relative 2>/dev/null || pwd)"
+        echo "📍 $($muno_cmd path . --relative 2>/dev/null || pwd)"
     else
         echo "❌ Failed to resolve: $target" >&2
         return 1
@@ -33,7 +44,36 @@
 # Zsh completion support for {{CMD_NAME}}
 _{{CMD_NAME}}() {
     local -a nodes
-    nodes=(${(f)"$(muno list --format simple 2>/dev/null | grep -v '^$')"})
+    local current_word="${words[CURRENT]}"
+    
+    # Try to find muno binary (prefer muno-local from PATH, fallback to system)
+    local muno_cmd="muno"
+    if command -v muno-local >/dev/null 2>&1; then
+        muno_cmd="muno-local"
+    fi
+    
+    # Get node names using the new quiet mode (if available)
+    if $muno_cmd list --help 2>/dev/null | grep -q "\\-\\-quiet"; then
+        nodes=($($muno_cmd list --quiet 2>/dev/null))
+    else
+        # Fallback: parse regular list output
+        nodes=($($muno_cmd list 2>/dev/null | grep -E "^\\s*[✅💤]" | sed 's/^[[:space:]]*[✅💤][[:space:]]*//' | sed 's/[[:space:]].*//' | sort -u))
+    fi
+    
+    # Add common navigation patterns
+    nodes+=(. .. /)
+    
+    # If current word starts with /, try to get recursive paths
+    if [[ "$current_word" == /* ]]; then
+        # For absolute paths, get all possible tree paths with recursive mode
+        if $muno_cmd list --help 2>/dev/null | grep -q "\\-\\-quiet"; then
+            local tree_paths=($($muno_cmd list --quiet --recursive 2>/dev/null | sed 's|^|/|'))
+        else
+            # Fallback: parse recursive list output
+            local tree_paths=($($muno_cmd list --recursive 2>/dev/null | grep -E "^\\s*[✅💤]" | sed 's/^[[:space:]]*[✅💤][[:space:]]*//' | sed 's/[[:space:]].*//' | sed 's|^|/|' | sort -u))
+        fi
+        nodes+=(${tree_paths[@]})
+    fi
     
     # Use zsh's built-in completion
     _arguments "1:node:(${nodes[@]})"
