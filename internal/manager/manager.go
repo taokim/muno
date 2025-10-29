@@ -694,7 +694,6 @@ func (m *Manager) ResolvePath(target string, ensure bool) (string, error) {
 	if ensure {
 		// First, try to find the exact node
 		node, err := m.treeProvider.GetNode(resolvedPath)
-		
 		// If the exact node wasn't found, check if a parent is a config node
 		if err != nil && strings.Contains(resolvedPath, "/") {
 			parts := strings.Split(strings.TrimPrefix(resolvedPath, "/"), "/")
@@ -702,7 +701,7 @@ func (m *Manager) ResolvePath(target string, ensure bool) (string, error) {
 			for i := len(parts) - 1; i > 0; i-- {
 				parentPath := "/" + strings.Join(parts[:i], "/")
 				parentNode, parentErr := m.treeProvider.GetNode(parentPath)
-				if parentErr == nil && parentNode.IsConfig && parentNode.ConfigFile != "" {
+		if parentErr == nil && parentNode.IsConfig && parentNode.ConfigFile != "" {
 					// Found a config parent - process it to expand its children
 					// When navigating to a specific child, we want to clone it even if lazy
 					var toClone []interfaces.NodeInfo
@@ -732,7 +731,7 @@ func (m *Manager) ResolvePath(target string, ensure bool) (string, error) {
 			}
 		} else if err == nil {
 			// Found the exact node
-			if node.IsConfig && node.ConfigFile != "" {
+if node.IsConfig && node.ConfigFile != "" {
 				// Process config node to find repositories to clone
 				var toClone []interfaces.NodeInfo
 				if err := m.processConfigNode(node, false, false, &toClone); err != nil {
@@ -752,10 +751,12 @@ func (m *Manager) ResolvePath(target string, ensure bool) (string, error) {
 						}
 					}
 				}
-			} else if node.IsLazy && !node.IsCloned && node.Repository != "" {
-				// Clone lazy repository
+			} else if !node.IsCloned && node.Repository != "" {
+				// Clone repository
 				physPath := m.computeFilesystemPath(resolvedPath)
-				if _, err := os.Stat(physPath); os.IsNotExist(err) {
+				// Check if it's actually a cloned repository (has .git directory)
+				gitPath := filepath.Join(physPath, ".git")
+				if _, err := os.Stat(gitPath); os.IsNotExist(err) {
 					// Clone options
 					opts := interfaces.CloneOptions{
 						Recursive:     false,

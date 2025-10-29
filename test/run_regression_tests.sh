@@ -520,6 +520,223 @@ EOF
     test_case "Recursive status with nested" "$MUNO_BIN status --recursive"
 }
 
+test_config_reference_symlinks() {
+    # Test config reference symlinks are correctly resolved
+    # This tests the fix for symlinks pointing to wrong locations
+    
+    start_suite "Config Reference Symlinks"
+    
+    cd "$WORKSPACE_DIR"
+    
+    # Create a structure with config references similar to core-munorepo
+    cat > muno.yaml << EOF
+workspace:
+    name: test-workspace
+    repos_dir: .nodes
+nodes:
+    - name: core
+      url: file://$REPOS_DIR/core-repo
+EOF
+    
+    # Create the core repo with config references
+    mkdir -p "$REPOS_DIR/core-repo"
+    cd "$REPOS_DIR/core-repo"
+    git init --quiet
+    
+    # Create core repo structure with config references
+    mkdir -p configs
+    cat > configs/member.yaml << EOF
+workspace:
+    name: member
+    repos_dir: .nodes
+nodes:
+    - name: member-api
+      url: file://$REPOS_DIR/member-api
+      fetch: lazy
+EOF
+    
+    cat > configs/partner.yaml << EOF
+workspace:
+    name: partner  
+    repos_dir: .nodes
+nodes:
+    - name: partner-api
+      url: file://$REPOS_DIR/partner-api
+      fetch: lazy
+EOF
+    
+    # Create muno.yaml with config references
+    cat > muno.yaml << EOF
+workspace:
+    name: core
+    repos_dir: repos
+nodes:
+    - name: member
+      file: configs/member.yaml
+    - name: partner
+      file: configs/partner.yaml
+EOF
+    
+    # Commit with wrong symlinks (simulating the real issue)
+    mkdir -p repos/member repos/partner
+    ln -s /wrong/path/member.yaml repos/member/muno.yaml
+    ln -s /wrong/path/partner.yaml repos/partner/muno.yaml
+    git add .
+    git commit -m "Initial with wrong symlinks"
+    
+    cd "$WORKSPACE_DIR"
+    
+    # Clone should fix the symlinks
+    test_case "Clone core with config refs" "$MUNO_BIN clone --recursive"
+    
+    # Verify symlinks point to correct locations
+    if [ -L ".nodes/core/repos/member/muno.yaml" ]; then
+        SYMLINK_TARGET=$(readlink ".nodes/core/repos/member/muno.yaml")
+        # The symlink should point to the configs directory within core
+        if [[ "$SYMLINK_TARGET" == *"/.nodes/core/configs/member.yaml" ]]; then
+            echo -e "${GREEN}✓${NC} member symlink correctly resolved to configs/member.yaml"
+            ((PASSED_TESTS++))
+        else
+            # Check if it's the wrong path (like /wrong/path or /Users/*/git/core-munorepo)
+            if [[ "$SYMLINK_TARGET" == "/wrong/path"* ]] || [[ "$SYMLINK_TARGET" == *"/git/core-munorepo"* ]]; then
+                echo -e "${RED}✗ member symlink not fixed: $SYMLINK_TARGET${NC}"
+                ((FAILED_TESTS++))
+            else
+                echo -e "${GREEN}✓${NC} member symlink resolved: $SYMLINK_TARGET"
+                ((PASSED_TESTS++))
+            fi
+        fi
+    else
+        echo -e "${RED}✗ member symlink not created${NC}"
+        ((FAILED_TESTS++))
+    fi
+    
+    if [ -L ".nodes/core/repos/partner/muno.yaml" ]; then
+        SYMLINK_TARGET=$(readlink ".nodes/core/repos/partner/muno.yaml")
+        # The symlink should point to the configs directory within core
+        if [[ "$SYMLINK_TARGET" == *"/.nodes/core/configs/partner.yaml" ]]; then
+            echo -e "${GREEN}✓${NC} partner symlink correctly resolved to configs/partner.yaml"
+            ((PASSED_TESTS++))
+        else
+            # Check if it's the wrong path
+            if [[ "$SYMLINK_TARGET" == "/wrong/path"* ]] || [[ "$SYMLINK_TARGET" == *"/git/core-munorepo"* ]]; then
+                echo -e "${RED}✗ partner symlink not fixed: $SYMLINK_TARGET${NC}"
+                ((FAILED_TESTS++))
+            else
+                echo -e "${GREEN}✓${NC} partner symlink resolved: $SYMLINK_TARGET"
+                ((PASSED_TESTS++))
+            fi
+        fi
+    else
+        echo -e "${RED}✗ partner symlink not created${NC}"
+        ((FAILED_TESTS++))
+    fi
+    
+    # Test that tree shows config nodes correctly
+    test_case "Tree shows config nodes" "$MUNO_BIN tree"
+}
+
+test_path_ensure_with_config_nodes() {
+    # Test that path --ensure works correctly with config reference nodes
+    start_suite "Path --ensure with Config Nodes"
+    
+    cd "$WORKSPACE_DIR"
+    
+    # Create a structure with config references
+    cat > muno.yaml << EOF
+workspace:
+    name: test-workspace
+    repos_dir: .nodes
+nodes:
+    - name: parent
+      url: file://$REPOS_DIR/parent-repo
+EOF
+    
+    # Create the parent repo with config references
+    mkdir -p "$REPOS_DIR/parent-repo"
+    cd "$REPOS_DIR/parent-repo"
+    git init --quiet
+    
+    # Create a child config file
+    mkdir -p configs
+    cat > configs/child.yaml << EOF
+workspace:
+    name: child-workspace
+    repos_dir: .nodes
+nodes:
+    - name: lazy-repo
+      url: file://$REPOS_DIR/lazy-child
+      fetch: lazy
+    - name: eager-repo
+      url: file://$REPOS_DIR/eager-child
+EOF
+    
+    # Create parent muno.yaml with config reference
+    cat > muno.yaml << EOF
+workspace:
+    name: parent
+    repos_dir: repos
+nodes:
+    - name: child
+      file: configs/child.yaml
+EOF
+    
+    git add .
+    git commit -m "Initial parent with config reference"
+    
+    # Create the lazy and eager child repos
+    for repo in lazy-child eager-child; do
+        mkdir -p "$REPOS_DIR/$repo"
+        cd "$REPOS_DIR/$repo"
+        git init --quiet
+        echo "# $repo" > README.md
+        git add .
+        git commit -m "Initial commit"
+    done
+    
+    cd "$WORKSPACE_DIR"
+    
+    # Clone the parent structure
+    test_case "Clone parent with config" "$MUNO_BIN clone"
+    
+    # Test path --ensure with lazy repo in config node
+    test_case "Path --ensure for lazy repo" "$MUNO_BIN path /parent/child/lazy-repo --ensure"
+    
+    # Verify the lazy repo was actually cloned
+    if [ -d ".nodes/parent/repos/child/.nodes/lazy-repo/.git" ]; then
+        echo -e "${GREEN}✓${NC} Lazy repo cloned successfully via --ensure"
+        ((PASSED_TESTS++))
+    else
+        echo -e "${RED}✗ Lazy repo NOT cloned via --ensure${NC}"
+        ((FAILED_TESTS++))
+    fi
+    
+    # Verify it has the correct content
+    if [ -f ".nodes/parent/repos/child/.nodes/lazy-repo/README.md" ]; then
+        CONTENT=$(cat ".nodes/parent/repos/child/.nodes/lazy-repo/README.md")
+        if [[ "$CONTENT" == "# lazy-child" ]]; then
+            echo -e "${GREEN}✓${NC} Lazy repo content correct"
+            ((PASSED_TESTS++))
+        else
+            echo -e "${RED}✗ Lazy repo content incorrect${NC}"
+            ((FAILED_TESTS++))
+        fi
+    else
+        echo -e "${RED}✗ Lazy repo README.md not found${NC}"
+        ((FAILED_TESTS++))
+    fi
+    
+    # Test that --ensure doesn't re-clone already cloned repos
+    OUTPUT=$($MUNO_BIN path /parent/child/lazy-repo --ensure 2>&1)
+    if [[ "$OUTPUT" == *"Cloning"* ]]; then
+        echo -e "${RED}✗ --ensure tried to re-clone existing repo${NC}"
+        ((FAILED_TESTS++))
+    else
+        echo -e "${GREEN}✓${NC} --ensure correctly skipped already cloned repo"
+        ((PASSED_TESTS++))
+    fi
+}
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Report Generation
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -582,6 +799,8 @@ main() {
     test_path_and_mcd
     test_error_handling
     test_advanced_features
+    test_config_reference_symlinks
+    test_path_ensure_with_config_nodes
     
     # Generate report
     generate_report

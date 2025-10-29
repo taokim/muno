@@ -33,6 +33,14 @@ func (m *Manager) visitNodeForClone(node interfaces.NodeInfo, recursive bool, in
 		}
 		
 		targetConfigPath := filepath.Join(nodeFsPath, "muno.yaml")
+		
+		// Remove existing file/symlink if it exists (important for correcting wrong symlinks from git)
+		if _, err := os.Lstat(targetConfigPath); err == nil {
+			if err := os.Remove(targetConfigPath); err != nil {
+				m.logProvider.Warn(fmt.Sprintf("Failed to remove existing config file %s: %v", targetConfigPath, err))
+			}
+		}
+		
 		if err := os.Symlink(configFilePath, targetConfigPath); err != nil {
 			// If symlink fails, try to copy as fallback
 			if err := m.copyConfigFile(configFilePath, targetConfigPath); err != nil {
@@ -136,9 +144,48 @@ func (m *Manager) visitNodeForClone(node interfaces.NodeInfo, recursive bool, in
 	return nil
 }
 
-// processConfigNode is now a simple wrapper that calls visitNodeForClone
+// processConfigNode collects child nodes from a config node for cloning
 func (m *Manager) processConfigNode(node interfaces.NodeInfo, recursive bool, includeLazy bool, toClone *[]interfaces.NodeInfo) error {
-	// This function is kept for backward compatibility but now just delegates to visitNodeForClone
+	// If toClone is provided, we need to collect the child nodes instead of directly processing them
+	if toClone != nil {
+		// Load the config file to get child nodes
+		configPath := node.ConfigFile
+		if !filepath.IsAbs(configPath) && !strings.HasPrefix(configPath, "http") {
+			configPath = m.resolveConfigPath(node.ConfigFile, node.Path)
+		}
+		
+		cfg, err := config.LoadTree(configPath)
+		if err != nil {
+			return fmt.Errorf("loading config %s: %w", configPath, err)
+		}
+		
+		// Collect child nodes
+		for _, nodeDef := range cfg.Nodes {
+			childPath := node.Path + "/" + nodeDef.Name
+			if node.Path == "/" {
+				childPath = "/" + nodeDef.Name
+			}
+			
+			if nodeDef.URL != "" {
+				childNode := interfaces.NodeInfo{
+					Name:       nodeDef.Name,
+					Path:       childPath,
+					Repository: nodeDef.URL,
+					IsLazy:     nodeDef.IsLazy(),
+					IsCloned:   false,
+				}
+				*toClone = append(*toClone, childNode)
+			}
+			// Note: We don't collect config nodes in toClone, only repositories
+		}
+		
+		// If not recursive, just collect direct children
+		if !recursive {
+			return nil
+		}
+	}
+	
+	// Default behavior: process the node normally
 	return m.visitNodeForClone(node, recursive, includeLazy)
 }
 
@@ -214,7 +261,31 @@ func (m *Manager) resolveConfigPath(configFile string, nodePath string) string {
 		return configFile
 	}
 
-	// Relative path - resolve from workspace root or parent directory
+	// For relative paths, we need to resolve them relative to the config file that references them
+	// The referencing config file should be in the parent node's directory
+	
+	// Get parent path from node path (e.g., "/core/member" -> "/core")
+	parentPath := filepath.Dir(nodePath)
+	if parentPath == "." {
+		parentPath = "/"
+	}
+	
+	// Compute the filesystem path for the parent node
+	parentFsPath := m.computeFilesystemPath(parentPath)
+	
+	// Check if there's a muno.yaml in the parent directory
+	parentConfigPath := filepath.Join(parentFsPath, "muno.yaml")
+	if _, err := os.Stat(parentConfigPath); err == nil {
+		// Resolve relative to the parent config file's directory
+		parentConfigDir := filepath.Dir(parentConfigPath)
+		resolvedPath := filepath.Join(parentConfigDir, configFile)
+		
+		if _, err := os.Stat(resolvedPath); err == nil {
+			return resolvedPath
+		}
+	}
+	
+	// Fallback to original logic
 	workspaceRoot := m.workspace
 	
 	// Try relative to workspace root first
@@ -224,7 +295,7 @@ func (m *Manager) resolveConfigPath(configFile string, nodePath string) string {
 	}
 
 	// Try relative to parent of workspace (for ../team/muno.yaml style references)
-	parentPath := filepath.Join(filepath.Dir(workspaceRoot), configFile)
+	parentPath = filepath.Join(filepath.Dir(workspaceRoot), configFile)
 	if _, err := os.Stat(parentPath); err == nil {
 		return parentPath
 	}
