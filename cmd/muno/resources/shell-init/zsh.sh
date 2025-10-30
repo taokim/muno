@@ -75,8 +75,8 @@ _{{CMD_NAME}}() {
         nodes+=(${tree_paths[@]})
     fi
     
-    # Use zsh's built-in completion
-    _arguments "1:node:(${nodes[@]})"
+    # Use compadd directly to avoid argument conflicts
+    compadd -a nodes
 }
 
 # Enable completion system if not already enabled

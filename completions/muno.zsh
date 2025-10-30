@@ -41,19 +41,18 @@ _muno() {
         args)
             case $words[1] in
                 path)
-                    _arguments \
-                        '--ensure[Clone lazy repositories if needed]' \
-                        '--relative[Show position in tree]' \
-                        '--help[Show help]' \
-                        '1: :->target'
-                    
-                    case $state in
-                        target)
-                            local -a all_targets
-                            all_targets=($nodes '.' '..' '/')
-                            _describe 'target' all_targets
-                            ;;
-                    esac
+                    if [[ ${#words[@]} -eq 2 ]]; then
+                        # First argument after 'path' - show targets
+                        local -a all_targets
+                        all_targets=($nodes '.' '..' '/')
+                        _describe 'target' all_targets
+                    else
+                        # Additional arguments - show flags
+                        _arguments \
+                            '--ensure[Clone lazy repositories if needed]' \
+                            '--relative[Show position in tree]' \
+                            '--help[Show help]'
+                    fi
                     ;;
                 add)
                     _arguments \
@@ -89,7 +88,8 @@ _mcd() {
         nodes=(${(f)"$(muno list 2>/dev/null | grep -E '^\s+[a-zA-Z0-9]' | awk '{print $1}')"})
     fi
     targets=($nodes '.' '..' '/' '-' '...')
-    _describe 'target' targets
+    # Simple completion without _arguments to avoid conflicts
+    compadd -a targets
 }
 
 compdef _muno muno
