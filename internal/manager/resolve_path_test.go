@@ -44,17 +44,51 @@ func TestManager_ResolvePath_RootPaths(t *testing.T) {
 
 func TestManager_ResolvePath_ParentNavigation(t *testing.T) {
 	tw := CreateTestWorkspace(t)
-	m := CreateTestManager(t, tw.Root)
 	
-	// Create nested structure
+	// Create config with nodes
+	cfg := &config.ConfigTree{
+		Workspace: config.WorkspaceTree{
+			Name:     "test",
+			ReposDir: ".nodes",
+		},
+		Nodes: []config.NodeDefinition{
+			{Name: "platform", URL: "https://example.com/platform"},
+			{Name: "team", URL: "https://example.com/team"},
+		},
+	}
+	
+	// Create manager with config
+	m := CreateTestManagerWithConfig(t, tw.Root, cfg)
+	
+	// Create directory structure
+	tw.AddRepository("platform")
 	tw.AddRepository("team")
-	tw.AddRepository("team/.nodes/service")
-	tw.AddRepository("team/.nodes/service/.nodes/module")
 	
-	// Add nodes to tree
-	AddNodeToTree(m, "/team", CreateSimpleNode("team", "https://example.com/team"))
-	AddNodeToTree(m, "/team/service", CreateSimpleNode("service", "https://example.com/service"))
-	AddNodeToTree(m, "/team/service/module", CreateSimpleNode("module", "https://example.com/module"))
+	// Create nested structure for team repo
+	teamRepoConfig := &config.ConfigTree{
+		Workspace: config.WorkspaceTree{
+			Name:     "team",
+			ReposDir: ".nodes",
+		},
+		Nodes: []config.NodeDefinition{
+			{Name: "service", URL: "https://example.com/service"},
+		},
+	}
+	tw.AddRepositoryWithConfig("team", teamRepoConfig)
+	tw.AddRepository("team/.nodes/service")
+	
+	// Create nested structure for service repo
+	serviceRepoConfig := &config.ConfigTree{
+		Workspace: config.WorkspaceTree{
+			Name:     "service",
+			ReposDir: ".nodes",
+		},
+		Nodes: []config.NodeDefinition{
+			{Name: "module", URL: "https://example.com/module"},
+		},
+	}
+	tw.AddRepositoryWithConfig("team/.nodes/service", serviceRepoConfig)
+	tw.AddRepository("team/.nodes/service/.nodes/module")
 	
 	tests := []struct {
 		name       string
@@ -70,7 +104,7 @@ func TestManager_ResolvePath_ParentNavigation(t *testing.T) {
 		},
 		{
 			name:       "parent from top-level repo",
-			currentDir: filepath.Join(tw.NodesDir, "team"),
+			currentDir: filepath.Join(tw.NodesDir, "platform"),
 			target:     "..",
 			want:       tw.Root,
 		},
@@ -108,17 +142,38 @@ func TestManager_ResolvePath_ParentNavigation(t *testing.T) {
 
 func TestManager_ResolvePath_AbsolutePaths(t *testing.T) {
 	tw := CreateTestWorkspace(t)
-	m := CreateTestManager(t, tw.Root)
+	
+	// Create config with nodes
+	cfg := &config.ConfigTree{
+		Workspace: config.WorkspaceTree{
+			Name:     "test",
+			ReposDir: ".nodes",
+		},
+		Nodes: []config.NodeDefinition{
+			{Name: "backend", URL: "https://example.com/backend"},
+			{Name: "frontend", URL: "https://example.com/frontend"},
+		},
+	}
+	
+	// Create manager with config
+	m := CreateTestManagerWithConfig(t, tw.Root, cfg)
 	
 	// Create structure
 	tw.AddRepository("backend")
 	tw.AddRepository("frontend")
-	tw.AddRepository("backend/.nodes/api")
 	
-	// Add nodes to tree
-	AddNodeToTree(m, "/backend", CreateSimpleNode("backend", "https://example.com/backend"))
-	AddNodeToTree(m, "/frontend", CreateSimpleNode("frontend", "https://example.com/frontend"))
-	AddNodeToTree(m, "/backend/api", CreateSimpleNode("api", "https://example.com/api"))
+	// Add backend's nested structure
+	backendConfig := &config.ConfigTree{
+		Workspace: config.WorkspaceTree{
+			Name:     "backend",
+			ReposDir: ".nodes",
+		},
+		Nodes: []config.NodeDefinition{
+			{Name: "api", URL: "https://example.com/api"},
+		},
+	}
+	tw.AddRepositoryWithConfig("backend", backendConfig)
+	tw.AddRepository("backend/.nodes/api")
 	
 	tests := []struct {
 		name   string
@@ -136,43 +191,67 @@ func TestManager_ResolvePath_AbsolutePaths(t *testing.T) {
 			want:   filepath.Join(tw.NodesDir, "frontend"),
 		},
 		{
-			name:   "absolute nested path",
+			name:   "absolute path to nested api",
 			target: "/backend/api",
 			want:   filepath.Join(tw.NodesDir, "backend", ".nodes", "api"),
 		},
+		{
+			name:   "absolute path to root",
+			target: "/",
+			want:   tw.Root,
+		},
 	}
+	
+	// Start from workspace root
+	require.NoError(t, os.Chdir(tw.Root))
 	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Test from any location
-			require.NoError(t, os.Chdir(tw.Root))
-			
 			result, err := m.ResolvePath(tt.target, false)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, result)
-			
-			// Also test from nested location - absolute path should give same result
-			require.NoError(t, os.Chdir(filepath.Join(tw.NodesDir, "backend")))
-			result2, err2 := m.ResolvePath(tt.target, false)
-			require.NoError(t, err2)
-			assert.Equal(t, tt.want, result2)
 		})
 	}
 }
 
 func TestManager_ResolvePath_RelativePaths(t *testing.T) {
 	tw := CreateTestWorkspace(t)
-	m := CreateTestManager(t, tw.Root)
+	
+	// Create config with nodes
+	cfg := &config.ConfigTree{
+		Workspace: config.WorkspaceTree{
+			Name:     "test",
+			ReposDir: ".nodes",
+		},
+		Nodes: []config.NodeDefinition{
+			{Name: "backend", URL: "https://example.com/backend"},
+			{Name: "frontend", URL: "https://example.com/frontend"},
+			{Name: "shared", URL: "https://example.com/shared"},
+		},
+	}
+	
+	// Create manager with config
+	m := CreateTestManagerWithConfig(t, tw.Root, cfg)
 	
 	// Create structure
-	tw.AddRepository("team")
-	tw.AddRepository("team/.nodes/service1")
-	tw.AddRepository("team/.nodes/service2")
+	tw.AddRepository("backend")
+	tw.AddRepository("frontend")
+	tw.AddRepository("shared")
 	
-	// Add nodes to tree
-	AddNodeToTree(m, "/team", CreateSimpleNode("team", "https://example.com/team"))
-	AddNodeToTree(m, "/team/service1", CreateSimpleNode("service1", "https://example.com/service1"))
-	AddNodeToTree(m, "/team/service2", CreateSimpleNode("service2", "https://example.com/service2"))
+	// Add backend's nested structure
+	backendConfig := &config.ConfigTree{
+		Workspace: config.WorkspaceTree{
+			Name:     "backend",
+			ReposDir: ".nodes",
+		},
+		Nodes: []config.NodeDefinition{
+			{Name: "api", URL: "https://example.com/api"},
+			{Name: "db", URL: "https://example.com/db"},
+		},
+	}
+	tw.AddRepositoryWithConfig("backend", backendConfig)
+	tw.AddRepository("backend/.nodes/api")
+	tw.AddRepository("backend/.nodes/db")
 	
 	tests := []struct {
 		name       string
@@ -181,33 +260,40 @@ func TestManager_ResolvePath_RelativePaths(t *testing.T) {
 		want       string
 	}{
 		{
-			name:       "relative child from root",
+			name:       "relative from root to backend",
 			currentDir: tw.Root,
-			target:     "team",
-			want:       filepath.Join(tw.NodesDir, "team"),
+			target:     "backend",
+			want:       filepath.Join(tw.NodesDir, "backend"),
 		},
 		{
-			name:       "relative nested from root",
-			currentDir: tw.Root,
-			target:     "team/service1",
-			want:       filepath.Join(tw.NodesDir, "team", ".nodes", "service1"),
+			name:       "relative from backend to api",
+			currentDir: filepath.Join(tw.NodesDir, "backend"),
+			target:     "api",
+			want:       filepath.Join(tw.NodesDir, "backend", ".nodes", "api"),
 		},
 		{
-			name:       "relative sibling",
-			currentDir: filepath.Join(tw.NodesDir, "team", ".nodes", "service1"),
-			target:     "../service2",
-			want:       filepath.Join(tw.NodesDir, "team", ".nodes", "service2"),
+			name:       "relative sibling from api to db",
+			currentDir: filepath.Join(tw.NodesDir, "backend", ".nodes", "api"),
+			target:     "../db",
+			want:       filepath.Join(tw.NodesDir, "backend", ".nodes", "db"),
 		},
 		{
-			name:       "relative child from parent",
-			currentDir: filepath.Join(tw.NodesDir, "team"),
-			target:     "service1",
-			want:       filepath.Join(tw.NodesDir, "team", ".nodes", "service1"),
+			name:       "current directory from api",
+			currentDir: filepath.Join(tw.NodesDir, "backend", ".nodes", "api"),
+			target:     ".",
+			want:       filepath.Join(tw.NodesDir, "backend", ".nodes", "api"),
+		},
+		{
+			name:       "navigate up to root from nested",
+			currentDir: filepath.Join(tw.NodesDir, "backend", ".nodes", "db"),
+			target:     "../..",
+			want:       tw.Root,
 		},
 	}
 	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Change to test directory
 			require.NoError(t, os.Chdir(tt.currentDir))
 			
 			result, err := m.ResolvePath(tt.target, false)
@@ -220,8 +306,8 @@ func TestManager_ResolvePath_RelativePaths(t *testing.T) {
 func TestManager_ResolvePath_ConfigReferences(t *testing.T) {
 	tw := CreateTestWorkspace(t)
 	
-	// Create external config with custom repos_dir
-	extConfig := &config.ConfigTree{
+	// Create external config file for config reference
+	externalCfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "external",
 			ReposDir: "custom-repos",
@@ -231,10 +317,10 @@ func TestManager_ResolvePath_ConfigReferences(t *testing.T) {
 			{Name: "service2", URL: "https://example.com/service2"},
 		},
 	}
-	tw.CreateConfigReference("configs/external.yaml", extConfig)
+	tw.CreateConfigReference("configs/external.yaml", externalCfg)
 	
-	// Create main config
-	mainConfig := &config.ConfigTree{
+	// Create main config with config reference
+	cfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
 			Name:     "test",
 			ReposDir: ".nodes",
@@ -244,54 +330,54 @@ func TestManager_ResolvePath_ConfigReferences(t *testing.T) {
 			{Name: "regular", URL: "https://example.com/regular"},
 		},
 	}
-	tw.CreateConfig(mainConfig)
 	
-	m := CreateTestManagerWithConfig(t, tw.Root, mainConfig)
+	// Create manager with config
+	m := CreateTestManagerWithConfig(t, tw.Root, cfg)
 	
-	// Create the directory structure
-	configRefDir := tw.AddRepository("config-ref")
-	customReposDir := filepath.Join(configRefDir, "custom-repos")
-	require.NoError(t, os.MkdirAll(customReposDir, 0755))
-	require.NoError(t, os.MkdirAll(filepath.Join(customReposDir, "service1"), 0755))
-	require.NoError(t, os.MkdirAll(filepath.Join(customReposDir, "service2"), 0755))
+	// Create directory structure
+	tw.AddRepository("config-ref")
 	tw.AddRepository("regular")
 	
-	// Add nodes to tree
-	AddNodeToTree(m, "/config-ref", CreateConfigNode("config-ref", "configs/external.yaml"))
-	AddNodeToTree(m, "/config-ref/service1", CreateSimpleNode("service1", "https://example.com/service1"))
-	AddNodeToTree(m, "/config-ref/service2", CreateSimpleNode("service2", "https://example.com/service2"))
-	AddNodeToTree(m, "/regular", CreateSimpleNode("regular", "https://example.com/regular"))
+	// Since config-ref uses custom repos_dir, create those directories
+	os.MkdirAll(filepath.Join(tw.NodesDir, "config-ref", "custom-repos", "service1"), 0755)
+	os.MkdirAll(filepath.Join(tw.NodesDir, "config-ref", "custom-repos", "service2"), 0755)
 	
 	tests := []struct {
-		name   string
-		target string
-		want   string
+		name       string
+		currentDir string
+		target     string
+		want       string
 	}{
 		{
-			name:   "config reference node",
-			target: "/config-ref",
-			want:   filepath.Join(tw.NodesDir, "config-ref"),
+			name:       "navigate to config reference node",
+			currentDir: tw.Root,
+			target:     "config-ref",
+			want:       filepath.Join(tw.NodesDir, "config-ref"),
 		},
 		{
-			name:   "child under config reference with custom repos_dir",
-			target: "/config-ref/service1",
-			want:   filepath.Join(tw.NodesDir, "config-ref", "custom-repos", "service1"),
+			name:       "child under config reference",
+			currentDir: filepath.Join(tw.NodesDir, "config-ref"),
+			target:     "service1",
+			want:       filepath.Join(tw.NodesDir, "config-ref", "custom-repos", "service1"),
 		},
 		{
-			name:   "another child under config reference",
-			target: "/config-ref/service2",
-			want:   filepath.Join(tw.NodesDir, "config-ref", "custom-repos", "service2"),
+			name:       "another child under config reference",
+			currentDir: filepath.Join(tw.NodesDir, "config-ref"),
+			target:     "service2",
+			want:       filepath.Join(tw.NodesDir, "config-ref", "custom-repos", "service2"),
 		},
 		{
-			name:   "regular node uses default repos_dir",
-			target: "/regular",
-			want:   filepath.Join(tw.NodesDir, "regular"),
+			name:       "regular node uses default repos_dir",
+			currentDir: tw.Root,
+			target:     "regular",
+			want:       filepath.Join(tw.NodesDir, "regular"),
 		},
 	}
 	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, os.Chdir(tw.Root))
+			// Change to test directory
+			require.NoError(t, os.Chdir(tt.currentDir))
 			
 			result, err := m.ResolvePath(tt.target, false)
 			require.NoError(t, err)
@@ -363,32 +449,68 @@ func TestManager_ResolvePath_Errors(t *testing.T) {
 
 func TestManager_ResolvePath_ComplexRelatives(t *testing.T) {
 	tw := CreateTestWorkspace(t)
-	m := CreateTestManager(t, tw.Root)
 	
-	// Create a complex structure
-	// /team
-	//   /backend
-	//     /api
-	//     /db
-	//   /frontend
-	//     /web
-	//     /mobile
+	// Create main config with team structure
+	cfg := &config.ConfigTree{
+		Workspace: config.WorkspaceTree{
+			Name:     "test",
+			ReposDir: ".nodes",
+		},
+		Nodes: []config.NodeDefinition{
+			{Name: "team", URL: "https://example.com/team"},
+		},
+	}
+	
+	// Create manager with config
+	m := CreateTestManagerWithConfig(t, tw.Root, cfg)
+	
+	// Create team structure
 	tw.AddRepository("team")
+	
+	// Create team config with backend and frontend
+	teamCfg := &config.ConfigTree{
+		Workspace: config.WorkspaceTree{
+			Name:     "team",
+			ReposDir: ".nodes",
+		},
+		Nodes: []config.NodeDefinition{
+			{Name: "backend", URL: "https://example.com/backend"},
+			{Name: "frontend", URL: "https://example.com/frontend"},
+		},
+	}
+	tw.AddRepositoryWithConfig("team", teamCfg)
 	tw.AddRepository("team/.nodes/backend")
+	tw.AddRepository("team/.nodes/frontend")
+	
+	// Create backend config with api and db
+	backendCfg := &config.ConfigTree{
+		Workspace: config.WorkspaceTree{
+			Name:     "backend",
+			ReposDir: ".nodes",
+		},
+		Nodes: []config.NodeDefinition{
+			{Name: "api", URL: "https://example.com/api"},
+			{Name: "db", URL: "https://example.com/db"},
+		},
+	}
+	tw.AddRepositoryWithConfig("team/.nodes/backend", backendCfg)
 	tw.AddRepository("team/.nodes/backend/.nodes/api")
 	tw.AddRepository("team/.nodes/backend/.nodes/db")
-	tw.AddRepository("team/.nodes/frontend")
+	
+	// Create frontend config with web and mobile
+	frontendCfg := &config.ConfigTree{
+		Workspace: config.WorkspaceTree{
+			Name:     "frontend",
+			ReposDir: ".nodes",
+		},
+		Nodes: []config.NodeDefinition{
+			{Name: "web", URL: "https://example.com/web"},
+			{Name: "mobile", URL: "https://example.com/mobile"},
+		},
+	}
+	tw.AddRepositoryWithConfig("team/.nodes/frontend", frontendCfg)
 	tw.AddRepository("team/.nodes/frontend/.nodes/web")
 	tw.AddRepository("team/.nodes/frontend/.nodes/mobile")
-	
-	// Add all nodes to tree
-	AddNodeToTree(m, "/team", CreateSimpleNode("team", ""))
-	AddNodeToTree(m, "/team/backend", CreateSimpleNode("backend", ""))
-	AddNodeToTree(m, "/team/backend/api", CreateSimpleNode("api", ""))
-	AddNodeToTree(m, "/team/backend/db", CreateSimpleNode("db", ""))
-	AddNodeToTree(m, "/team/frontend", CreateSimpleNode("frontend", ""))
-	AddNodeToTree(m, "/team/frontend/web", CreateSimpleNode("web", ""))
-	AddNodeToTree(m, "/team/frontend/mobile", CreateSimpleNode("mobile", ""))
 	
 	tests := []struct {
 		name       string

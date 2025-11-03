@@ -105,10 +105,14 @@ func CreateTestManager(t *testing.T, workspace string) *Manager {
 }
 
 // CreateTestManagerWithConfig creates a manager with specific config
+// CreateTestManagerWithConfig creates a manager with specific config
 func CreateTestManagerWithConfig(t *testing.T, workspace string, cfg *config.ConfigTree) *Manager {
 	m := CreateTestManager(t, workspace)
 	m.config = cfg
-	// Tree provider is already set up from CreateTestManager
+	// Load the tree with the config
+	if err := m.treeProvider.Load(cfg); err != nil {
+		t.Fatalf("Failed to load tree: %v", err)
+	}
 	return m
 }
 
