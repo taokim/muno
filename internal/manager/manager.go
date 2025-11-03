@@ -624,17 +624,34 @@ func (m *Manager) ResolvePath(target string, ensure bool) (string, error) {
 	
 	// Determine current position in tree based on filesystem location
 	currentTreePath := "/"
-	reposDir := filepath.Join(m.workspace, m.config.GetReposDir())
 	
-	// Special case: if we're exactly at the repos directory (.nodes), 
-	// we're at the root in the tree (since .nodes doesn't exist in the tree)
-	if cwd == reposDir {
-		currentTreePath = "/"
-	} else if strings.HasPrefix(cwd, reposDir) {
-		// Extract relative path from repos directory
-		relPath, err := filepath.Rel(reposDir, cwd)
-		if err == nil && relPath != "." {
-			currentTreePath = "/" + filepath.ToSlash(relPath)
+	// Use GetTreePath to properly convert filesystem path to tree path
+	if m.config != nil {
+		treePath, err := m.GetTreePath(cwd)
+		if err == nil {
+			currentTreePath = treePath
+		} else {
+			// Fallback: try basic resolution
+			reposDir := filepath.Join(m.workspace, m.config.GetReposDir())
+			if cwd == reposDir {
+				currentTreePath = "/"
+			} else if strings.HasPrefix(cwd, reposDir) {
+				// This is a rough fallback - GetTreePath should handle most cases
+				relPath, _ := filepath.Rel(reposDir, cwd)
+				if relPath != "." {
+					// Very basic: just remove known implementation directories
+					parts := strings.Split(filepath.ToSlash(relPath), "/")
+					var treeParts []string
+					for _, part := range parts {
+						if part != ".nodes" && part != "repos" && part != "" {
+							treeParts = append(treeParts, part)
+						}
+					}
+					if len(treeParts) > 0 {
+						currentTreePath = "/" + strings.Join(treeParts, "/")
+					}
+				}
+			}
 		}
 	}
 	
@@ -645,8 +662,11 @@ func (m *Manager) ResolvePath(target string, ensure bool) (string, error) {
 		if !ensure {
 			// Special case: if we're at the repos directory itself (.nodes),
 			// return workspace root since .nodes doesn't exist in the tree
-			if cwd == reposDir {
-				return m.workspace, nil
+			if m.config != nil {
+				reposDir := filepath.Join(m.workspace, m.config.GetReposDir())
+				if cwd == reposDir {
+					return m.workspace, nil
+				}
 			}
 			return cwd, nil
 		}
@@ -830,12 +850,20 @@ func (m *Manager) GetTreePath(physicalPath string) (string, error) {
 		return "", fmt.Errorf("manager not initialized")
 	}
 	
-	reposDir := filepath.Join(m.workspace, m.config.GetReposDir())
-	
-	// Special case: workspace root maps to "/" in the tree (conceptually the root node)
+	// Special case: workspace root maps to "/" in the tree
 	if physicalPath == m.workspace {
 		return "/", nil
 	}
+	
+	// Build the tree path by walking up the filesystem and checking muno.yaml files
+	// This properly handles config nodes, repos_dir variations, etc.
+	treePath := m.buildTreePathFromFilesystem(physicalPath)
+	if treePath != "" {
+		return treePath, nil
+	}
+	
+	// Fallback to simple logic if advanced resolution fails
+	reposDir := filepath.Join(m.workspace, m.config.GetReposDir())
 	
 	// Special case: repos directory (.nodes) also maps to "/" since .nodes doesn't exist in the tree
 	if physicalPath == reposDir {
@@ -857,10 +885,105 @@ func (m *Manager) GetTreePath(physicalPath string) (string, error) {
 		return "/", nil
 	}
 	
-	// Convert to tree path format
-	treePath := "/" + filepath.ToSlash(relPath)
+	// Simple conversion - just remove .nodes and repos directories
+	parts := strings.Split(filepath.ToSlash(relPath), "/")
+	var cleanParts []string
+	for _, part := range parts {
+		if part != ".nodes" && part != "repos" && part != "" {
+			cleanParts = append(cleanParts, part)
+		}
+	}
+	
+	if len(cleanParts) > 0 {
+		treePath = "/" + strings.Join(cleanParts, "/")
+	} else {
+		treePath = "/"
+	}
 	
 	return treePath, nil
+}
+
+// buildTreePathFromFilesystem walks up the filesystem path and builds the correct tree path
+// by examining muno.yaml files and understanding the node relationships
+func (m *Manager) buildTreePathFromFilesystem(physicalPath string) string {
+	// Start from the given path and walk up to find the workspace root
+	currentPath := physicalPath
+	pathComponents := []string{}
+	
+	// Walk up the directory tree
+	for currentPath != "" && currentPath != "/" && currentPath != m.workspace {
+		// Get the directory name
+		dirName := filepath.Base(currentPath)
+		parentPath := filepath.Dir(currentPath)
+		
+		// Check if parent has muno.yaml
+		parentMunoYaml := filepath.Join(parentPath, "muno.yaml")
+		if m.fsProvider != nil && m.fsProvider.Exists(parentMunoYaml) {
+			// Load the parent's muno.yaml to understand the structure
+			if cfg, err := config.LoadTree(parentMunoYaml); err == nil && cfg != nil {
+				// Check if this directory is defined as a child node
+				for _, node := range cfg.Nodes {
+					if node.Name == dirName {
+						// Found this node in parent's config
+						// Add to path components (we'll reverse later)
+						pathComponents = append([]string{dirName}, pathComponents...)
+						
+						// Check if we need to account for repos_dir
+						if parentPath != m.workspace {
+							// We might be inside a repos_dir
+							reposDir := cfg.Workspace.ReposDir
+							if reposDir == "" {
+								reposDir = ".nodes"
+							}
+							// Check if we're actually in the repos_dir
+							actualParent := filepath.Dir(currentPath)
+							if filepath.Base(actualParent) == reposDir {
+								// Skip the repos_dir in our traversal
+								currentPath = filepath.Dir(actualParent)
+							} else {
+								currentPath = parentPath
+							}
+						} else {
+							currentPath = parentPath
+						}
+						goto next_iteration
+					}
+				}
+			}
+		}
+		
+		// Check for special directories to skip
+		if dirName == ".nodes" || dirName == "repos" {
+			// Skip these implementation directories
+			currentPath = parentPath
+			continue
+		}
+		
+		// Normal directory - add to path
+		if dirName != "" && dirName != "." {
+			pathComponents = append([]string{dirName}, pathComponents...)
+		}
+		currentPath = parentPath
+		
+		next_iteration:
+		// Check if we've reached the workspace
+		if currentPath == m.workspace {
+			break
+		}
+	}
+	
+	// Build the tree path
+	if len(pathComponents) > 0 {
+		return "/" + strings.Join(pathComponents, "/")
+	}
+	
+	// Check if we ended at workspace root or a repos directory
+	if currentPath == m.workspace {
+		return "/"
+	}
+	
+	// Unable to determine tree path
+	return ""
 }
 
 // AddOptions for adding repositories
@@ -1085,8 +1208,7 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 			// First level goes directly under workspace nodes dir
 			currentPath = filepath.Join(currentPath, part)
 		} else {
-			// For subsequent levels, check if parent is a config reference node
-			// or has muno.yaml with custom repos_dir
+			// For subsequent levels, check if parent has a custom repos_dir
 			childReposDir := ""
 			
 			// Check if the PARENT (not current) is a config node
@@ -1106,10 +1228,24 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 					} else {
 						childReposDir = constants.DefaultReposDir
 					}
+				} else if err == nil && parentNode.Repository != "" {
+					// Parent is a git repository, check if it has a muno.yaml
+					parentMunoYaml := filepath.Join(currentPath, "muno.yaml")
+					if m.fsProvider.Exists(parentMunoYaml) {
+						// Parent has muno.yaml, use its repos_dir
+						childReposDir = constants.DefaultReposDir // default from constants
+						if cfg, err := config.LoadTree(parentMunoYaml); err == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
+							childReposDir = cfg.Workspace.ReposDir
+						}
+					} else if m.fsProvider.Exists(filepath.Join(currentPath, ".git")) {
+						// Parent is a git repo without muno.yaml, use default
+						childReposDir = constants.DefaultReposDir
+					}
 				}
 			}
 			
-			// If not a config node or couldn't get repos_dir, check for muno.yaml at the parent path
+			// If we still don't have a repos_dir and parent is not a config node,
+			// check for muno.yaml at the current path
 			if childReposDir == "" {
 				parentMunoYaml := filepath.Join(currentPath, "muno.yaml")
 				if m.fsProvider.Exists(parentMunoYaml) {

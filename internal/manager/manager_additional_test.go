@@ -35,12 +35,12 @@ func TestComputeFilesystemPath(t *testing.T) {
 		{
 			name: "root path",
 			path: "/",
-			want: filepath.Join("/test/workspace", nodesDir),
+			want: "/test/workspace", // Root now returns workspace, not .nodes
 		},
 		{
 			name: "empty path",
 			path: "",
-			want: filepath.Join("/test/workspace", nodesDir),
+			want: "/test/workspace", // Empty also returns workspace
 		},
 		{
 			name: "top-level repo",
