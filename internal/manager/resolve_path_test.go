@@ -44,7 +44,7 @@ func TestManager_ResolvePath_RootPaths(t *testing.T) {
 
 func TestManager_ResolvePath_ParentNavigation(t *testing.T) {
 	tw := CreateTestWorkspace(t)
-	
+
 	// Create config with nodes
 	cfg := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
@@ -56,14 +56,14 @@ func TestManager_ResolvePath_ParentNavigation(t *testing.T) {
 			{Name: "team", URL: "https://example.com/team"},
 		},
 	}
-	
+
 	// Create manager with config
 	m := CreateTestManagerWithConfig(t, tw.Root, cfg)
-	
+
 	// Create directory structure
 	tw.AddRepository("platform")
 	tw.AddRepository("team")
-	
+
 	// Create nested structure for team repo
 	teamRepoConfig := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
@@ -76,7 +76,7 @@ func TestManager_ResolvePath_ParentNavigation(t *testing.T) {
 	}
 	tw.AddRepositoryWithConfig("team", teamRepoConfig)
 	tw.AddRepository("team/.nodes/service")
-	
+
 	// Create nested structure for service repo
 	serviceRepoConfig := &config.ConfigTree{
 		Workspace: config.WorkspaceTree{
@@ -89,7 +89,7 @@ func TestManager_ResolvePath_ParentNavigation(t *testing.T) {
 	}
 	tw.AddRepositoryWithConfig("team/.nodes/service", serviceRepoConfig)
 	tw.AddRepository("team/.nodes/service/.nodes/module")
-	
+
 	tests := []struct {
 		name       string
 		currentDir string
@@ -127,12 +127,12 @@ func TestManager_ResolvePath_ParentNavigation(t *testing.T) {
 			want:       filepath.Join(tw.NodesDir, "team"),
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Change to test directory
 			require.NoError(t, os.Chdir(tt.currentDir))
-			
+
 			result, err := m.ResolvePath(tt.target, false)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, result)
@@ -387,27 +387,28 @@ func TestManager_ResolvePath_ConfigReferences(t *testing.T) {
 }
 
 func TestManager_ResolvePath_EnsureFlag(t *testing.T) {
-	// This test would require mock git provider to test cloning
-	// For now, we'll test the basic logic without actual cloning
-	
+	// Test that ResolvePath validates tree structure, not filesystem
 	tw := CreateTestWorkspace(t)
 	m := CreateTestManager(t, tw.Root)
-	
-	// Add a lazy node
+
+	// Add a lazy node that exists in tree but not on filesystem
 	AddNodeToTree(m, "/lazy-repo", CreateLazyNode("lazy-repo", "https://example.com/lazy"))
-	
-	// With ensure=false, should fail for non-existent path
-	_, err := m.ResolvePath("/lazy-repo", false)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "does not exist")
-	
-	// Create the directory manually to simulate it exists
-	tw.AddRepository("lazy-repo")
-	
-	// Now it should work
+
+	// ResolvePath should work even if directory doesn't exist yet (validates tree only, not filesystem)
 	result, err := m.ResolvePath("/lazy-repo", false)
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(tw.NodesDir, "lazy-repo"), result)
+
+	// Add a cloned node (exists in tree and on filesystem)
+	tw.AddRepository("cloned-repo")
+	AddNodeToTree(m, "/cloned-repo", CreateSimpleNode("cloned-repo", "https://example.com/cloned"))
+
+	result, err = m.ResolvePath("/cloned-repo", false)
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(tw.NodesDir, "cloned-repo"), result)
+
+	// Note: Testing ensure=true with actual cloning requires a mock git provider
+	// which is not set up in these unit tests
 }
 
 func TestManager_ResolvePath_Errors(t *testing.T) {

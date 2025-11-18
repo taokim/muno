@@ -232,7 +232,19 @@ Go dependencies (see `go.mod`):
 
 ## Testing
 
-**Coverage Target**: 70-80% for all packages
+**MANDATORY COVERAGE REQUIREMENT**: 
+- **Minimum 70% test coverage for ALL packages**
+- **All code changes MUST maintain or improve test coverage**
+- **No package should drop below 70% coverage**
+- **Target: 70-80% for sustainable quality**
+
+### Current Coverage Status (Target: ≥70%)
+- ✅ internal/adapters: 70.5%
+- ✅ internal/config: 80.1%
+- ✅ internal/git: 78.1%
+- ⚠️ internal/plugin: 66.3% (needs improvement)
+- ❌ internal/manager: ~30% (critical - needs major work)
+- ⚠️ cmd/muno: 62.7% (needs improvement)
 
 ### Test Commands
 
@@ -273,6 +285,21 @@ The regression test suite (`test/run_regression_tests.sh`) includes:
 - **Path Resolution & MCD**: Path command and mcd shell function (v1.1.1+ fixes)
 - **Error Handling**: Invalid operations and edge cases
 - **Advanced Features**: Nested structures, config references, custom repos_dir
+
+### Testing Requirements for Development
+
+**Before Committing Code**:
+1. Run coverage check: `go test -cover ./path/to/package`
+2. Ensure package has ≥70% coverage
+3. Write tests for all new functions/methods
+4. Test both success and failure paths
+5. Include edge cases and boundary conditions
+
+**Test Patterns to Use**:
+- Table-driven tests for comprehensive coverage
+- Duck-type mocking for flexible test doubles
+- Parallel test execution where possible
+- Clear test names describing the scenario
 
 ### Adding New Tests
 

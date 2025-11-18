@@ -71,8 +71,13 @@ func CreateTestManagerOptions(workspace string) ManagerOptions {
 	configAdapter := adapters.NewConfigAdapter()
 	gitProvider := adapters.NewGitProvider()
 	fsAdapter := adapters.NewFileSystemAdapter()
-	treeAdapter := adapters.NewTreeAdapter() // No arguments needed
+	treeAdapter := adapters.NewTreeAdapter()
 	uiAdapter := adapters.NewUIAdapter()
+	
+	// Set workspace context on tree adapter if it supports it
+	if stubAdapter, ok := treeAdapter.(*adapters.TreeAdapterStub); ok {
+		stubAdapter.SetWorkspaceContext(workspace, fsAdapter)
+	}
 	
 	return ManagerOptions{
 		ConfigProvider: configAdapter,

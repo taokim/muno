@@ -611,16 +611,33 @@ func (m *Manager) Close() error {
 // of the actual filesystem structure (like .nodes) from users.
 //
 // If ensure is true, it will clone lazy repositories if needed
+// normalizePathToWorkspaceFormat ensures path has same symlink format as workspace
+// On macOS, /var might be /private/var, and we want to match workspace format
+func (m *Manager) normalizePathToWorkspaceFormat(path string) string {
+	// Check if workspace starts with /private but path doesn't (or vice versa)
+	if strings.HasPrefix(m.workspace, "/private/var") && strings.HasPrefix(path, "/var/") && !strings.HasPrefix(path, "/private") {
+		// Workspace has /private, path doesn't - add it
+		return "/private" + path
+	} else if strings.HasPrefix(m.workspace, "/var/") && !strings.HasPrefix(m.workspace, "/private") && strings.HasPrefix(path, "/private/var/") {
+		// Workspace doesn't have /private, path does - remove it
+		return strings.TrimPrefix(path, "/private")
+	}
+	return path
+}
+
 func (m *Manager) ResolvePath(target string, ensure bool) (string, error) {
 	if !m.initialized {
 		return "", fmt.Errorf("manager not initialized")
 	}
-	
+
 	// Get current directory to resolve relative paths
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("getting current directory: %w", err)
 	}
+
+	// Normalize cwd to match workspace symlink format
+	cwd = m.normalizePathToWorkspaceFormat(cwd)
 	
 	// Determine current position in tree based on filesystem location
 	currentTreePath := "/"
@@ -839,7 +856,10 @@ if node.IsConfig && node.ConfigFile != "" {
 	
 	// Compute filesystem path
 	physicalPath := m.computeFilesystemPath(resolvedPath)
-	
+
+	// Normalize to match workspace symlink format
+	physicalPath = m.normalizePathToWorkspaceFormat(physicalPath)
+
 	return physicalPath, nil
 }
 
@@ -906,54 +926,89 @@ func (m *Manager) GetTreePath(physicalPath string) (string, error) {
 // buildTreePathFromFilesystem walks up the filesystem path and builds the correct tree path
 // by examining muno.yaml files and understanding the node relationships
 func (m *Manager) buildTreePathFromFilesystem(physicalPath string) string {
+	// Resolve symlinks in paths for accurate comparison (macOS /var -> /private/var)
+	resolvedPath, err := filepath.EvalSymlinks(physicalPath)
+	if err != nil {
+		resolvedPath = physicalPath
+	}
+
+	resolvedWorkspace, err := filepath.EvalSymlinks(m.workspace)
+	if err != nil {
+		resolvedWorkspace = m.workspace
+	}
+
 	// Start from the given path and walk up to find the workspace root
-	currentPath := physicalPath
+	currentPath := resolvedPath
 	pathComponents := []string{}
-	
+
 	// Walk up the directory tree
-	for currentPath != "" && currentPath != "/" && currentPath != m.workspace {
+	for currentPath != "" && currentPath != "/" && currentPath != resolvedWorkspace {
 		// Get the directory name
 		dirName := filepath.Base(currentPath)
 		parentPath := filepath.Dir(currentPath)
+		var configFound bool
+		var shouldSkip bool
 		
-		// Check if parent has muno.yaml
+		// First check if this node is defined in parent's or grandparent's muno.yaml
+		configFound = false
+		
+		// Check parent's muno.yaml
 		parentMunoYaml := filepath.Join(parentPath, "muno.yaml")
 		if m.fsProvider != nil && m.fsProvider.Exists(parentMunoYaml) {
-			// Load the parent's muno.yaml to understand the structure
 			if cfg, err := config.LoadTree(parentMunoYaml); err == nil && cfg != nil {
-				// Check if this directory is defined as a child node
 				for _, node := range cfg.Nodes {
 					if node.Name == dirName {
-						// Found this node in parent's config
-						// Add to path components (we'll reverse later)
 						pathComponents = append([]string{dirName}, pathComponents...)
-						
-						// Check if we need to account for repos_dir
-						if parentPath != m.workspace {
-							// We might be inside a repos_dir
-							reposDir := cfg.Workspace.ReposDir
-							if reposDir == "" {
-								reposDir = ".nodes"
-							}
-							// Check if we're actually in the repos_dir
-							actualParent := filepath.Dir(currentPath)
-							if filepath.Base(actualParent) == reposDir {
-								// Skip the repos_dir in our traversal
-								currentPath = filepath.Dir(actualParent)
-							} else {
-								currentPath = parentPath
-							}
-						} else {
-							currentPath = parentPath
-						}
+						currentPath = parentPath
+						configFound = true
 						goto next_iteration
 					}
 				}
 			}
 		}
 		
+		// If parent is a repos directory (like .nodes), check grandparent's muno.yaml
+		if !configFound {
+			grandparentPath := filepath.Dir(parentPath)
+			grandparentMunoYaml := filepath.Join(grandparentPath, "muno.yaml")
+			if m.fsProvider != nil && m.fsProvider.Exists(grandparentMunoYaml) {
+				if cfg, err := config.LoadTree(grandparentMunoYaml); err == nil && cfg != nil {
+					reposDir := cfg.Workspace.ReposDir
+					if reposDir == "" {
+						reposDir = ".nodes"
+					}
+					// Check if parent is indeed the repos directory
+					if filepath.Base(parentPath) == reposDir {
+						// Check if this node is defined in grandparent's config
+						for _, node := range cfg.Nodes {
+							if node.Name == dirName {
+								pathComponents = append([]string{dirName}, pathComponents...)
+								currentPath = grandparentPath
+								configFound = true
+								goto next_iteration
+							}
+						}
+					}
+				}
+			}
+		}
+		
 		// Check for special directories to skip
-		if dirName == ".nodes" || dirName == "repos" {
+		shouldSkip = false
+		if m.fsProvider != nil && m.fsProvider.Exists(filepath.Join(parentPath, "muno.yaml")) {
+			if cfg, err := config.LoadTree(filepath.Join(parentPath, "muno.yaml")); err == nil && cfg != nil {
+				reposDir := cfg.Workspace.ReposDir
+				if reposDir == "" {
+					reposDir = ".nodes"
+				}
+				if dirName == reposDir {
+					shouldSkip = true
+				}
+			}
+		}
+		
+		// Also skip hardcoded implementation directories
+		if shouldSkip || dirName == ".nodes" || dirName == "repos" {
 			// Skip these implementation directories
 			currentPath = parentPath
 			continue
@@ -967,23 +1022,25 @@ func (m *Manager) buildTreePathFromFilesystem(physicalPath string) string {
 		
 		next_iteration:
 		// Check if we've reached the workspace
-		if currentPath == m.workspace {
+		if currentPath == resolvedWorkspace {
 			break
 		}
 	}
+
+	// Build the tree path only if we reached the workspace
+	// The loop exits when currentPath == resolvedWorkspace or we go outside workspace
+
+	if currentPath != resolvedWorkspace {
+		return ""
+	}
 	
-	// Build the tree path
 	if len(pathComponents) > 0 {
-		return "/" + strings.Join(pathComponents, "/")
+		result := "/" + strings.Join(pathComponents, "/")
+		return result
 	}
 	
-	// Check if we ended at workspace root or a repos directory
-	if currentPath == m.workspace {
-		return "/"
-	}
-	
-	// Unable to determine tree path
-	return ""
+	// We reached workspace root with no components (at root)
+	return "/"
 }
 
 // AddOptions for adding repositories
@@ -1020,7 +1077,297 @@ func NewStubProcessProvider() interfaces.ProcessProvider {
 	return &DefaultProcessProvider{}
 }
 
+// NewStubGitProvider creates a stub git provider for testing
+func NewStubGitProvider() interfaces.GitProvider {
+	return &StubGitProvider{}
+}
+
+// StubGitProvider is a stub implementation of GitProvider for testing
+type StubGitProvider struct{}
+
+func (g *StubGitProvider) Clone(url, path string, options interfaces.CloneOptions) error {
+	return nil
+}
+
+func (g *StubGitProvider) Pull(path string, options interfaces.PullOptions) error {
+	return nil
+}
+
+func (g *StubGitProvider) Push(path string, options interfaces.PushOptions) error {
+	return nil
+}
+
+func (g *StubGitProvider) Status(path string) (*interfaces.GitStatus, error) {
+	return &interfaces.GitStatus{}, nil
+}
+
+func (g *StubGitProvider) Commit(path string, message string, options interfaces.CommitOptions) error {
+	return nil
+}
+
+func (g *StubGitProvider) Branch(path string) (string, error) {
+	return "main", nil
+}
+
+func (g *StubGitProvider) Checkout(path string, branch string) error {
+	return nil
+}
+
+func (g *StubGitProvider) Fetch(path string, options interfaces.FetchOptions) error {
+	return nil
+}
+
+func (g *StubGitProvider) Add(path string, files []string) error {
+	return nil
+}
+
+func (g *StubGitProvider) Remove(path string, files []string) error {
+	return nil
+}
+
+func (g *StubGitProvider) GetRemoteURL(path string) (string, error) {
+	return "", nil
+}
+
+func (g *StubGitProvider) SetRemoteURL(path string, url string) error {
+	return nil
+}
+
+// NewStubTreeProvider creates a stub tree provider for testing
+func NewStubTreeProvider() interfaces.TreeProvider {
+	return &StubTreeProvider{}
+}
+
+// NewStubFileSystemProvider creates a stub filesystem provider for testing
+func NewStubFileSystemProvider() interfaces.FileSystemProvider {
+	return &StubFileSystemProvider{}
+}
+
+// NewStubConfigProvider creates a stub config provider for testing
+func NewStubConfigProvider() interfaces.ConfigProvider {
+	return &StubConfigProvider{}
+}
+
+// StubConfigProvider is a stub implementation of ConfigProvider for testing
+type StubConfigProvider struct{}
+
+func (c *StubConfigProvider) Load(path string) (interface{}, error) {
+	return &config.ConfigTree{}, nil
+}
+
+func (c *StubConfigProvider) Save(path string, cfg interface{}) error {
+	return nil
+}
+
+func (c *StubConfigProvider) Exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func (c *StubConfigProvider) Watch(path string) (<-chan interfaces.ConfigEvent, error) {
+	ch := make(chan interfaces.ConfigEvent)
+	close(ch)
+	return ch, nil
+}
+
+// StubFileSystemProvider is a stub implementation of FileSystemProvider for testing
+type StubFileSystemProvider struct{}
+
+func (f *StubFileSystemProvider) Exists(path string) bool {
+	// Check if path actually exists for basic functionality
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func (f *StubFileSystemProvider) Create(path string) error {
+	return nil
+}
+
+func (f *StubFileSystemProvider) Remove(path string) error {
+	return nil
+}
+
+func (f *StubFileSystemProvider) RemoveAll(path string) error {
+	return nil
+}
+
+func (f *StubFileSystemProvider) ReadDir(path string) ([]interfaces.FileInfo, error) {
+	return []interfaces.FileInfo{}, nil
+}
+
+func (f *StubFileSystemProvider) Mkdir(path string, perm os.FileMode) error {
+	return os.Mkdir(path, perm)
+}
+
+func (f *StubFileSystemProvider) MkdirAll(path string, perm os.FileMode) error {
+	return os.MkdirAll(path, perm)
+}
+
+func (f *StubFileSystemProvider) ReadFile(path string) ([]byte, error) {
+	return []byte{}, nil
+}
+
+func (f *StubFileSystemProvider) WriteFile(path string, data []byte, perm os.FileMode) error {
+	return os.WriteFile(path, data, perm)
+}
+
+func (f *StubFileSystemProvider) Stat(path string) (interfaces.FileInfo, error) {
+	return interfaces.FileInfo{}, nil
+}
+
+func (f *StubFileSystemProvider) Symlink(oldname, newname string) error {
+	return nil
+}
+
+func (f *StubFileSystemProvider) Rename(oldpath, newpath string) error {
+	return nil
+}
+
+func (f *StubFileSystemProvider) Copy(src, dst string) error {
+	return nil
+}
+
+func (f *StubFileSystemProvider) Walk(root string, fn filepath.WalkFunc) error {
+	return nil
+}
+
+// StubTreeProvider is a stub implementation of TreeProvider for testing
+type StubTreeProvider struct{}
+
+func (t *StubTreeProvider) Load(config interface{}) error {
+	return nil
+}
+
+func (t *StubTreeProvider) Navigate(path string) error {
+	return nil
+}
+
+func (t *StubTreeProvider) GetCurrent() (interfaces.NodeInfo, error) {
+	return interfaces.NodeInfo{}, nil
+}
+
+func (t *StubTreeProvider) GetTree() (interfaces.NodeInfo, error) {
+	return interfaces.NodeInfo{}, nil
+}
+
+func (t *StubTreeProvider) GetNode(path string) (interfaces.NodeInfo, error) {
+	return interfaces.NodeInfo{}, nil
+}
+
+func (t *StubTreeProvider) AddNode(parentPath string, node interfaces.NodeInfo) error {
+	return nil
+}
+
+func (t *StubTreeProvider) RemoveNode(path string) error {
+	return nil
+}
+
+func (t *StubTreeProvider) UpdateNode(path string, node interfaces.NodeInfo) error {
+	return nil
+}
+
+func (t *StubTreeProvider) ListChildren(path string) ([]interfaces.NodeInfo, error) {
+	return []interfaces.NodeInfo{}, nil
+}
+
+func (t *StubTreeProvider) GetPath() string {
+	return ""
+}
+
+func (t *StubTreeProvider) SetPath(path string) error {
+	return nil
+}
+
+func (t *StubTreeProvider) GetState() (interfaces.TreeState, error) {
+	return interfaces.TreeState{}, nil
+}
+
+func (t *StubTreeProvider) SetState(state interfaces.TreeState) error {
+	return nil
+}
+
+
 // DefaultProcessProvider is a simple implementation of ProcessProvider
+// NewStubUIProvider creates a stub UI provider for testing
+func NewStubUIProvider() interfaces.UIProvider {
+	return &StubUIProvider{}
+}
+
+// StubUIProvider is a stub implementation of UIProvider for testing
+type StubUIProvider struct{}
+
+func (u *StubUIProvider) Prompt(message string) (string, error) {
+	return "", nil
+}
+
+func (u *StubUIProvider) PromptPassword(message string) (string, error) {
+	return "", nil
+}
+
+func (u *StubUIProvider) Confirm(message string) (bool, error) {
+	// Always confirm in tests
+	return true, nil
+}
+
+func (u *StubUIProvider) Select(message string, options []string) (string, error) {
+	if len(options) > 0 {
+		return options[0], nil
+	}
+	return "", nil
+}
+
+func (u *StubUIProvider) MultiSelect(message string, options []string) ([]string, error) {
+	return options, nil
+}
+
+func (u *StubUIProvider) Progress(message string) interfaces.ProgressReporter {
+	return &StubProgressReporter{}
+}
+
+func (u *StubUIProvider) Info(message string) {
+	// No-op
+}
+
+func (u *StubUIProvider) Success(message string) {
+	// No-op
+}
+
+func (u *StubUIProvider) Warning(message string) {
+	// No-op
+}
+
+func (u *StubUIProvider) Error(message string) {
+	// No-op
+}
+
+func (u *StubUIProvider) Debug(message string) {
+	// No-op
+}
+
+
+// StubProgressReporter is a stub implementation of ProgressReporter for testing
+type StubProgressReporter struct{}
+
+func (p *StubProgressReporter) Start() {
+	// No-op
+}
+
+func (p *StubProgressReporter) Update(current, total int) {
+	// No-op
+}
+
+func (p *StubProgressReporter) SetMessage(message string) {
+	// No-op
+}
+
+func (p *StubProgressReporter) Finish() {
+	// No-op
+}
+
+func (p *StubProgressReporter) Error(err error) {
+	// No-op
+}
+
 type DefaultProcessProvider struct{}
 
 func (p *DefaultProcessProvider) ExecuteShell(ctx context.Context, command string, opts interfaces.ProcessOptions) (*interfaces.ProcessResult, error) {

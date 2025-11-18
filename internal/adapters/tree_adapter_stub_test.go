@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/taokim/muno/internal/config"
 	"github.com/taokim/muno/internal/interfaces"
 )
 
@@ -18,15 +19,50 @@ func TestNewTreeAdapter(t *testing.T) {
 }
 
 func TestTreeAdapterStub_Load(t *testing.T) {
-	adapter := &TreeAdapterStub{}
-	
-	// Load expects a config parameter
-	err := adapter.Load(nil)
+	adapter := &TreeAdapterStub{
+		nodes: make(map[string]interfaces.NodeInfo),
+	}
+
+	// Load expects a *config.ConfigTree
+	cfg := &config.ConfigTree{
+		Workspace: config.WorkspaceTree{
+			Name:     "test-workspace",
+			ReposDir: ".nodes",
+		},
+		Nodes: []config.NodeDefinition{
+			{
+				Name:  "repo1",
+				URL:   "https://github.com/test/repo1.git",
+				Fetch: "eager",
+			},
+			{
+				Name:  "repo2",
+				URL:   "https://github.com/test/repo2.git",
+				Fetch: "lazy",
+			},
+		},
+	}
+
+	err := adapter.Load(cfg)
 	assert.NoError(t, err)
-	
-	// Can also pass a config struct
-	err = adapter.Load(struct{}{})
+
+	// Verify root node was created
+	root, err := adapter.GetTree()
 	assert.NoError(t, err)
+	assert.Equal(t, "test-workspace", root.Name)
+	assert.Equal(t, "/", root.Path)
+
+	// Verify child nodes were created
+	node1, err := adapter.GetNode("/repo1")
+	assert.NoError(t, err)
+	assert.Equal(t, "repo1", node1.Name)
+	assert.Equal(t, "https://github.com/test/repo1.git", node1.Repository)
+	assert.False(t, node1.IsLazy)
+
+	node2, err := adapter.GetNode("/repo2")
+	assert.NoError(t, err)
+	assert.Equal(t, "repo2", node2.Name)
+	assert.True(t, node2.IsLazy)
 }
 
 func TestTreeAdapterStub_Navigate(t *testing.T) {

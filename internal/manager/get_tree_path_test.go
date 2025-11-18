@@ -175,9 +175,12 @@ func TestManager_GetTreePath_ConfigReferences(t *testing.T) {
 	}
 	
 	m := CreateTestManagerWithConfig(t, tw.Root, cfg)
-	
+
 	// Create directory structure with custom repos_dir
 	tw.AddRepository("config-ref")
+	// Create muno.yaml in config-ref directory so buildTreePathFromFilesystem can find it
+	configRefPath := filepath.Join(tw.NodesDir, "config-ref")
+	externalCfg.Save(filepath.Join(configRefPath, "muno.yaml"))
 	os.MkdirAll(filepath.Join(tw.NodesDir, "config-ref", "custom-repos", "service1"), 0755)
 	os.MkdirAll(filepath.Join(tw.NodesDir, "config-ref", "custom-repos", "service2"), 0755)
 	tw.AddRepository("regular")
