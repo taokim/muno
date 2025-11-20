@@ -173,20 +173,65 @@ func (t *TreeAdapterStub) GetCurrent() (interfaces.NodeInfo, error) {
 	return t.current, nil
 }
 
-// GetTree returns the root node of the tree
+// buildNodeWithChildren recursively builds a NodeInfo with populated Children array
+// This matches the behavior of the real treeProviderAdapter
+func (t *TreeAdapterStub) buildNodeWithChildren(path string) (interfaces.NodeInfo, error) {
+	// Get the base node from the map
+	node, ok := t.nodes[path]
+	if !ok {
+		return interfaces.NodeInfo{}, fmt.Errorf("node not found: %s", path)
+	}
+
+	// Create a copy to avoid modifying the stored node
+	result := node
+	result.Children = []interfaces.NodeInfo{}
+
+	// Find and recursively build all direct children
+	// A direct child has a path like "parent/child" where parent is the current path
+	pathPrefix := path
+	if path != "/" {
+		pathPrefix = path + "/"
+	}
+
+	for childPath := range t.nodes {
+		// Skip the node itself
+		if childPath == path {
+			continue
+		}
+
+		// Check if this is a direct child (not a grandchild)
+		if strings.HasPrefix(childPath, pathPrefix) {
+			// Get the relative path after the parent
+			relativePath := strings.TrimPrefix(childPath, pathPrefix)
+
+			// It's a direct child only if there are no more "/" in the relative path
+			if !strings.Contains(relativePath, "/") {
+				// Recursively build the child with its children
+				childInfo, err := t.buildNodeWithChildren(childPath)
+				if err == nil {
+					result.Children = append(result.Children, childInfo)
+				}
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// GetTree returns the root node of the tree with Children populated recursively
 func (t *TreeAdapterStub) GetTree() (interfaces.NodeInfo, error) {
-	if root, ok := t.nodes["/"]; ok {
-		return root, nil
+	if _, ok := t.nodes["/"]; ok {
+		return t.buildNodeWithChildren("/")
 	}
 	return interfaces.NodeInfo{Name: "root", Path: "/"}, nil
 }
 
-// GetNode gets a specific node by path
+// GetNode gets a specific node by path with Children populated recursively
 func (t *TreeAdapterStub) GetNode(path string) (interfaces.NodeInfo, error) {
 	// If we have workspace context, ensure all ancestors are scanned for nested configs
 	if t.workspace != "" && t.fsProvider != nil && path != "/" {
 		parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
-		
+
 		// Scan each ancestor level if not already scanned
 		for i := 1; i <= len(parts); i++ {
 			ancestorPath := "/" + strings.Join(parts[:i], "/")
@@ -206,17 +251,21 @@ func (t *TreeAdapterStub) GetNode(path string) (interfaces.NodeInfo, error) {
 			}
 		}
 	}
-	
-	// Now check if node exists in memory
-	if node, ok := t.nodes[path]; ok {
-		return node, nil
-	}
-	
-	return interfaces.NodeInfo{}, fmt.Errorf("node not found: %s", path)
+
+	// Build node with children populated recursively
+	return t.buildNodeWithChildren(path)
 }
 
 // AddNode adds a new node to the tree
 func (t *TreeAdapterStub) AddNode(parentPath string, node interfaces.NodeInfo) error {
+	// Special case: if the node is the root node itself (Path="/"), store it at "/"
+	// This handles initializeRootNode scenarios where we add the root directly
+	if node.Path == "/" {
+		t.nodes["/"] = node
+		return nil
+	}
+
+	// Regular node: compute full path from parent and name
 	fullPath := parentPath + "/" + node.Name
 	if parentPath == "/" || parentPath == "" {
 		fullPath = "/" + node.Name

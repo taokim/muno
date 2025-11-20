@@ -1557,7 +1557,8 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 		} else {
 			// For subsequent levels, check if parent has a custom repos_dir
 			childReposDir := ""
-			
+			processedConfig := false
+
 			// Check if the PARENT (not current) is a config node
 			if m.treeProvider != nil && i > 0 {
 				// The parent is the path up to (but not including) the current part
@@ -1570,10 +1571,15 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 						// Make it absolute relative to workspace
 						configPath = filepath.Join(m.workspace, configPath)
 					}
-					if cfg, err := config.LoadTree(configPath); err == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
-						childReposDir = cfg.Workspace.ReposDir
+					// Use LoadTreeReposDir to get repos_dir without defaults applied
+					// This allows us to distinguish between "not set" (empty) vs "set to .nodes"
+					if reposDir, err := config.LoadTreeReposDir(configPath); err == nil {
+						childReposDir = reposDir
+						processedConfig = true
 					} else {
+						// Config failed to load, use default
 						childReposDir = constants.DefaultReposDir
+						processedConfig = true
 					}
 				} else if err == nil && parentNode.Repository != "" {
 					// Parent is a git repository, check if it has a muno.yaml
@@ -1584,22 +1590,22 @@ func (m *Manager) computeFilesystemPath(logicalPath string) string {
 						if cfg, err := config.LoadTree(parentMunoYaml); err == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
 							childReposDir = cfg.Workspace.ReposDir
 						}
+						processedConfig = true
 					} else if m.fsProvider.Exists(filepath.Join(currentPath, ".git")) {
 						// Parent is a git repo without muno.yaml, use default
 						childReposDir = constants.DefaultReposDir
+						processedConfig = true
 					}
 				}
 			}
-			
-			// If we still don't have a repos_dir and parent is not a config node,
-			// check for muno.yaml at the current path
-			if childReposDir == "" {
+
+			// If we haven't processed a config node yet, check for muno.yaml at the current path
+			if !processedConfig {
 				parentMunoYaml := filepath.Join(currentPath, "muno.yaml")
 				if m.fsProvider.Exists(parentMunoYaml) {
-					// Parent has muno.yaml, use its repos_dir
-					childReposDir = constants.DefaultReposDir // default from constants
-					if cfg, err := config.LoadTree(parentMunoYaml); err == nil && cfg != nil && cfg.Workspace.ReposDir != "" {
-						childReposDir = cfg.Workspace.ReposDir
+					// Parent has muno.yaml, use its repos_dir without defaults
+					if reposDir, err := config.LoadTreeReposDir(parentMunoYaml); err == nil {
+						childReposDir = reposDir
 					}
 				} else if m.fsProvider.Exists(filepath.Join(currentPath, ".git")) {
 					// Parent is a git repo without muno.yaml, use default
@@ -2628,12 +2634,12 @@ func (m *Manager) pullRecursiveWithOptions(node interfaces.NodeInfo, force bool,
 						IsLazy:     nodeDef.IsLazy(),
 						IsCloned:   false,
 					}
-					// Check if cloned
-					childFsPath := m.computeFilesystemPath(childPath)
-					if _, err := os.Stat(filepath.Join(childFsPath, ".git")); err == nil {
-						childNode.IsCloned = true
-					}
-					// Recursively process this child
+				// Check if cloned
+				childFsPath := m.computeFilesystemPath(childPath)
+				if _, err := os.Stat(filepath.Join(childFsPath, ".git")); err == nil {
+					childNode.IsCloned = true
+				}
+				// Recursively process this child
 					if err := m.pullRecursiveWithOptions(childNode, force, includeLazy); err != nil {
 						return err
 					}

@@ -328,8 +328,9 @@ func TestCollectClonedRepos_ConfigNodeWithURLChildren(t *testing.T) {
 
 	// Create config file with URL children
 	configContent := `
-workspace_name: team-backend
-repos_dir: services
+workspace:
+    name: team-backend
+    repos_dir: services
 nodes:
   - name: payment-service
     url: https://github.com/test/payment.git
@@ -338,15 +339,16 @@ nodes:
     url: https://github.com/test/order.git
     fetch: eager
 `
-	configPath := filepath.Join(tmpDir, "team-backend", "muno.yaml")
+	// Config goes under .nodes/team-backend (first level)
+	configPath := filepath.Join(tmpDir, ".nodes", "team-backend", "muno.yaml")
 	os.MkdirAll(filepath.Dir(configPath), 0755)
 	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
 		t.Fatalf("Failed to create config file: %v", err)
 	}
 
-	// Create .git directories for cloned repos
-	paymentPath := filepath.Join(tmpDir, "team-backend", "services", "payment-service", ".git")
-	orderPath := filepath.Join(tmpDir, "team-backend", "services", "order-service", ".git")
+	// Create .git directories for cloned repos (under .nodes/team-backend/services/)
+	paymentPath := filepath.Join(tmpDir, ".nodes", "team-backend", "services", "payment-service", ".git")
+	orderPath := filepath.Join(tmpDir, ".nodes", "team-backend", "services", "order-service", ".git")
 	os.MkdirAll(paymentPath, 0755)
 	os.MkdirAll(orderPath, 0755)
 
@@ -357,6 +359,9 @@ nodes:
 		ConfigFile: configPath,
 		IsConfig:   true,
 	}
+
+	// Add config node to tree so computeFilesystemPath can resolve it
+	AddNodeToTree(mgr, "/team-backend", configNode)
 
 	// Collect cloned repos
 	repos := mgr.collectClonedRepos(configNode)
@@ -386,10 +391,11 @@ func TestCollectClonedRepos_ConfigNodeWithFileChildren(t *testing.T) {
 	mgr := CreateTestManager(t, tmpDir)
 	initializeRootNode(mgr)
 
-	// Create nested config file
+	// Create nested config file (referenced by parent, can be anywhere)
 	nestedConfigContent := `
-workspace_name: frontend
-repos_dir: apps
+workspace:
+    name: frontend
+    repos_dir: apps
 nodes:
   - name: web-app
     url: https://github.com/test/web.git
@@ -403,8 +409,9 @@ nodes:
 
 	// Create parent config with File child
 	parentConfigContent := `
-workspace_name: platform
-repos_dir: teams
+workspace:
+    name: platform
+    repos_dir: teams
 nodes:
   - name: frontend
     file: frontend/muno.yaml
@@ -415,7 +422,9 @@ nodes:
 	}
 
 	// Create .git directory for web-app
-	webAppPath := filepath.Join(tmpDir, "frontend", "apps", "web-app", ".git")
+	// Frontend is first level, so goes under .nodes/frontend
+	// Then repos_dir=apps means web-app is under .nodes/frontend/apps/web-app
+	webAppPath := filepath.Join(tmpDir, ".nodes", "frontend", "apps", "web-app", ".git")
 	os.MkdirAll(webAppPath, 0755)
 
 	// Create config node
@@ -425,6 +434,19 @@ nodes:
 		ConfigFile: parentConfigPath,
 		IsConfig:   true,
 	}
+
+	// Add parent config node to tree (it's the root, so it's already there from initializeRootNode)
+	// But we need to update it with the ConfigFile
+	mgr.treeProvider.UpdateNode("/", configNode)
+
+	// Also add the nested frontend config node so path resolution works
+	frontendNode := interfaces.NodeInfo{
+		Name:       "frontend",
+		Path:       "/frontend",
+		ConfigFile: nestedConfigPath,
+		IsConfig:   true,
+	}
+	AddNodeToTree(mgr, "/frontend", frontendNode)
 
 	// Collect cloned repos
 	repos := mgr.collectClonedRepos(configNode)

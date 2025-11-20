@@ -185,6 +185,25 @@ func LoadTree(path string) (*ConfigTree, error) {
 	return &cfg, nil
 }
 
+// LoadTreeReposDir loads a config and returns the repos_dir as explicitly set in the YAML
+// (without applying defaults). Returns empty string if repos_dir is not set.
+// This is useful for path resolution where we need to distinguish between
+// "user explicitly set repos_dir to .nodes" vs "repos_dir not set (use parent directory directly)"
+func LoadTreeReposDir(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("reading config file: %w", err)
+	}
+
+	var cfg ConfigTree
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return "", fmt.Errorf("parsing config: %w", err)
+	}
+
+	// Return the repos_dir as specified in the YAML (without defaults)
+	return cfg.Workspace.ReposDir, nil
+}
+
 // Save writes a tree configuration to a YAML file
 func (c *ConfigTree) Save(path string) error {
 	// Ensure directory exists
