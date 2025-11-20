@@ -833,6 +833,26 @@ main() {
     fi
 }
 
+# Clean up any stale test files from previous runs that might pollute tests
+# This prevents findWorkspaceRoot() from finding parent muno.yaml files
+cleanup_stale_tests() {
+    # Only clean up obvious test directories and files
+    # Don't remove anything that might be a real workspace
+    # Handle both /tmp and /private/tmp (macOS symlink)
+    rm -rf /tmp/muno-regression-* 2>/dev/null || true
+    rm -rf /tmp/muno-test-* 2>/dev/null || true
+    rm -rf /tmp/test-muno-* 2>/dev/null || true
+    rm -rf /private/tmp/muno-regression-* 2>/dev/null || true
+    rm -rf /private/tmp/muno-test-* 2>/dev/null || true
+    rm -rf /private/tmp/test-muno-* 2>/dev/null || true
+    # Also remove any stale muno.yaml files in /tmp
+    rm -f /tmp/muno.yaml /private/tmp/muno.yaml 2>/dev/null || true
+}
+
 # Run with cleanup on exit
 trap cleanup EXIT INT TERM
+
+# Clean up stale tests before starting
+cleanup_stale_tests
+
 main
