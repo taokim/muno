@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.6] - 2025-11-20
+
+### Fixed
+- Correct config path resolution for nested config nodes in path validation
+- Fix YAML format for config node tests and improve path resolution accuracy
+
+### Added
+- Comprehensive tests for pullAllRepositories, collectClonedRepos, and Remove operations
+- Cleanup for stale test files to prevent regression test pollution
+- Improved test coverage for manager package from ~30% to 70%+
+
+### Changed
+- Enhanced TestPullNestedConfigRecursive path expectations for nested config nodes
+- Added test files from previous development sessions
+
 ## [1.1.1] - 2024-10-23
 
 ### Fixed
