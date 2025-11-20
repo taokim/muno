@@ -148,8 +148,8 @@ nodes:
 		filepath.Join(nodesDir, "team-frontend", "web-app"),
 		filepath.Join(nodesDir, "team-frontend", "mobile-app"),
 		filepath.Join(nodesDir, "team-backend", "api-service"),
-		filepath.Join(nodesDir, "team-backend", "infra", "monitoring"),
-		filepath.Join(nodesDir, "team-backend", "infra", "logging"),
+		filepath.Join(nodesDir, "team-backend", "infra", ".nodes", "monitoring"),
+		filepath.Join(nodesDir, "team-backend", "infra", ".nodes", "logging"),
 	}
 
 	for _, repo := range repos {
