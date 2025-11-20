@@ -758,6 +758,11 @@ func (m *Manager) ResolvePath(target string, ensure bool) (string, error) {
 								}
 								if err := m.gitProvider.Clone(repo.Repository, clonePath, opts); err != nil {
 									m.logProvider.Warn(fmt.Sprintf("Failed to clone %s: %v", repo.Name, err))
+								} else {
+									// Successfully cloned - add to tree so validation passes
+									repo.IsCloned = true
+									repo.IsLazy = false
+									m.treeProvider.UpdateNode(repo.Path, repo)
 								}
 							}
 							break
@@ -829,8 +834,8 @@ if node.IsConfig && node.ConfigFile != "" {
 				if parentErr == nil && parentNode.IsConfig && parentNode.ConfigFile != "" {
 					// Found a config parent - check if it defines this child
 					configPath := parentNode.ConfigFile
-					if !filepath.IsAbs(configPath) {
-						configPath = filepath.Join(m.workspace, configPath)
+					if !filepath.IsAbs(configPath) && !strings.HasPrefix(configPath, "http") {
+						configPath = m.resolveConfigPath(parentNode.ConfigFile, parentNode.Path)
 					}
 					if cfg, loadErr := config.LoadTree(configPath); loadErr == nil && cfg != nil {
 						// Check if the config defines the child we're looking for
