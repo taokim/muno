@@ -214,3 +214,39 @@ func findWorkspaceRoot(startPath string) string {
 	
 	return ""
 }
+
+// getCurrentTreePath converts current working directory to tree path
+// Returns "/" if outside workspace or at workspace root
+func (m *Manager) getCurrentTreePath() (string, error) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("getting current directory: %w", err)
+	}
+	
+	workspaceRoot := m.workspace
+	reposDir := filepath.Join(workspaceRoot, m.getReposDir())
+	
+	// Convert pwd to tree path
+	if strings.HasPrefix(pwd, reposDir) {
+		// We're inside the repos directory
+		relPath, err := filepath.Rel(reposDir, pwd)
+		if err != nil {
+			return "", fmt.Errorf("getting relative path: %w", err)
+		}
+		
+		// Convert to tree path
+		if relPath == "." {
+			return "/", nil
+		}
+		// Clean and convert to forward slashes
+		return "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/"), nil
+	}
+	
+	if pwd == workspaceRoot {
+		// We're at workspace root
+		return "/", nil
+	}
+	
+	// Outside workspace - use root
+	return "/", nil
+}

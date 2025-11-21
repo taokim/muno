@@ -36,7 +36,6 @@ go build -o bin/muno ./cmd/muno
 ./bin/muno list                    # List child nodes
 
 # Repository Management
-./bin/muno add <repo-url> [--lazy] # Add child repository
 ./bin/muno remove <name>           # Remove child repository
 ./bin/muno clone [--recursive]     # Clone lazy repositories
 
@@ -52,7 +51,7 @@ go build -o bin/muno ./cmd/muno
 # Git operations
 ./bin/muno pull [--recursive]      # Pull repositories
 ./bin/muno push [--recursive]      # Push changes
-./bin/muno commit -m "msg"         # Commit changes
+./bin/muno commit -m "msg" [--recursive]  # Commit changes
 ./bin/muno status [--recursive]    # Show git status
 ```
 

@@ -1760,30 +1760,9 @@ func (m *Manager) ListNodesRecursive(recursive bool) error {
 	}
 	
 	// Get current node based on pwd
-	pwd, err := os.Getwd()
+	currentPath, err := m.getCurrentTreePath()
 	if err != nil {
-		return fmt.Errorf("getting current directory: %w", err)
-	}
-	
-	// Convert pwd to tree path
-	workspaceRoot := m.workspace
-	reposDir := filepath.Join(workspaceRoot, m.getReposDir())
-	
-	var currentPath string
-	if strings.HasPrefix(pwd, reposDir) {
-		relPath, err := filepath.Rel(reposDir, pwd)
-		if err != nil {
-			return fmt.Errorf("getting relative path: %w", err)
-		}
-		if relPath == "." {
-			currentPath = "/"
-		} else {
-			currentPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
-		}
-	} else if pwd == workspaceRoot {
-		currentPath = "/"
-	} else {
-		currentPath = "/"
+		return fmt.Errorf("resolving current tree path: %w", err)
 	}
 	
 	current, err := m.treeProvider.GetNode(currentPath)
@@ -1930,28 +1909,10 @@ func (m *Manager) ShowTreeAtPath(path string, depth int) error {
 	
 	// Use pwd-based resolution if path is empty
 	if path == "" {
-		pwd, err := os.Getwd()
+		var err error
+		path, err = m.getCurrentTreePath()
 		if err != nil {
-			return fmt.Errorf("getting current directory: %w", err)
-		}
-		
-		workspaceRoot := m.workspace
-		reposDir := filepath.Join(workspaceRoot, m.getReposDir())
-		
-		if strings.HasPrefix(pwd, reposDir) {
-			relPath, err := filepath.Rel(reposDir, pwd)
-			if err != nil {
-				return fmt.Errorf("getting relative path: %w", err)
-			}
-			if relPath == "." {
-				path = "/"
-			} else {
-				path = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
-			}
-		} else if pwd == workspaceRoot {
-			path = "/"
-		} else {
-			path = "/"
+			return fmt.Errorf("resolving current tree path: %w", err)
 		}
 	}
 	
@@ -2146,37 +2107,10 @@ func (m *Manager) StatusNode(path string, recursive bool) error {
 	
 	targetPath := path
 	if targetPath == "" {
-		// Use pwd-based resolution instead of stored state
-		pwd, err := os.Getwd()
+		var err error
+		targetPath, err = m.getCurrentTreePath()
 		if err != nil {
-			return fmt.Errorf("getting current directory: %w", err)
-		}
-		
-		// Check if we're in the workspace
-		workspaceRoot := m.workspace
-		reposDir := filepath.Join(workspaceRoot, m.getReposDir())
-		
-		// Convert pwd to tree path
-		if strings.HasPrefix(pwd, reposDir) {
-			// We're inside the repos directory
-			relPath, err := filepath.Rel(reposDir, pwd)
-			if err != nil {
-				return fmt.Errorf("getting relative path: %w", err)
-			}
-			
-			// Convert to tree path
-			if relPath == "." {
-				targetPath = "/"
-			} else {
-				// Clean and convert to forward slashes
-				targetPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
-			}
-		} else if pwd == workspaceRoot {
-			// We're at workspace root
-			targetPath = "/"
-		} else {
-			// Outside workspace - use root
-			targetPath = "/"
+			return fmt.Errorf("resolving current tree path: %w", err)
 		}
 	}
 	
@@ -2347,29 +2281,10 @@ func (m *Manager) PullNodeWithOptions(path string, recursive bool, force bool, i
 	
 	targetPath := path
 	if targetPath == "" {
-		// Use pwd-based resolution
-		pwd, err := os.Getwd()
+		var err error
+		targetPath, err = m.getCurrentTreePath()
 		if err != nil {
-			return fmt.Errorf("getting current directory: %w", err)
-		}
-		
-		workspaceRoot := m.workspace
-		reposDir := filepath.Join(workspaceRoot, m.getReposDir())
-		
-		if strings.HasPrefix(pwd, reposDir) {
-			relPath, err := filepath.Rel(reposDir, pwd)
-			if err != nil {
-				return fmt.Errorf("getting relative path: %w", err)
-			}
-			if relPath == "." {
-				targetPath = "/"
-			} else {
-				targetPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
-			}
-		} else if pwd == workspaceRoot {
-			targetPath = "/"
-		} else {
-			targetPath = "/"
+			return fmt.Errorf("resolving current tree path: %w", err)
 		}
 	}
 	
@@ -2410,29 +2325,10 @@ func (m *Manager) PullNode(path string, recursive bool, force bool) error {
 	
 	targetPath := path
 	if targetPath == "" {
-		// Use pwd-based resolution
-		pwd, err := os.Getwd()
+		var err error
+		targetPath, err = m.getCurrentTreePath()
 		if err != nil {
-			return fmt.Errorf("getting current directory: %w", err)
-		}
-		
-		workspaceRoot := m.workspace
-		reposDir := filepath.Join(workspaceRoot, m.getReposDir())
-		
-		if strings.HasPrefix(pwd, reposDir) {
-			relPath, err := filepath.Rel(reposDir, pwd)
-			if err != nil {
-				return fmt.Errorf("getting relative path: %w", err)
-			}
-			if relPath == "." {
-				targetPath = "/"
-			} else {
-				targetPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
-			}
-		} else if pwd == workspaceRoot {
-			targetPath = "/"
-		} else {
-			targetPath = "/"
+			return fmt.Errorf("resolving current tree path: %w", err)
 		}
 	}
 	
@@ -2778,29 +2674,10 @@ func (m *Manager) PushNode(path string, recursive bool) error {
 	
 	targetPath := path
 	if targetPath == "" {
-		// Use pwd-based resolution
-		pwd, err := os.Getwd()
+		var err error
+		targetPath, err = m.getCurrentTreePath()
 		if err != nil {
-			return fmt.Errorf("getting current directory: %w", err)
-		}
-		
-		workspaceRoot := m.workspace
-		reposDir := filepath.Join(workspaceRoot, m.getReposDir())
-		
-		if strings.HasPrefix(pwd, reposDir) {
-			relPath, err := filepath.Rel(reposDir, pwd)
-			if err != nil {
-				return fmt.Errorf("getting relative path: %w", err)
-			}
-			if relPath == "." {
-				targetPath = "/"
-			} else {
-				targetPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
-			}
-		} else if pwd == workspaceRoot {
-			targetPath = "/"
-		} else {
-			targetPath = "/"
+			return fmt.Errorf("resolving current tree path: %w", err)
 		}
 	}
 	
@@ -2845,29 +2722,10 @@ func (m *Manager) CommitNode(path string, message string, recursive bool) error 
 	
 	targetPath := path
 	if targetPath == "" {
-		// Use pwd-based resolution
-		pwd, err := os.Getwd()
+		var err error
+		targetPath, err = m.getCurrentTreePath()
 		if err != nil {
-			return fmt.Errorf("getting current directory: %w", err)
-		}
-		
-		workspaceRoot := m.workspace
-		reposDir := filepath.Join(workspaceRoot, m.getReposDir())
-		
-		if strings.HasPrefix(pwd, reposDir) {
-			relPath, err := filepath.Rel(reposDir, pwd)
-			if err != nil {
-				return fmt.Errorf("getting relative path: %w", err)
-			}
-			if relPath == "." {
-				targetPath = "/"
-			} else {
-				targetPath = "/" + strings.ReplaceAll(filepath.ToSlash(relPath), "\\", "/")
-			}
-		} else if pwd == workspaceRoot {
-			targetPath = "/"
-		} else {
-			targetPath = "/"
+			return fmt.Errorf("resolving current tree path: %w", err)
 		}
 	}
 	
@@ -2876,11 +2734,38 @@ func (m *Manager) CommitNode(path string, message string, recursive bool) error 
 		return fmt.Errorf("getting node: %w", err)
 	}
 	
+	if recursive {
+		return m.commitRecursive(node, message)
+	}
+	
+	// Single node commit
 	fullPath := m.computeFilesystemPath(node.Path)
 	m.logProvider.Info(fmt.Sprintf("Committing changes: %s", message))
 	m.logProvider.Info(fmt.Sprintf("  Tree path: %s", node.Path))
 	m.logProvider.Info(fmt.Sprintf("  Directory: %s", fullPath))
 	return m.gitProvider.Commit(fullPath, message, interfaces.CommitOptions{})
+}
+
+// commitRecursive commits changes in the node and all its children
+func (m *Manager) commitRecursive(node interfaces.NodeInfo, message string) error {
+	// Commit current node if it's a cloned git repo
+	if node.IsCloned {
+		fullPath := m.computeFilesystemPath(node.Path)
+		m.logProvider.Info(fmt.Sprintf("Committing %s: %s", node.Path, message))
+		if err := m.gitProvider.Commit(fullPath, message, interfaces.CommitOptions{}); err != nil {
+			m.logProvider.Error(fmt.Sprintf("Commit failed at %s: %v", node.Path, err))
+			// Continue with other repos even if one fails
+		}
+	}
+	
+	// Recurse to children
+	for _, child := range node.Children {
+		if err := m.commitRecursive(child, message); err != nil {
+			return err
+		}
+	}
+	
+	return nil
 }
 
 

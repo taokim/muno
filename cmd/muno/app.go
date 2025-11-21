@@ -101,7 +101,6 @@ Features:
 	a.rootCmd.AddCommand(a.newTreeCmd())
 	
 	// Repository management
-	a.rootCmd.AddCommand(a.newAddCmd())
 	a.rootCmd.AddCommand(a.newRemoveCmd())
 	a.rootCmd.AddCommand(a.newCloneCmd())
 	
@@ -298,34 +297,6 @@ func (a *App) newTreeCmd() *cobra.Command {
 	}
 	
 	cmd.Flags().IntVarP(&depth, "depth", "d", 0, "Maximum depth to display (0 for unlimited)")
-	
-	return cmd
-}
-
-// newAddCmd creates the add command
-func (a *App) newAddCmd() *cobra.Command {
-	var name string
-	var lazy bool
-	
-	cmd := &cobra.Command{
-		Use:   "add <repo-url>",
-		Short: "Add a child repository to current node",
-		Long: `Add a repository as a child of the current node.
-		
-The repository will be cloned immediately unless --lazy is specified.`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, err := manager.LoadFromCurrentDir()
-			if err != nil {
-				return fmt.Errorf("loading workspace: %w", err)
-			}
-			
-			return mgr.AddRepoSimple(args[0], name, lazy)
-		},
-	}
-	
-	cmd.Flags().StringVarP(&name, "name", "n", "", "Custom name for the repository")
-	cmd.Flags().BoolVarP(&lazy, "lazy", "l", false, "Don't clone until needed")
 	
 	return cmd
 }
