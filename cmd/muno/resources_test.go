@@ -19,25 +19,25 @@ func TestGetShellTemplate(t *testing.T) {
 			name:      "bash template",
 			shellType: "bash",
 			wantEmpty: false,
-			contains:  []string{"{{CMD_NAME}}", "cd", "path"},
+			contains:  []string{"{{CMD_NAME}}", "cd", "path", "--ensure"},
 		},
 		{
 			name:      "zsh template",
 			shellType: "zsh",
 			wantEmpty: false,
-			contains:  []string{"{{CMD_NAME}}", "cd", "path"},
+			contains:  []string{"{{CMD_NAME}}", "cd", "path", "--ensure"},
 		},
 		{
 			name:      "fish template",
 			shellType: "fish",
 			wantEmpty: false,
-			contains:  []string{"{{CMD_NAME}}", "cd", "path"},
+			contains:  []string{"{{CMD_NAME}}", "cd", "path", "--ensure"},
 		},
 		{
 			name:      "unknown shell",
 			shellType: "unknown",
 			wantEmpty: false,  // getShellTemplate returns bash template by default
-			contains:  []string{"{{CMD_NAME}}", "cd", "path"},
+			contains:  []string{"{{CMD_NAME}}", "cd", "path", "--ensure"},
 		},
 	}
 	

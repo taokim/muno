@@ -22,15 +22,10 @@
         muno_cmd="muno-local"
     fi
     
-    # Resolve path (try without lazy clone first)
+    # Resolve path with --ensure to auto-clone lazy repositories
     local resolved
-    resolved=$($muno_cmd path "$target" 2>/dev/null)
-    
-    # If path doesn't exist, try with lazy clone
-    if [ $? -ne 0 ] || [ ! -d "$resolved" ]; then
-        resolved=$($muno_cmd path "$target" --ensure 2>/dev/null)
-    fi
-    
+    resolved=$($muno_cmd path "$target" --ensure 2>/dev/null)
+
     if [ $? -eq 0 ] && [ -d "$resolved" ]; then
         cd "$resolved"
         # Show current position in tree

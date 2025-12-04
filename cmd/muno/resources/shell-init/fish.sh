@@ -24,14 +24,9 @@ function {{CMD_NAME}}
     # Save current position
     set -g _MUNO_PREV ($muno_cmd path . --relative 2>/dev/null; or echo '/')
     
-    # Resolve path (try without lazy clone first)
-    set -l resolved ($muno_cmd path $target 2>/dev/null)
-    
-    # If path doesn't exist, try with lazy clone
-    if test $status -ne 0; or not test -d "$resolved"
-        set resolved ($muno_cmd path $target --ensure 2>/dev/null)
-    end
-    
+    # Resolve path with --ensure to auto-clone lazy repositories
+    set -l resolved ($muno_cmd path $target --ensure 2>/dev/null)
+
     if test $status -eq 0; and test -d "$resolved"
         cd $resolved
         echo "📍 "($muno_cmd path . --relative 2>/dev/null; or pwd)

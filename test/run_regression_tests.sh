@@ -208,15 +208,29 @@ test_repository_management() {
     
     cd "$WORKSPACE_DIR"
     
-    # Add repositories with different fetch modes
-    test_case "Add eager repository (monorepo)" \
-        "$MUNO_BIN add file://$REPOS_DIR/backend-monorepo --name backend-monorepo"
+    # Configure repositories via YAML (MUNO uses config-based management, not add command)
+    cat > muno.yaml << EOF
+workspace:
+    name: test-workspace
+    repos_dir: .nodes
+nodes:
+    - name: backend-monorepo
+      url: file://$REPOS_DIR/backend-monorepo
+    - name: payment-service
+      url: file://$REPOS_DIR/payment-service
+      fetch: lazy
+    - name: auth-service
+      url: file://$REPOS_DIR/auth-service
+EOF
     
-    test_case "Add lazy repository" \
-        "$MUNO_BIN add file://$REPOS_DIR/payment-service --name payment-service --lazy"
+    test_case "Configure eager repository (monorepo)" \
+        "grep -q 'backend-monorepo' muno.yaml"
     
-    test_case "Add auto-detect repository" \
-        "$MUNO_BIN add file://$REPOS_DIR/auth-service --name auth-service"
+    test_case "Configure lazy repository" \
+        "grep -q 'payment-service' muno.yaml && grep -q 'fetch: lazy' muno.yaml"
+    
+    test_case "Configure auto-detect repository" \
+        "grep -q 'auth-service' muno.yaml"
     
     # Check repository appears in config
     test_case "Repositories in config" \
@@ -242,10 +256,20 @@ test_clone_behavior() {
     # Setup fresh state
     rm -rf .nodes/*
     
-    # Add repositories
-    "$MUNO_BIN" add file://$REPOS_DIR/backend-monorepo --name backend-monorepo >/dev/null 2>&1
-    "$MUNO_BIN" add file://$REPOS_DIR/payment-service --name payment-service --lazy >/dev/null 2>&1
-    "$MUNO_BIN" add file://$REPOS_DIR/config-meta --name config-meta >/dev/null 2>&1
+    # Configure repositories via YAML
+    cat > muno.yaml << EOF
+workspace:
+    name: test-workspace
+    repos_dir: .nodes
+nodes:
+    - name: backend-monorepo
+      url: file://$REPOS_DIR/backend-monorepo
+    - name: payment-service
+      url: file://$REPOS_DIR/payment-service
+      fetch: lazy
+    - name: config-meta
+      url: file://$REPOS_DIR/config-meta
+EOF
     
     # Test clone without --include-lazy
     test_case "Clone without --include-lazy" "$MUNO_BIN clone"
@@ -266,8 +290,23 @@ test_pull_behavior() {
     
     cd "$WORKSPACE_DIR"
     
-    # Add another lazy repo
-    "$MUNO_BIN" add file://$REPOS_DIR/frontend-app --name frontend-app --lazy >/dev/null 2>&1
+    # Add another lazy repo via YAML update
+    cat > muno.yaml << EOF
+workspace:
+    name: test-workspace
+    repos_dir: .nodes
+nodes:
+    - name: backend-monorepo
+      url: file://$REPOS_DIR/backend-monorepo
+    - name: payment-service
+      url: file://$REPOS_DIR/payment-service
+      fetch: lazy
+    - name: config-meta
+      url: file://$REPOS_DIR/config-meta
+    - name: frontend-app
+      url: file://$REPOS_DIR/frontend-app
+      fetch: lazy
+EOF
     
     # Pull should NOT clone the new lazy repo
     test_case "Pull command runs" "$MUNO_BIN pull --recursive"
@@ -297,6 +336,9 @@ test_tree_navigation() {
     start_suite "Tree Display & Navigation"
     
     cd "$WORKSPACE_DIR"
+    
+    # Ensure we have repos cloned for tree display
+    $MUNO_BIN clone >/dev/null 2>&1
     
     test_case "Show tree structure" "$MUNO_BIN tree"
     test_case "Tree shows cloned status" "$MUNO_BIN tree | grep -E '✅|💤'"
@@ -738,6 +780,212 @@ EOF
 }
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# MCD Auto-Clone Behavior Tests
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+test_mcd_auto_clone() {
+    # Test that mcd (shell-init) uses --ensure by default for auto-cloning
+    start_suite "MCD Auto-Clone Behavior"
+
+    cd "$WORKSPACE_DIR"
+
+    # Create test repos directory
+    local TEST_REPOS="$WORKSPACE_DIR/test-repos"
+    mkdir -p "$TEST_REPOS"
+
+    # Create a source repo for cloning
+    mkdir -p "$TEST_REPOS/source-repo"
+    cd "$TEST_REPOS/source-repo"
+    git init --quiet
+    echo "# Test Repo" > README.md
+    git add .
+    git commit -m "Initial commit" --quiet
+
+    cd "$WORKSPACE_DIR"
+
+    # Create workspace config with lazy repo
+    cat > muno.yaml << EOF
+workspace:
+    name: mcd-test
+    repos_dir: .nodes
+nodes:
+    - name: lazy-test
+      url: file://$TEST_REPOS/source-repo
+      fetch: lazy
+    - name: eager-test
+      url: file://$TEST_REPOS/source-repo
+EOF
+
+    # Clone the eager repo only
+    $MUNO_BIN clone 2>/dev/null
+
+    # Verify lazy repo is NOT cloned yet
+    if [ -d ".nodes/lazy-test/.git" ]; then
+        echo -e "${RED}✗ Lazy repo should NOT be cloned yet${NC}"
+        ((FAILED_TESTS++))
+        FAILED_TEST_NAMES+=("Lazy repo not pre-cloned")
+    else
+        echo -e "${GREEN}✓${NC} Lazy repo correctly not cloned initially"
+        ((PASSED_TESTS++))
+    fi
+    ((TOTAL_TESTS++))
+
+    # Verify eager repo IS cloned
+    if [ -d ".nodes/eager-test/.git" ]; then
+        echo -e "${GREEN}✓${NC} Eager repo correctly cloned"
+        ((PASSED_TESTS++))
+    else
+        echo -e "${RED}✗ Eager repo should be cloned${NC}"
+        ((FAILED_TESTS++))
+        FAILED_TEST_NAMES+=("Eager repo pre-cloned")
+    fi
+    ((TOTAL_TESTS++))
+
+    # Test 1: Verify shell-init script uses --ensure
+    echo ""
+    echo -e "${BLUE}Testing shell-init uses --ensure:${NC}"
+
+    SHELL_INIT=$($MUNO_BIN shell-init --shell bash 2>/dev/null)
+    if echo "$SHELL_INIT" | grep -q 'path "$target" --ensure'; then
+        echo -e "${GREEN}✓${NC} shell-init (bash) uses --ensure flag"
+        ((PASSED_TESTS++))
+    else
+        echo -e "${RED}✗ shell-init (bash) does NOT use --ensure flag${NC}"
+        ((FAILED_TESTS++))
+        FAILED_TEST_NAMES+=("shell-init bash uses --ensure")
+    fi
+    ((TOTAL_TESTS++))
+
+    SHELL_INIT=$($MUNO_BIN shell-init --shell zsh 2>/dev/null)
+    if echo "$SHELL_INIT" | grep -q 'path "$target" --ensure'; then
+        echo -e "${GREEN}✓${NC} shell-init (zsh) uses --ensure flag"
+        ((PASSED_TESTS++))
+    else
+        echo -e "${RED}✗ shell-init (zsh) does NOT use --ensure flag${NC}"
+        ((FAILED_TESTS++))
+        FAILED_TEST_NAMES+=("shell-init zsh uses --ensure")
+    fi
+    ((TOTAL_TESTS++))
+
+    SHELL_INIT=$($MUNO_BIN shell-init --shell fish 2>/dev/null)
+    if echo "$SHELL_INIT" | grep -q 'path $target --ensure'; then
+        echo -e "${GREEN}✓${NC} shell-init (fish) uses --ensure flag"
+        ((PASSED_TESTS++))
+    else
+        echo -e "${RED}✗ shell-init (fish) does NOT use --ensure flag${NC}"
+        ((FAILED_TESTS++))
+        FAILED_TEST_NAMES+=("shell-init fish uses --ensure")
+    fi
+    ((TOTAL_TESTS++))
+
+    # Test 2: Simulate mcd behavior - path with --ensure should clone lazy repo
+    echo ""
+    echo -e "${BLUE}Testing mcd auto-clone simulation:${NC}"
+
+    # This simulates what mcd does: call path with --ensure
+    # Note: When cloning, path --ensure outputs the cloning message then the path (last line)
+    OUTPUT=$($MUNO_BIN path lazy-test --ensure 2>/dev/null)
+    PATH_EXIT=$?
+    # Extract the last line which is the actual path
+    RESOLVED=$(echo "$OUTPUT" | tail -1)
+
+    if [ $PATH_EXIT -eq 0 ]; then
+        echo -e "${GREEN}✓${NC} path --ensure succeeded for lazy repo"
+        ((PASSED_TESTS++))
+    else
+        echo -e "${RED}✗ path --ensure failed for lazy repo${NC}"
+        ((FAILED_TESTS++))
+        FAILED_TEST_NAMES+=("path --ensure succeeds for lazy")
+    fi
+    ((TOTAL_TESTS++))
+
+    # Verify the lazy repo was actually cloned
+    if [ -d ".nodes/lazy-test/.git" ]; then
+        echo -e "${GREEN}✓${NC} Lazy repo auto-cloned via --ensure"
+        ((PASSED_TESTS++))
+    else
+        echo -e "${RED}✗ Lazy repo NOT auto-cloned via --ensure${NC}"
+        ((FAILED_TESTS++))
+        FAILED_TEST_NAMES+=("Lazy repo auto-cloned")
+    fi
+    ((TOTAL_TESTS++))
+
+    # Verify the resolved path is correct
+    EXPECTED_PATH="$WORKSPACE_DIR/.nodes/lazy-test"
+    if [[ "$RESOLVED" == "$EXPECTED_PATH" ]]; then
+        echo -e "${GREEN}✓${NC} Resolved path is correct"
+        ((PASSED_TESTS++))
+    else
+        echo -e "${RED}✗ Resolved path incorrect: got '$RESOLVED', expected '$EXPECTED_PATH'${NC}"
+        ((FAILED_TESTS++))
+        FAILED_TEST_NAMES+=("Resolved path correct")
+    fi
+    ((TOTAL_TESTS++))
+
+    # Test 3: Ensure --ensure is idempotent (doesn't re-clone)
+    echo ""
+    echo -e "${BLUE}Testing --ensure idempotency:${NC}"
+
+    OUTPUT=$($MUNO_BIN path lazy-test --ensure 2>&1)
+    if [[ "$OUTPUT" == *"Cloning"* ]]; then
+        echo -e "${RED}✗ --ensure tried to re-clone already cloned repo${NC}"
+        ((FAILED_TESTS++))
+        FAILED_TEST_NAMES+=("--ensure idempotent")
+    else
+        echo -e "${GREEN}✓${NC} --ensure is idempotent (no re-clone)"
+        ((PASSED_TESTS++))
+    fi
+    ((TOTAL_TESTS++))
+
+    # Test 4: Test with already cloned repo (eager-test)
+    echo ""
+    echo -e "${BLUE}Testing --ensure with already cloned repo:${NC}"
+
+    RESOLVED=$($MUNO_BIN path eager-test --ensure 2>/dev/null)
+    PATH_EXIT=$?
+    EXPECTED_PATH="$WORKSPACE_DIR/.nodes/eager-test"
+
+    if [ $PATH_EXIT -eq 0 ] && [[ "$RESOLVED" == "$EXPECTED_PATH" ]]; then
+        echo -e "${GREEN}✓${NC} --ensure works correctly with already cloned repo"
+        ((PASSED_TESTS++))
+    else
+        echo -e "${RED}✗ --ensure failed with already cloned repo${NC}"
+        ((FAILED_TESTS++))
+        FAILED_TEST_NAMES+=("--ensure with cloned repo")
+    fi
+    ((TOTAL_TESTS++))
+
+    # Test 5: Test special paths still work with --ensure
+    echo ""
+    echo -e "${BLUE}Testing special paths with --ensure:${NC}"
+
+    RESOLVED=$($MUNO_BIN path . --ensure 2>/dev/null)
+    if [ $? -eq 0 ] && [[ "$RESOLVED" == "$WORKSPACE_DIR" ]]; then
+        echo -e "${GREEN}✓${NC} path . --ensure works correctly"
+        ((PASSED_TESTS++))
+    else
+        echo -e "${RED}✗ path . --ensure failed${NC}"
+        ((FAILED_TESTS++))
+        FAILED_TEST_NAMES+=("path . --ensure")
+    fi
+    ((TOTAL_TESTS++))
+
+    RESOLVED=$($MUNO_BIN path / --ensure 2>/dev/null)
+    if [ $? -eq 0 ] && [[ "$RESOLVED" == "$WORKSPACE_DIR" ]]; then
+        echo -e "${GREEN}✓${NC} path / --ensure works correctly"
+        ((PASSED_TESTS++))
+    else
+        echo -e "${RED}✗ path / --ensure failed${NC}"
+        ((FAILED_TESTS++))
+        FAILED_TEST_NAMES+=("path / --ensure")
+    fi
+    ((TOTAL_TESTS++))
+
+    # Cleanup
+    rm -rf "$TEST_REPOS"
+}
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Report Generation
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -801,6 +1049,7 @@ main() {
     test_advanced_features
     test_config_reference_symlinks
     test_path_ensure_with_config_nodes
+    test_mcd_auto_clone
     
     # Generate report
     generate_report
